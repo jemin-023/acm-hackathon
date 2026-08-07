@@ -334,22 +334,22 @@
 :host, * { box-sizing: border-box; margin: 0; padding: 0; }
 
 .mn {
-  /* ═══ Liquid Glass — Sage & Silver ═══ */
-  --mn-bg: rgba(18, 20, 28, 0.38);
+  /* ═══ Liquid Glass — Claude Harmonized ═══ */
+  --mn-bg: rgba(28, 27, 24, 0.45);
   --mn-bg-card: rgba(255, 255, 255, 0.035);
   --mn-bg-elevated: rgba(255, 255, 255, 0.065);
-  --mn-fg: #E8ECF1;
-  --mn-fg-muted: #8A9AAA;
-  --mn-primary: rgba(120, 150, 130, 0.12);
-  --mn-accent: #8FADA0;
-  --mn-accent-hover: #A9C4B8;
-  --mn-accent-purple: #9B8EC4;
+  --mn-fg: #ECECEC;
+  --mn-fg-muted: #A09C95;
+  --mn-primary: rgba(212, 197, 176, 0.12);
+  --mn-accent: #D4C5B0;
+  --mn-accent-hover: #E6D7C3;
+  --mn-accent-purple: #B5A89E;
   --mn-danger: #D97373;
   --mn-danger-hover: #C45858;
   --mn-warn: #D4A056;
-  --mn-border: rgba(255,255,255,0.04);
-  --mn-border-focus: rgba(255,255,255,0.10);
-  --mn-ring: rgba(143, 173, 160, 0.35);
+  --mn-border: rgba(255,255,255,0.05);
+  --mn-border-focus: rgba(255,255,255,0.12);
+  --mn-ring: rgba(212, 197, 176, 0.35);
   --mn-shadow: 0 8px 32px rgba(0,0,0,0.45);
   --mn-radius: 14px;
   --mn-radius-sm: 10px;
@@ -361,16 +361,16 @@
   --mn-inset-border-hover: inset 0 0.5px 0 0 rgba(255,255,255,0.2), inset 0 0 0 1px rgba(255,255,255,0.09);
   --mn-specular: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.03) 100%);
   --mn-specular-strong: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 35%, transparent 65%, rgba(255,255,255,0.05) 100%);
-  --mn-sage: #8FADA0;
-  --mn-sage-glow: rgba(143, 173, 160, 0.15);
-  --mn-lavender: #A093C7;
-  --mn-lavender-glow: rgba(160, 147, 199, 0.15);
+  --mn-sage: #D4C5B0;
+  --mn-sage-glow: rgba(212, 197, 176, 0.15);
+  --mn-lavender: #B5A89E;
+  --mn-lavender-glow: rgba(181, 168, 158, 0.15);
   --mn-rose: #C78B8B;
   --mn-rose-glow: rgba(199, 139, 139, 0.12);
   --mn-amber: #C9A86C;
   --mn-amber-glow: rgba(201, 168, 108, 0.12);
-  --mn-sky: #82ACC7;
-  --mn-sky-glow: rgba(130, 172, 199, 0.12);
+  --mn-sky: #9EADB5;
+  --mn-sky-glow: rgba(158, 173, 181, 0.12);
 
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 14px;
@@ -1823,8 +1823,7 @@ ins.mn-diff-ins { color: var(--mn-sage); text-decoration: none; background: var(
     root.appendChild(dr);
     ui.dr = dr;
 
-    // Attach MoltenMetal WebGL Shader Backdrop to Cover ENTIRE Extension Drawer
-    createMoltenMetalCanvas(dr, { opacity: 0.35, speed: 0.35, scale: 4.0 });
+    // (WebGL background animation removed as requested)
 
     // Toggle switch
     const tgl = dr.querySelector('.mn-tgl');
