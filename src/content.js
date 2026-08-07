@@ -275,23 +275,23 @@
 :host, * { box-sizing: border-box; margin: 0; padding: 0; }
 
 .mn {
-  --mn-bg: rgba(15, 23, 42, 0.68);
-  --mn-bg-card: rgba(255, 255, 255, 0.06);
-  --mn-bg-elevated: rgba(30, 41, 59, 0.60);
+  --mn-bg: #09090b;
+  --mn-bg-card: rgba(18, 18, 24, 0.75);
+  --mn-bg-elevated: rgba(28, 28, 36, 0.80);
   --mn-fg: #F8FAFC;
-  --mn-fg-muted: #CBD5E1;
-  --mn-primary: rgba(30, 58, 95, 0.5);
-  --mn-accent: #22C55E;
-  --mn-accent-hover: #16A34A;
-  --mn-accent-purple: #A78BFA;
+  --mn-fg-muted: #94A3B8;
+  --mn-primary: rgba(236, 72, 153, 0.25);
+  --mn-accent: #EC4899;
+  --mn-accent-hover: #F43F5E;
+  --mn-accent-purple: #F43F5E;
   --mn-danger: #EF4444;
   --mn-danger-hover: #DC2626;
   --mn-warn: #F59E0B;
-  --mn-border: rgba(255, 255, 255, 0.14);
-  --mn-border-focus: rgba(167, 139, 250, 0.5);
-  --mn-ring: rgba(139, 92, 246, 0.4);
-  --mn-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
-  --mn-radius: 16px;
+  --mn-border: rgba(255, 255, 255, 0.12);
+  --mn-border-focus: rgba(236, 72, 153, 0.5);
+  --mn-ring: rgba(236, 72, 153, 0.4);
+  --mn-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+  --mn-radius: 18px;
   --mn-radius-sm: 10px;
   --mn-radius-xs: 6px;
   --mn-transition: 200ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -403,7 +403,11 @@
 .mn-dr {
   position: fixed !important; top: 0 !important; right: 0 !important;
   width: 680px; max-width: 48vw; height: 100vh; height: 100dvh;
-  background: rgba(15, 23, 42, 0.72) !important;
+  background-color: #09090b !important;
+  background-image: 
+    radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 20% 80%, rgba(244, 63, 94, 0.06) 0%, transparent 60%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M30 40c10-5 30 15 40 5s-10-30 20-25 15 35 30 20S140 10 160 30s-10 40 10 50 30-20 40 10-20 40 0 60 40-10 30 20-30 30-10 50 30 10 20 40-30 10-20 30 20 20 0 40-20 10-30 30z'/%3E%3Cpath d='M220 180c15-10 45 20 60 10s-15-40 30-35 25 50 45 30 60-40 80-10-15 60 15 75 45-30 60 15-30 60 0 90 60-15 45 30-45 45-15 75 45 15 30 60-45 15-30 45 30 30 0 60-30 15-45 45z'/%3E%3Ctext x='40' y='160' font-family='sans-serif' font-size='28' font-weight='900' letter-spacing='4'%3ETHINKERS%3C/text%3E%3Ctext x='180' y='320' font-family='sans-serif' font-size='32' font-weight='900' letter-spacing='6'%3EDIGITAL%3C/text%3E%3Ctext x='20' y='360' font-family='sans-serif' font-size='24' font-weight='900'%3EWE ARE%3C/text%3E%3C/g%3E%3C/svg%3E") !important;
   backdrop-filter: blur(20px) saturate(190%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
   border-left: 1px solid rgba(255, 255, 255, 0.16) !important;
@@ -411,7 +415,7 @@
   transition: transform .28s cubic-bezier(.32,.72,0,1);
   display: flex; flex-direction: column;
   z-index: 99998;
-  box-shadow: -16px 0 48px rgba(0,0,0,0.5), inset 1px 0 0 rgba(255, 255, 255, 0.15) !important;
+  box-shadow: -16px 0 48px rgba(0,0,0,0.7), inset 1px 0 0 rgba(255, 255, 255, 0.15) !important;
   overflow: hidden;
 }
 .mn-dr.open {
