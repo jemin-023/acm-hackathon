@@ -997,19 +997,18 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 .mn-square-categories-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
-  padding: 8px 0 16px 0;
+  gap: 10px;
+  padding: 4px 0 12px 0;
 }
 
 .mn-category-square-card {
-  aspect-ratio: 1 / 1;
-  min-height: 110px;
-  border-radius: 24px;
+  min-height: 82px;
+  border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
   background: rgba(14, 14, 18, 0.88) !important;
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  padding: 16px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -1019,34 +1018,35 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .mn-category-square-card:hover {
-  transform: translateY(-4px) scale(1.02);
+  transform: translateY(-3px) scale(1.02);
   border-color: rgba(255, 255, 255, 0.35) !important;
   background: rgba(26, 26, 34, 0.95) !important;
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
   z-index: 2;
 }
 
 .mn-sq-title {
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--mn-fg);
-  line-height: 1.35;
+  line-height: 1.3;
   word-break: break-word;
 }
 
 .mn-sq-count {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #F8FAFC;
   align-self: flex-start;
+  margin-top: 8px;
 }
 
 .mn-sq-icon {
@@ -2517,9 +2517,6 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
       p.innerHTML =
         '<div class="mn-scrapbook-container">' +
-        '<div class="mn-mem-scope-badge mn-mem-scope-' + panelType + '">' +
-        (panelType === 'global' ? 'Global Memory — Applies everywhere' : 'Current Session — <strong>' + location.hostname + '</strong>') +
-        '</div>' +
         '<div class="mn-square-categories-grid">' + squareCardsHTML + '</div>' +
         '</div>';
 
