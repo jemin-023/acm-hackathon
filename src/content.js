@@ -48,6 +48,8 @@
 
   var shadow = null;
   const ui = {};
+  let digestDismissed = false;
+  let toastTimer = null;
 
   /* ═══════════════════════════════════════════════════════════════
      PENECHO + MEMONEG SPATIAL CANVAS PROTOCOL SPECIFICATION
@@ -1161,24 +1163,25 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 .mn-nav-tabs {
   position: relative; z-index: 3;
   display: flex; padding: 0 16px;
-  background: #09090b !important;
-  border-bottom: 1px solid var(--mn-border);
+  background: #FFFFFF !important;
+  border-bottom: 2px solid #1A1A2E;
   gap: 6px; flex-shrink: 0;
 }
 .mn-nav-tab {
-  flex: 1; padding: 10px 12px; font-size: 12px; font-weight: 600;
-  color: var(--mn-fg-muted); background: transparent; border: none;
+  flex: 1; padding: 10px 12px; font-size: 12px; font-weight: 700;
+  color: #64748B; background: transparent; border: none;
   border-bottom: 2px solid transparent; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 6px;
   transition: all var(--mn-transition); outline: none;
+  font-family: 'Space Grotesk', sans-serif;
 }
-.mn-nav-tab:hover { color: var(--mn-fg); background: rgba(255,255,255,0.03); }
+.mn-nav-tab:hover { color: #1A1A2E; background: rgba(0,0,0,0.03); }
 .mn-nav-tab.active {
-  color: #38BDF8; border-bottom: 2px solid #38BDF8; font-weight: 700;
+  color: #1A1A2E !important; border-bottom: 2px solid #1A1A2E !important; font-weight: 700;
 }
 .mn-nav-tab-badge {
   font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px;
-  background: rgba(56, 189, 248, 0.15); color: #38BDF8; border: 1px solid rgba(56, 189, 248, 0.3);
+  background: var(--mn-blue); color: #1A1A2E; border: 1px solid #1A1A2E;
 }
 
 .mn-spatial-view {
@@ -1186,76 +1189,77 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   overflow-y: auto; padding: 14px 16px; gap: 14px;
 }
 .mn-spatial-view::-webkit-scrollbar { width: 6px; }
-.mn-spatial-view::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+.mn-spatial-view::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
 
 .mn-spatial-toolbar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 14px; border-radius: var(--mn-radius-sm);
-  background: rgba(15, 23, 42, 0.85); border: 1px solid var(--mn-border);
-  backdrop-filter: blur(12px); flex-wrap: wrap; gap: 8px;
+  background: #FFFFFF; border: 2px solid #1A1A2E;
+  box-shadow: 2px 2px 0px #1A1A2E;
+  flex-wrap: wrap; gap: 8px;
 }
 .mn-spatial-status {
-  display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--mn-fg);
+  display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #1A1A2E;
 }
 .mn-spatial-pulse-dot {
   width: 8px; height: 8px; border-radius: 50%; background: #22C55E;
-  box-shadow: 0 0 10px #22C55E; animation: mnPulse 2s infinite;
+  box-shadow: 0 0 8px #22C55E; animation: mnPulse 2s infinite;
 }
 .mn-spatial-pulse-dot.drafting {
-  background: #EAB308; box-shadow: 0 0 10px #EAB308;
+  background: #EAB308; box-shadow: 0 0 8px #EAB308;
 }
 
 .mn-spatial-actions {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
 }
 .mn-spatial-btn {
-  padding: 5px 10px; border-radius: var(--mn-radius-xs); border: 1px solid var(--mn-border);
-  background: rgba(255,255,255,0.04); color: var(--mn-fg-muted); font-size: 11px;
-  font-weight: 600; cursor: pointer; transition: all var(--mn-transition); outline: none;
+  padding: 5px 10px; border-radius: var(--mn-radius-xs); border: 2px solid #1A1A2E;
+  background: #FFFFFF; color: #1A1A2E; font-size: 11px;
+  font-weight: 700; cursor: pointer; transition: all var(--mn-transition); outline: none;
   font-family: inherit; display: inline-flex; align-items: center; gap: 4px;
+  box-shadow: 2px 2px 0px #1A1A2E;
 }
-.mn-spatial-btn:hover { background: rgba(255,255,255,0.1); color: var(--mn-fg); border-color: var(--mn-border-focus); }
+.mn-spatial-btn:hover { background: #F0F8FF; color: #1A1A2E; transform: translate(-1px, -1px); box-shadow: 3px 3px 0px #1A1A2E; }
 .mn-spatial-btn-primary {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(139, 92, 246, 0.25));
-  color: #38BDF8; border-color: rgba(56, 189, 248, 0.4);
+  background: var(--mn-blue) !important;
+  color: #1A1A2E !important; border-color: #1A1A2E !important;
 }
 .mn-spatial-btn-primary:hover {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.35), rgba(139, 92, 246, 0.4));
-  color: #FFFFFF;
+  background: #C2F0F8 !important;
+  color: #1A1A2E !important;
 }
 .mn-spatial-btn-danger {
-  background: rgba(239, 68, 68, 0.12); color: #F87171; border-color: rgba(239, 68, 68, 0.25);
+  background: #FEE2E2 !important; color: #991B1B !important; border-color: #991B1B !important;
 }
-.mn-spatial-btn-danger:hover { background: rgba(239, 68, 68, 0.25); color: #EF4444; }
+.mn-spatial-btn-danger:hover { background: #FECACA !important; color: #7F1D1D !important; }
 
 /* ── Draft Layer Banner ── */
 .mn-draft-banner {
   padding: 12px 14px; border-radius: var(--mn-radius-sm);
-  background: linear-gradient(135deg, rgba(234, 179, 8, 0.12), rgba(139, 92, 246, 0.15));
-  border: 1px dashed rgba(234, 179, 8, 0.5);
+  background: #FFFBEB;
+  border: 2px dashed #D97706;
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  box-shadow: 0 4px 20px rgba(234, 179, 8, 0.15); animation: mnUp 0.2s ease-out;
+  box-shadow: 2px 2px 0px #D97706; animation: mnUp 0.2s ease-out;
 }
 .mn-draft-info { display: flex; flex-direction: column; gap: 2px; }
-.mn-draft-title { font-size: 12px; font-weight: 700; color: #FBBF24; display: flex; align-items: center; gap: 6px; }
-.mn-draft-subtitle { font-size: 11px; color: var(--mn-fg-muted); }
+.mn-draft-title { font-size: 12px; font-weight: 700; color: #92400E; display: flex; align-items: center; gap: 6px; }
+.mn-draft-subtitle { font-size: 11px; color: #78350F; }
 .mn-draft-acts { display: flex; align-items: center; gap: 6px; }
 
 /* ── Stream 1: Running Timeline ── */
 .mn-stream-card {
   border-radius: var(--mn-radius);
-  border: 1px solid var(--mn-border);
-  background: rgba(10, 10, 14, 0.90);
-  backdrop-filter: blur(14px);
+  border: 2px solid #1A1A2E;
+  background: #FFFFFF;
   padding: 14px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: 3px 3px 0px #1A1A2E;
 }
 .mn-stream-hdr {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #E5E7EB;
 }
 .mn-stream-title {
-  font-size: 13px; font-weight: 700; color: var(--mn-fg); display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 700; color: #1A1A2E; display: flex; align-items: center; gap: 8px;
 }
 .mn-timeline-steps {
   display: flex; flex-direction: column; gap: 10px; position: relative;
@@ -1263,36 +1267,40 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 .mn-timeline-step-item {
   display: flex; gap: 10px; align-items: flex-start;
   padding: 10px 12px; border-radius: var(--mn-radius-sm);
-  background: rgba(255, 255, 255, 0.03); border: 1px solid var(--mn-border);
+  background: var(--mn-bg-card); border: 2px solid #E5E7EB;
   transition: all var(--mn-transition);
 }
 .mn-timeline-step-item:hover {
-  background: rgba(255, 255, 255, 0.06); border-color: rgba(56, 189, 248, 0.4);
+  background: #FFFFFF; border-color: var(--mn-pink); box-shadow: 2px 2px 0px #1A1A2E;
 }
 .mn-timeline-step-num {
   width: 24px; height: 24px; border-radius: 50%;
-  background: rgba(56, 189, 248, 0.2); border: 1px solid #38BDF8;
-  color: #38BDF8; font-size: 11px; font-weight: 700;
+  background: #E0F2FE; border: 2px solid #0284C7;
+  color: #0369A1; font-size: 11px; font-weight: 700;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .mn-timeline-step-content { flex: 1; min-width: 0; }
 .mn-timeline-step-top {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;
 }
-.mn-timeline-step-ttl { font-size: 12px; font-weight: 600; color: var(--mn-fg); }
+.mn-timeline-step-ttl { font-size: 12px; font-weight: 700; color: #1A1A2E; }
 .mn-timeline-status-pill {
   font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase;
 }
-.mn-timeline-status-completed { background: rgba(34, 197, 94, 0.15); color: #4ADE80; border: 1px solid rgba(34, 197, 94, 0.3); }
-.mn-timeline-status-in_progress { background: rgba(59, 130, 246, 0.15); color: #60A5FA; border: 1px solid rgba(59, 130, 246, 0.3); animation: mnPulse 2s infinite; }
-.mn-timeline-status-planned { background: rgba(100, 116, 139, 0.15); color: #94A3B8; border: 1px solid rgba(100, 116, 139, 0.3); }
-.mn-timeline-step-sum { font-size: 11px; color: var(--mn-fg-muted); line-height: 1.4; }
+.mn-timeline-status-completed { background: #D1FAE5; color: #065F46; border: 1px solid #059669; }
+.mn-timeline-status-in_progress { background: #DBEAFE; color: #1D4ED8; border: 1px solid #2563EB; animation: mnPulse 2s infinite; }
+.mn-timeline-status-planned { background: #F1F5F9; color: #475569; border: 1px solid #94A3B8; }
+.mn-timeline-step-sum { font-size: 11px; color: #4B5563; line-height: 1.4; }
 
 /* ── Stream 2: Dynamic Force-Directed Mind Map ── */
 .mn-mindmap-wrap {
   position: relative; width: 100%; height: 320px;
-  background: rgba(6, 6, 9, 0.95); border-radius: var(--mn-radius-sm);
-  border: 1px solid var(--mn-border); overflow: hidden;
+  background: #F8FAFC;
+  background-image: radial-gradient(rgba(148, 163, 184, 0.25) 1px, transparent 1px);
+  background-size: 16px 16px;
+  border-radius: var(--mn-radius-sm);
+  border: 2px solid #1A1A2E; overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 .mn-mindmap-svg {
   width: 100%; height: 100%; cursor: grab;
@@ -1300,24 +1308,25 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 .mn-mindmap-svg:active { cursor: grabbing; }
 
 .mn-mindmap-legend {
-  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 10px; font-weight: 600;
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 10px; font-weight: 700;
 }
 .mn-legend-tag {
-  display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px;
-  border-radius: 4px; background: rgba(255,255,255,0.04); border: 1px solid var(--mn-border);
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
+  border-radius: 6px; background: #FFFFFF; border: 1.5px solid #CBD5E1;
+  color: #334155; box-shadow: 1px 1px 0px rgba(0,0,0,0.05);
 }
 .mn-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
 
 .mn-node-inspector {
   margin-top: 10px; padding: 10px 12px; border-radius: var(--mn-radius-sm);
-  background: rgba(18, 18, 26, 0.95); border: 1px solid var(--mn-border);
+  background: #FFFFFF; border: 2px solid #1A1A2E; box-shadow: 3px 3px 0px #1A1A2E;
   animation: mnUp 0.18s ease-out;
 }
 .mn-inspector-hdr {
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
 }
-.mn-inspector-label { font-size: 13px; font-weight: 700; color: var(--mn-fg); display: flex; align-items: center; gap: 6px; }
-.mn-inspector-desc { font-size: 11px; color: var(--mn-fg-muted); line-height: 1.45; margin-bottom: 8px; }
+.mn-inspector-label { font-size: 13px; font-weight: 700; color: #1A1A2E; display: flex; align-items: center; gap: 6px; }
+.mn-inspector-desc { font-size: 11px; color: #4B5563; line-height: 1.45; margin-bottom: 8px; }
 .mn-inspector-acts { display: flex; gap: 6px; }
 
 /* ── Stream 3: 2D Vector & LaTeX Formula Canvas ── */
@@ -1326,17 +1335,17 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 }
 .mn-formula-card {
   padding: 12px 14px; border-radius: var(--mn-radius-sm);
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.95));
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  background: #F0F9FF;
+  border: 2px solid #0284C7;
+  box-shadow: 2px 2px 0px #0284C7;
 }
 .mn-formula-caption {
-  font-size: 11px; font-weight: 700; color: #38BDF8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px;
+  font-size: 11px; font-weight: 700; color: #0369A1; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px;
 }
 .mn-formula-math {
   font-family: 'Cambria Math', 'Latin Modern Math', 'STIX Two Math', 'Times New Roman', serif;
-  font-size: 16px; font-style: italic; color: #F8FAFC; padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.4); border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);
+  font-size: 16px; font-style: italic; color: #0F172A; padding: 8px 12px;
+  background: #FFFFFF; border-radius: 6px; border: 1.5px solid #BAE6FD;
   display: flex; align-items: center; justify-content: center; overflow-x: auto;
 }
 
@@ -1345,39 +1354,41 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 }
 .mn-vector-box-item {
   padding: 10px 12px; border-radius: var(--mn-radius-xs);
-  background: rgba(255,255,255,0.03); border: 1px solid var(--mn-border);
+  background: #FFFFFF; border: 2px solid #1A1A2E;
+  box-shadow: 2px 2px 0px #1A1A2E;
 }
 .mn-vector-box-ttl { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
 .mn-vector-arrow-card {
   padding: 8px 12px; border-radius: var(--mn-radius-xs);
-  background: rgba(34, 197, 94, 0.06); border: 1px solid rgba(34, 197, 94, 0.25);
-  font-size: 11px; font-weight: 600; color: #4ADE80; display: flex; align-items: center; gap: 6px;
+  background: #ECFDF5; border: 2px solid #059669;
+  font-size: 11px; font-weight: 600; color: #065F46; display: flex; align-items: center; gap: 6px;
 }
 
 /* ── Chat Stream Interceptor Badge ── */
 .mn-penecho-chat-pill {
   margin: 10px 0 !important; padding: 10px 14px !important;
   border-radius: 12px !important;
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 27, 75, 0.9)) !important;
-  border: 1px solid rgba(56, 189, 248, 0.4) !important;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.2) !important;
+  background: #FFFFFF !important;
+  border: 2px solid #1A1A2E !important;
+  box-shadow: 3px 3px 0px #1A1A2E !important;
   display: flex !important; align-items: center !important; justify-content: space-between !important;
-  gap: 12px !important; font-family: 'Inter', sans-serif !important; color: #F8FAFC !important;
+  gap: 12px !important; font-family: 'Space Grotesk', 'Inter', sans-serif !important; color: #1A1A2E !important;
   animation: mnSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 .mn-penecho-pill-left { display: flex !important; align-items: center !important; gap: 10px !important; }
 .mn-penecho-pill-icon { font-size: 20px !important; line-height: 1 !important; }
 .mn-penecho-pill-info { display: flex !important; flex-direction: column !important; gap: 2px !important; }
-.mn-penecho-pill-info strong { font-size: 12px !important; font-weight: 700 !important; color: #38BDF8 !important; }
-.mn-penecho-pill-info span { font-size: 11px !important; color: #94A3B8 !important; }
+.mn-penecho-pill-info strong { font-size: 12px !important; font-weight: 700 !important; color: #0284C7 !important; }
+.mn-penecho-pill-info span { font-size: 11px !important; color: #64748B !important; }
 .mn-penecho-pill-btn {
   padding: 6px 12px !important; border-radius: 8px !important;
-  background: rgba(56, 189, 248, 0.2) !important; border: 1px solid rgba(56, 189, 248, 0.5) !important;
-  color: #38BDF8 !important; font-size: 11px !important; font-weight: 700 !important;
-  cursor: pointer !important; transition: all 0.2s !important; outline: none !important;
+  background: var(--mn-blue) !important; border: 2px solid #1A1A2E !important;
+  color: #1A1A2E !important; font-size: 11px !important; font-weight: 700 !important;
+  cursor: pointer !important; transition: all 0.15s !important; outline: none !important;
+  box-shadow: 2px 2px 0px #1A1A2E !important;
 }
 .mn-penecho-pill-btn:hover {
-  background: #38BDF8 !important; color: #0F172A !important; transform: translateY(-1px) !important;
+  background: #C2F0F8 !important; transform: translate(-1px, -1px) !important; box-shadow: 3px 3px 0px #1A1A2E !important;
 }
 
     `;
@@ -2382,15 +2393,15 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         const my = (src.y + tgt.y) / 2;
         linksHtml += `
           <line x1="${src.x}" y1="${src.y}" x2="${tgt.x}" y2="${tgt.y}"
-            stroke="rgba(255,255,255,0.22)" stroke-width="1.5"
+            stroke="#94A3B8" stroke-width="2"
             ${isDashed ? 'stroke-dasharray="4 3"' : ''}
             marker-end="url(#mn-arrowhead)" />
-          ${l.label ? `<text x="${mx}" y="${my - 4}" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="Inter">${esc(l.label)}</text>` : ''}
+          ${l.label ? `<text x="${mx}" y="${my - 4}" fill="#475569" font-size="9.5" font-weight="600" text-anchor="middle" font-family="'Space Grotesk', sans-serif">${esc(l.label)}</text>` : ''}
         `;
       }
     });
 
-    // Render Nodes with Strict Color Taxonomy
+    // Render Nodes with Strict Color Taxonomy in Light Theme
     let nodesHtml = '';
     nodes.forEach((n) => {
       const color = n.color || (
@@ -2402,9 +2413,9 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       const isSelected = state.selectedMindMapNode?.id === n.id;
       nodesHtml += `
         <g class="mn-node-group" data-nid="${esc(n.id)}" style="cursor:pointer;">
-          <circle cx="${n.x}" cy="${n.y}" r="22" fill="rgba(10,10,14,0.92)" stroke="${color}" stroke-width="${isSelected ? 3.5 : 2}" filter="drop-shadow(0 0 8px ${color}88)" />
-          <circle cx="${n.x}" cy="${n.y - 6}" r="4" fill="${color}" />
-          <text x="${n.x}" y="${n.y + 7}" fill="#F8FAFC" font-size="9.5" font-weight="700" text-anchor="middle" font-family="Inter">${esc(truncate(n.label, 14))}</text>
+          <circle cx="${n.x}" cy="${n.y}" r="22" fill="#FFFFFF" stroke="${color}" stroke-width="${isSelected ? 3.5 : 2.5}" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.12))" />
+          <circle cx="${n.x}" cy="${n.y - 6}" r="4.5" fill="${color}" />
+          <text x="${n.x}" y="${n.y + 7}" fill="#0F172A" font-size="9.5" font-weight="700" text-anchor="middle" font-family="'Space Grotesk', sans-serif">${esc(truncate(n.label, 14))}</text>
         </g>
       `;
     });
@@ -2412,7 +2423,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     svgEl.innerHTML = `
       <defs>
         <marker id="mn-arrowhead" markerWidth="8" markerHeight="6" refX="22" refY="3" orient="auto">
-          <polygon points="0 0, 8 3, 0 6" fill="rgba(255,255,255,0.4)" />
+          <polygon points="0 0, 8 3, 0 6" fill="#64748B" />
         </marker>
       </defs>
       <g class="mn-links-layer">${linksHtml}</g>
