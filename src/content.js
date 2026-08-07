@@ -299,6 +299,15 @@ For every response in this conversation:
     return d.innerHTML;
   }
 
+  function getDomainFromUrl(url) {
+    if (!url) return '';
+    try {
+      return new URL(url).hostname;
+    } catch (_) {
+      return 'source link';
+    }
+  }
+
   /* ═══════════════════════════
      CHROME MESSAGING
      ═══════════════════════════ */
@@ -3162,12 +3171,16 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
   // Separate state for Global and Current Session memory panels
   // Open states for category lists (Global vs Current Session)
-  const openCategoriesGlobal = new Set();
-  const openCategoriesLocal = new Set();
+  // Navigation State Objects for Global and Current Session panels
+  const navStateGlobal = { activeCategory: null, activeMemoryId: null };
+  const navStateLocal = { activeCategory: null, activeMemoryId: null };
 
-  // Shared helper: render Memory panel (Global or Current Session)
+  // Shared helper: render Memory panel (Global or Current Session) with full-page drill-down navigation
   function renderMemoryPanel(p, memories, panelType) {
     if (!p) return;
+
+    const nav = panelType === 'global' ? navStateGlobal : navStateLocal;
+
     if (memories.length === 0) {
       p.innerHTML =
         '<div class="mn-empty">' +
@@ -3181,16 +3194,14 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       return;
     }
 
-    const openCategories = panelType === 'global' ? openCategoriesGlobal : openCategoriesLocal;
-
     const categoriesMap = {
-      work:          { title: 'Work & Projects',       items: [] },
-      coding:        { title: 'Coding & Tech',          items: [] },
-      personal:      { title: 'Personal & Profile',     items: [] },
-      health:        { title: 'Health & Wellbeing',     items: [] },
-      relationships: { title: 'Relationships & Family', items: [] },
-      research:      { title: 'Research & Knowledge',   items: [] },
-      general:       { title: 'General Vault',          items: [] }
+      work:          { title: 'Work & Projects',       icon: '💼', items: [] },
+      coding:        { title: 'Coding & Tech',          icon: '💻', items: [] },
+      personal:      { title: 'Personal & Profile',     icon: '👤', items: [] },
+      health:        { title: 'Health & Wellbeing',     icon: '🩺', items: [] },
+      relationships: { title: 'Relationships & Family', icon: '👨‍👩‍👧', items: [] },
+      research:      { title: 'Research & Knowledge',   icon: '🔬', items: [] },
+      general:       { title: 'General Vault',          icon: '📂', items: [] }
     };
 
     memories.forEach((m) => {
@@ -3198,185 +3209,314 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       (categoriesMap[cat] || categoriesMap.general).items.push(m);
     });
 
-    let synthBarHTML = '';
-    if (selectedKeptIds.size >= 2) {
-      synthBarHTML =
-        '<div class="mn-synthesize-bar">' +
-        '<div style="font-size:12px;font-weight:600;color:#F8FAFC">' + selectedKeptIds.size + ' memories selected</div>' +
-        '<div style="display:flex;gap:6px">' +
-        '<button class="mn-synth-btn" data-act="merge-synthesize">Merge & Synthesize</button>' +
-        '<button class="mn-btn mn-btn-d" data-act="clear-selected">Clear</button>' +
-        '</div></div>';
-    }
-
-    // Build Vertical Category List Items
-    const listItemsHTML = Object.keys(categoriesMap).map((catKey) => {
-      const category = categoriesMap[catKey];
-      const items = category.items;
-      const count = items.length;
-      const isOpen = openCategories.has(catKey);
-
-      let cardsHTML = '';
-      if (isOpen) {
-        if (count > 0) {
-          cardsHTML = items.map((m) => renderSingleScrapbookCardHTML(m, catKey)).join('');
-        } else {
-          cardsHTML = '<div class="mn-empty" style="padding:14px 0"><div class="mn-empty-t" style="font-size:12px">No memories saved in this category yet</div></div>';
-        }
+    // ── LEVEL 3: SINGLE MEMORY FULL DETAILS VIEW ──
+    if (nav.activeMemoryId !== null) {
+      const m = memories.find((x) => x.id === nav.activeMemoryId);
+      if (!m) {
+        nav.activeMemoryId = null;
+        renderMemoryPanel(p, memories, panelType);
+        return;
       }
 
+      const catKey = getMemoryCategory(m.text);
+      const catObj = categoriesMap[catKey] || categoriesMap.general;
+      const isEditing = activeEdits.has(m.id);
+
+      let histHTML = '';
+      if (m.history && m.history.length > 0) {
+        histHTML =
+          '<div class="mn-hist-panel">' +
+          '<div style="font-weight:700;font-size:12px;margin-bottom:8px;">📜 Version History</div>' +
+          m.history
+            .map(
+              (h, idx) =>
+                '<div class="mn-hist-item">' +
+                '<div class="mn-hist-hdr">' +
+                '<span>v' + (m.history.length - idx) + ' • ' + timeAgo(h.timestamp) + '</span>' +
+                '<button class="mn-btn mn-btn-r" data-act="revert" data-id="' + m.id + '" data-ver="' + idx + '">Revert</button>' +
+                '</div>' +
+                '<div class="mn-diff-body">' + renderDiffHTML(h.text, m.text) + '</div>' +
+                '</div>'
+            )
+            .join('') +
+          '</div>';
+      }
+
+      let contentDisplay = '';
+      if (isEditing) {
+        contentDisplay =
+          '<div style="margin-bottom:12px;">' +
+          '<textarea class="mn-card-edit-area" data-id="' + m.id + '" style="width:100%;height:120px;padding:10px;border:2px solid #1A1A2E;border-radius:10px;font-family:inherit;font-size:13px;box-shadow:2px 2px 0px #1A1A2E;">' + esc(m.text) + '</textarea>' +
+          '<div style="display:flex;gap:8px;margin-top:8px;">' +
+          '<button class="mn-btn mn-btn-k" data-act="save-edit" data-id="' + m.id + '" style="flex:1;">Save</button>' +
+          '<button class="mn-btn mn-btn-d" data-act="cancel-edit" data-id="' + m.id + '" style="flex:1;">Cancel</button>' +
+          '</div></div>';
+      } else {
+        contentDisplay =
+          '<div style="background:#FFFFFF;border:3px solid #1A1A2E;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:3px 3px 0px #1A1A2E;">' +
+          '<div style="font-size:13.5px;line-height:1.6;color:#1F2937;white-space:pre-wrap;word-break:break-word;">' + esc(m.text) + '</div>' +
+          '</div>';
+      }
+
+      p.innerHTML =
+        '<div style="padding:14px;display:flex;flex-direction:column;gap:14px;">' +
+        // Back Header
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">' +
+        '<button class="mn-sq-back-btn" data-act="back-to-cat" style="margin-bottom:0;">← Back to ' + catObj.title + '</button>' +
+        '<span class="mn-cat-badge mn-cat-badge-' + catKey + '">' + catKey + '</span>' +
+        '</div>' +
+
+        '<div style="font-size:16px;font-weight:700;color:#1A1A2E;">📌 Memory Details</div>' +
+
+        contentDisplay +
+
+        (m.url ? '<div style="font-size:11px;color:#6B7280;margin-bottom:8px;">Source: <a href="' + esc(m.url) + '" target="_blank" style="color:#2563EB;">' + esc(m.url) + '</a></div>' : '') +
+
+        // Details Grid & Duration
+        '<div class="mn-details-grid">' +
+        '<div class="mn-details-item">' +
+        '<span class="mn-details-sublbl">Captured At:</span>' +
+        '<span>' + new Date(m.keptAt || m.timestamp).toLocaleString() + '</span>' +
+        '</div>' +
+        '<div class="mn-details-item">' +
+        '<span class="mn-details-sublbl">Scope:</span>' +
+        '<span>' + (panelType === 'global' ? '🌐 Global' : '💬 Current Session') + '</span>' +
+        '</div>' +
+        '<div class="mn-details-item" style="grid-column: span 2">' +
+        '<span class="mn-details-sublbl">Memory Duration:</span>' +
+        '<select class="mn-decay-select" data-id="' + m.id + '" style="padding:6px 10px;border-radius:8px;border:2px solid #1A1A2E;font-size:12px;font-weight:700;">' +
+        '<option value="24h" ' + (m.decayTier === '24h' ? 'selected' : '') + '>24 Hours</option>' +
+        '<option value="7d" ' + (m.decayTier === '7d' ? 'selected' : '') + '>7 Days</option>' +
+        '<option value="30d" ' + (!m.decayTier || m.decayTier === '30d' ? 'selected' : '') + '>30 Days</option>' +
+        '<option value="90d" ' + (m.decayTier === '90d' ? 'selected' : '') + '>90 Days</option>' +
+        '<option value="never" ' + (m.decayTier === 'never' ? 'selected' : '') + '>Keep Forever</option>' +
+        '</select>' +
+        '</div>' +
+        '</div>' +
+
+        '<div class="mn-sim-panel">' +
+        '<div class="mn-sim-title">Counterfactual Audit Simulation ("What If I Forget?")</div>' +
+        '<div class="mn-sim-row"><span class="mn-sim-lbl">Without Memory:</span><div class="mn-sim-box">' + renderDiffHTML(m.text, '') + '</div></div>' +
+        '<div class="mn-sim-meta">Context Alignment Delta: -38% • Personalization Loss: Moderate</div>' +
+        '</div>' +
+
+        histHTML +
+
+        // Action buttons
+        '<div style="display:flex;gap:8px;margin-top:10px;">' +
+        (!isEditing ? '<button class="mn-btn mn-btn-e" data-act="edit" data-id="' + m.id + '" style="flex:1;">Edit Memory</button>' : '') +
+        '<button class="mn-btn mn-btn-d" data-act="del" data-id="' + m.id + '" style="flex:1;">Delete Memory</button>' +
+        '</div>' +
+        '</div>';
+
+      // Event handlers for Level 3
+      const backCatBtn = p.querySelector('[data-act="back-to-cat"]');
+      if (backCatBtn) {
+        backCatBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          nav.activeMemoryId = null;
+          renderMemoryPanel(p, memories, panelType);
+        });
+      }
+
+      const sel = p.querySelector('.mn-decay-select');
+      if (sel) {
+        sel.addEventListener('change', (e) => {
+          updateKept(m.id, { decayTier: sel.value });
+        });
+      }
+
+      const delBtn = p.querySelector('[data-act="del"]');
+      if (delBtn) {
+        delBtn.addEventListener('click', () => {
+          deleteKept(m.id);
+          nav.activeMemoryId = null;
+          renderMemoryPanel(p, memories, panelType);
+        });
+      }
+
+      const editBtn = p.querySelector('[data-act="edit"]');
+      if (editBtn) {
+        editBtn.addEventListener('click', () => {
+          activeEdits.add(m.id);
+          renderMemoryPanel(p, memories, panelType);
+        });
+      }
+
+      const saveBtn = p.querySelector('[data-act="save-edit"]');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+          const area = p.querySelector('textarea[data-id="' + m.id + '"]');
+          if (area && area.value.trim()) {
+            activeEdits.delete(m.id);
+            updateKept(m.id, area.value.trim());
+            renderMemoryPanel(p, memories, panelType);
+          }
+        });
+      }
+
+      const cancelBtn = p.querySelector('[data-act="cancel-edit"]');
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+          activeEdits.delete(m.id);
+          renderMemoryPanel(p, memories, panelType);
+        });
+      }
+
+      p.querySelectorAll('[data-act="revert"]').forEach((b) =>
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const verIdx = parseInt(b.dataset.ver, 10);
+          if (m && m.history && m.history[verIdx]) {
+            updateKept(m.id, m.history[verIdx].text);
+            renderMemoryPanel(p, memories, panelType);
+          }
+        })
+      );
+      return;
+    }
+
+    // ── LEVEL 2: SELECTED CATEGORY PAGE ──
+    if (nav.activeCategory !== null) {
+      const catKey = nav.activeCategory;
+      const catObj = categoriesMap[catKey] || categoriesMap.general;
+      const catItems = catObj.items;
+
+      let cardsHTML = '';
+      if (catItems.length > 0) {
+        cardsHTML = catItems.map((m) => {
+          const isSelected = selectedKeptIds.has(m.id);
+          const domainTag = getDomainFromUrl(m.url);
+          return (
+            '<div class="mn-scrapbook-card mn-cat-' + catKey + '" data-id="' + m.id + '" data-act="open-memory-detail" style="margin-bottom:10px;">' +
+            '<div class="mn-card-hdr-row" onclick="event.stopPropagation()">' +
+            '<div class="mn-card-cb-wrap">' +
+            '<input type="checkbox" class="mn-card-select-cb" data-id="' + m.id + '" ' + (isSelected ? 'checked' : '') + ' title="Select for Merge" />' +
+            '<span class="mn-cat-badge mn-cat-badge-' + catKey + '">' + catKey + '</span>' +
+            '</div>' +
+            (catKey === 'coding' ? '<button class="mn-copy-snippet-btn" data-id="' + m.id + '" data-act="copy-snippet">Copy Snippet</button>' : '') +
+            '</div>' +
+            '<div class="mn-card-snippet-text">' + esc(truncate(m.text, 140)) + '</div>' +
+            (catKey === 'research' && domainTag ? '<div class="mn-citation-tag">Citation: ' + esc(domainTag) + '</div>' : '') +
+            '<div class="mn-card-meta-bar">' +
+            '<span class="mn-card-time">' + timeAgo(m.keptAt || m.timestamp) + '</span>' +
+            '<button class="mn-btn mn-btn-e" data-act="open-memory-detail" data-id="' + m.id + '" style="font-size:10px;padding:3px 10px;">View Details →</button>' +
+            '</div>' +
+            '</div>'
+          );
+        }).join('');
+      } else {
+        cardsHTML = '<div class="mn-empty" style="padding:20px 0;"><div class="mn-empty-t" style="font-size:13px">No memories in ' + catObj.title + ' yet</div></div>';
+      }
+
+      p.innerHTML =
+        '<div style="padding:14px;display:flex;flex-direction:column;gap:12px;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+        '<button class="mn-sq-back-btn" data-act="back-to-all-cats" style="margin-bottom:0;">← All Categories</button>' +
+        (catKey === 'coding' && catItems.length > 0 ? '<button class="mn-btn mn-btn-k" data-act="copy-all-coding" style="font-size:10px;">📋 Copy All Snippets</button>' : '') +
+        '</div>' +
+
+        '<div style="display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #1A1A2E;padding-bottom:10px;">' +
+        '<div style="font-size:15px;font-weight:700;color:#1A1A2E;display:flex;align-items:center;gap:8px;">' +
+        '<span>' + catObj.icon + '</span><span>' + catObj.title + '</span>' +
+        '</div>' +
+        '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--mn-pink);color:#FFFFFF;border:2px solid #1A1A2E;">' + catItems.length + ' items</span>' +
+        '</div>' +
+
+        '<div class="mn-cat-items-list">' + cardsHTML + '</div>' +
+        '</div>';
+
+      // Event Handlers for Level 2
+      const backAllBtn = p.querySelector('[data-act="back-to-all-cats"]');
+      if (backAllBtn) {
+        backAllBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          nav.activeCategory = null;
+          nav.activeMemoryId = null;
+          renderMemoryPanel(p, memories, panelType);
+        });
+      }
+
+      p.querySelectorAll('[data-act="open-memory-detail"]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.dataset.id || btn.closest('.mn-scrapbook-card')?.dataset.id;
+          if (id) {
+            nav.activeMemoryId = id;
+            renderMemoryPanel(p, memories, panelType);
+          }
+        });
+      });
+
+      p.querySelectorAll('.mn-card-select-cb').forEach((cb) => {
+        cb.addEventListener('change', (e) => {
+          e.stopPropagation();
+          const id = cb.dataset.id;
+          if (cb.checked) selectedKeptIds.add(id);
+          else selectedKeptIds.delete(id);
+          renderMemoryPanel(p, memories, panelType);
+        });
+      });
+
+      p.querySelectorAll('[data-act="copy-snippet"]').forEach((b) => {
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const mem = memories.find((m) => m.id === b.dataset.id);
+          if (mem) {
+            navigator.clipboard.writeText(mem.text);
+            showToast('Code snippet copied to clipboard 📋');
+          }
+        });
+      });
+
+      const copyAllBtn = p.querySelector('[data-act="copy-all-coding"]');
+      if (copyAllBtn) {
+        copyAllBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const codingTexts = catItems.map((m) => m.text).join('\n\n// ─── Snippet ───\n');
+          if (codingTexts) {
+            navigator.clipboard.writeText(codingTexts);
+            showToast('All coding snippets copied to clipboard 📋');
+          }
+        });
+      }
+      return;
+    }
+
+    // ── LEVEL 1: CATEGORY FOLDERS VIEW (DEFAULT) ──
+    const folderCardsHTML = Object.keys(categoriesMap).map((catKey) => {
+      const category = categoriesMap[catKey];
+      const count = category.items.length;
+
       return (
-        '<div class="mn-category-list-item ' + (isOpen ? 'open' : '') + '" data-cat="' + catKey + '">' +
-        '<div class="mn-cat-row-hdr" data-act="toggle-cat-list" data-cat="' + catKey + '">' +
-        '<span class="mn-cat-row-title">' + category.title + '</span>' +
-        '<div style="display:flex;align-items:center;gap:8px">' +
-        '<span class="mn-cat-row-count">' + count + ' item' + (count === 1 ? '' : 's') + '</span>' +
-        '<span class="mn-cat-arrow" style="font-size:10px;color:var(--mn-fg-muted);transition:transform 0.2s;' + (isOpen ? 'transform:rotate(180deg);' : '') + '">v</span>' +
+        '<div class="mn-category-folder-card" data-cat="' + catKey + '" style="background:#FFFFFF;border:3px solid #1A1A2E;border-radius:14px;padding:14px 16px;cursor:pointer;transition:all 0.15s ease;box-shadow:3px 3px 0px #1A1A2E;display:flex;align-items:center;justify-content:space-between;">' +
+        '<div style="display:flex;align-items:center;gap:12px;">' +
+        '<span style="font-size:22px;">' + category.icon + '</span>' +
+        '<div>' +
+        '<div style="font-size:14px;font-weight:700;color:#1A1A2E;letter-spacing:-0.2px;">' + category.title + '</div>' +
+        '<div style="font-size:11px;color:#6B7280;margin-top:2px;">' + count + ' memory item' + (count === 1 ? '' : 's') + '</div>' +
         '</div>' +
         '</div>' +
-        (isOpen ? '<div class="mn-cat-row-cards">' + cardsHTML + '</div>' : '') +
+        '<span style="font-size:14px;font-weight:700;color:#1A1A2E;">→</span>' +
         '</div>'
       );
     }).join('');
 
     p.innerHTML =
-      '<div class="mn-scrapbook-container">' +
-      synthBarHTML +
-      '<div class="mn-category-list-container">' + listItemsHTML + '</div>' +
+      '<div style="padding:14px;display:flex;flex-direction:column;gap:12px;">' +
+      '<div style="font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;">Select Classification</div>' +
+      '<div style="display:flex;flex-direction:column;gap:10px;">' + folderCardsHTML + '</div>' +
       '</div>';
 
-    // Click handler to toggle open/collapse category list items
-    p.querySelectorAll('[data-act="toggle-cat-list"]').forEach((hdr) => {
-      hdr.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const catKey = hdr.dataset.cat;
-        if (openCategories.has(catKey)) {
-          openCategories.delete(catKey);
-        } else {
-          openCategories.add(catKey);
-        }
-        renderMemoryPanel(p, memories, panelType);
-      });
-    });
-
-    // Copy all coding snippets
-    const copyAllBtn = p.querySelector('[data-act="copy-all-coding"]');
-    if (copyAllBtn) {
-      copyAllBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const codingTexts = activeCategory.items.map((m) => m.text).join('\n\n// ─── Snippet ───\n');
-        if (codingTexts) {
-          navigator.clipboard.writeText(codingTexts);
-          showToast('All coding snippets copied to clipboard 📋');
-          playMemoryTone('capture');
-        }
-      });
-    }
-
-    // Multi-select checkboxes
-    p.querySelectorAll('.mn-card-select-cb').forEach((cb) => {
-      cb.addEventListener('click', (e) => e.stopPropagation());
-      cb.addEventListener('change', (e) => {
-        e.stopPropagation();
-        const id = cb.dataset.id;
-        if (cb.checked) selectedKeptIds.add(id);
-        else selectedKeptIds.delete(id);
-        renderMemoryPanel(p, memories, panelType);
-      });
-    });
-
-    // Copy snippet button
-    p.querySelectorAll('[data-act="copy-snippet"]').forEach((b) => {
-      b.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const mem = state.kept.find((m) => m.id === b.dataset.id);
-        if (mem) {
-          navigator.clipboard.writeText(mem.text);
-          showToast('Code snippet copied to clipboard 📋');
-          playMemoryTone('capture');
-        }
-      });
-    });
-
-    // Merge & Synthesize
-    const synthBtn = p.querySelector('[data-act="merge-synthesize"]');
-    if (synthBtn) {
-      synthBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const selectedMems = state.kept.filter((m) => selectedKeptIds.has(m.id));
-        if (selectedMems.length < 2) return;
-        const synthText = 'Synthesized Context:\n' +
-          selectedMems.map((m, idx) => '[Item ' + (idx + 1) + ' - ' + getMemoryCategory(m.text).toUpperCase() + ']: ' + m.text.trim()).join('\n\n');
-        await addKept({ id: uid(), text: synthText, role: 'assistant', source: location.hostname, url: location.href, timestamp: Date.now(), keptAt: Date.now() });
-        syncMemoryToClaude(synthText);
-        selectedKeptIds.clear();
-        showToast('✨ Memories Merged & Synthesized!');
-        announceScreenReader('Memories merged and synthesized successfully');
-        renderAll();
-      });
-    }
-
-    // Clear selection
-    const clearBtn = p.querySelector('[data-act="clear-selected"]');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectedKeptIds.clear();
-        renderMemoryPanel(p, memories, panelType);
-      });
-    }
-
-    // Card click toggle details
-    p.querySelectorAll('[data-act="toggle-card"]').forEach((card) => {
+    p.querySelectorAll('.mn-category-folder-card').forEach((card) => {
       card.addEventListener('click', () => {
-        const id = card.dataset.id;
-        if (openDetails.has(id)) openDetails.delete(id);
-        else openDetails.add(id);
+        const catKey = card.dataset.cat;
+        nav.activeCategory = catKey;
         renderMemoryPanel(p, memories, panelType);
       });
     });
-
-    // Decay selector
-    p.querySelectorAll('.mn-decay-select').forEach((sel) => {
-      sel.addEventListener('click', (e) => e.stopPropagation());
-      sel.addEventListener('mousedown', (e) => e.stopPropagation());
-      sel.addEventListener('change', (e) => {
-        e.stopPropagation();
-        const id = sel.dataset.id;
-        const item = state.kept.find((m) => m.id === id);
-        if (item) { item.decayTier = sel.value; updateKept(id, { decayTier: sel.value }); }
-      });
-    });
-
-    // Edit / Delete / Save / Cancel / Revert actions
-    p.querySelectorAll('[data-act="del"]').forEach((b) =>
-      b.addEventListener('click', (e) => { e.stopPropagation(); selectedKeptIds.delete(b.dataset.id); deleteKept(b.dataset.id); })
-    );
-    p.querySelectorAll('[data-act="edit"]').forEach((b) =>
-      b.addEventListener('click', (e) => { e.stopPropagation(); activeEdits.add(b.dataset.id); renderMemoryPanel(p, memories, panelType); })
-    );
-    p.querySelectorAll('[data-act="cancel-edit"]').forEach((b) =>
-      b.addEventListener('click', (e) => { e.stopPropagation(); activeEdits.delete(b.dataset.id); renderMemoryPanel(p, memories, panelType); })
-    );
-    p.querySelectorAll('[data-act="save-edit"]').forEach((b) =>
-      b.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const area = p.querySelector('textarea[data-id="' + b.dataset.id + '"]');
-        if (area && area.value.trim()) { activeEdits.delete(b.dataset.id); updateKept(b.dataset.id, area.value.trim()); }
-      })
-    );
-    p.querySelectorAll('[data-act="revert"]').forEach((b) =>
-      b.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const item = state.kept.find((m) => m.id === b.dataset.id);
-        const verIdx = parseInt(b.dataset.ver, 10);
-        if (item && item.history && item.history[verIdx]) {
-          openHistories.delete(b.dataset.id);
-          updateKept(b.dataset.id, item.history[verIdx].text);
-          showToast('Reverted to version v' + (item.history.length - verIdx) + ' ✓');
-        }
-      })
-    );
 
     // Drag handlers
     p.querySelectorAll('.mn-scrapbook-card').forEach((card) => {
