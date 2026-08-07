@@ -1920,6 +1920,78 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     const style = document.createElement('style');
     style.id = 'mn-host-styles';
     style.textContent = `
+      .mn-purple-memory-border {
+        border: 3px solid #A855F7 !important;
+        box-shadow: 0 0 18px rgba(168, 85, 247, 0.45) !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
+        margin-top: 8px !important;
+        margin-bottom: 8px !important;
+        transition: all .25s ease !important;
+        position: relative !important;
+      }
+
+      .mn-inline-memory-prompt {
+        margin-top: 10px !important;
+        padding: 12px 14px !important;
+        border-radius: 10px !important;
+        background: #FFFFFF !important;
+        border: 2.5px solid #000000 !important;
+        box-shadow: 4px 4px 0px #000000 !important;
+        font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif !important;
+        color: #000000 !important;
+        z-index: 99 !important;
+      }
+
+      .mn-prompt-hdr {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        font-size: 13px !important;
+        font-weight: 800 !important;
+        color: #000000 !important;
+        margin-bottom: 4px !important;
+      }
+
+      .mn-prompt-body {
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #374151 !important;
+        margin-bottom: 10px !important;
+      }
+
+      .mn-prompt-acts {
+        display: flex !important;
+        gap: 8px !important;
+      }
+
+      .mn-prompt-btn {
+        padding: 6px 14px !important;
+        border-radius: 8px !important;
+        border: 2px solid #000000 !important;
+        font-size: 12px !important;
+        font-weight: 800 !important;
+        cursor: pointer !important;
+        font-family: 'Space Grotesk', sans-serif !important;
+        box-shadow: 2px 2px 0px #000000 !important;
+        transition: all .15s ease !important;
+      }
+
+      .mn-prompt-btn:hover {
+        transform: translate(-1px, -1px) !important;
+        box-shadow: 3px 3px 0px #000000 !important;
+      }
+
+      .mn-prompt-accept {
+        background: #A7F3D0 !important;
+        color: #000000 !important;
+      }
+
+      .mn-prompt-reject {
+        background: #FCA5A5 !important;
+        color: #000000 !important;
+      }
+
       .mn-status-dot {
         display: inline-flex !important;
         align-items: center !important;
@@ -2269,18 +2341,72 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           return;
         }
 
-        addNoticed({
-          id: uid(),
-          text: snippet.trim(),
-          role: 'assistant',
-          source: location.hostname,
-          url: location.href,
-          timestamp: Date.now(),
-        });
+        const snippetText = snippet.trim();
+        const assistantElements = Array.from(document.querySelectorAll(
+          '.font-claude-message, [class*="assistant"], [class*="Agent"], [data-is-streaming], [class*="Message"]:not([class*="user"])'
+        ));
+        const targetEl = assistantElements.pop() || el;
+        highlightAndPromptClaudeMemory(targetEl, snippetText);
       }, 3500);
     });
 
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+
+  function highlightAndPromptClaudeMemory(msgElement, snippet) {
+    if (!msgElement || !snippet) return;
+    if (msgElement.querySelector('.mn-inline-memory-prompt')) return;
+
+    injectHostCSS();
+
+    msgElement.classList.add('mn-purple-memory-border');
+
+    const promptEl = document.createElement('div');
+    promptEl.className = 'mn-inline-memory-prompt';
+    promptEl.innerHTML =
+      '<div class="mn-prompt-hdr"><span>🧠 Claude Memory Detected</span></div>' +
+      '<div class="mn-prompt-body">Do you want to accept this memory into your permanent vault or reject it to the noticed section?</div>' +
+      '<div class="mn-prompt-acts">' +
+      '<button class="mn-prompt-btn mn-prompt-accept">Accept & Save</button>' +
+      '<button class="mn-prompt-btn mn-prompt-reject">Reject → Store in Noticed</button>' +
+      '</div>';
+
+    msgElement.appendChild(promptEl);
+
+    promptEl.querySelector('.mn-prompt-accept').onclick = (e) => {
+      e.stopPropagation();
+      msgElement.classList.remove('mn-purple-memory-border');
+      promptEl.remove();
+
+      addKept({
+        id: uid(),
+        text: snippet,
+        role: 'assistant',
+        source: location.hostname,
+        url: location.href,
+        timestamp: Date.now(),
+        keptAt: Date.now(),
+      });
+
+      showToast('Memory Accepted & Saved ✓');
+    };
+
+    promptEl.querySelector('.mn-prompt-reject').onclick = (e) => {
+      e.stopPropagation();
+      msgElement.classList.remove('mn-purple-memory-border');
+      promptEl.remove();
+
+      addNoticed({
+        id: uid(),
+        text: snippet,
+        role: 'assistant',
+        source: location.hostname,
+        url: location.href,
+        timestamp: Date.now(),
+      });
+
+      showToast('Memory Rejected → Stored in Noticed Sidebar');
+    };
   }
 
   /* ═══════════════════════════════════════
