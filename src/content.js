@@ -1021,6 +1021,15 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
   z-index: 2;
 }
 
+.mn-category-square-card.mn-sq-work {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.65), rgba(30, 58, 138, 0.45));
+}
+.mn-category-square-card.mn-sq-work:hover {
+  box-shadow: 0 16px 40px rgba(59, 130, 246, 0.35), inset 0 0 20px rgba(59, 130, 246, 0.2);
+  border-color: #3B82F6 !important;
+}
+
 .mn-category-square-card.mn-sq-coding {
   border-color: rgba(6, 182, 212, 0.4);
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.65), rgba(8, 47, 73, 0.45));
@@ -1037,6 +1046,24 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 .mn-category-square-card.mn-sq-personal:hover {
   box-shadow: 0 16px 40px rgba(236, 72, 153, 0.35), inset 0 0 20px rgba(236, 72, 153, 0.2);
   border-color: #EC4899 !important;
+}
+
+.mn-category-square-card.mn-sq-health {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.65), rgba(4, 120, 87, 0.45));
+}
+.mn-category-square-card.mn-sq-health:hover {
+  box-shadow: 0 16px 40px rgba(16, 185, 129, 0.35), inset 0 0 20px rgba(16, 185, 129, 0.2);
+  border-color: #10B981 !important;
+}
+
+.mn-category-square-card.mn-sq-relationships {
+  border-color: rgba(244, 63, 94, 0.4);
+  background: linear-gradient(135deg, rgba(76, 5, 25, 0.65), rgba(159, 18, 57, 0.45));
+}
+.mn-category-square-card.mn-sq-relationships:hover {
+  box-shadow: 0 16px 40px rgba(244, 63, 94, 0.35), inset 0 0 20px rgba(244, 63, 94, 0.2);
+  border-color: #F43F5E !important;
 }
 
 .mn-category-square-card.mn-sq-research {
@@ -1277,8 +1304,11 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
   text-transform: uppercase;
   letter-spacing: 0.4px;
 }
+.mn-cat-badge-work { background: rgba(59, 130, 246, 0.15); color: #60A5FA; border: 1px solid rgba(59, 130, 246, 0.3); }
 .mn-cat-badge-coding { background: rgba(6, 182, 212, 0.15); color: #22D3EE; border: 1px solid rgba(6, 182, 212, 0.3); }
 .mn-cat-badge-personal { background: rgba(236, 72, 153, 0.15); color: #F472B6; border: 1px solid rgba(236, 72, 153, 0.3); }
+.mn-cat-badge-health { background: rgba(16, 185, 129, 0.15); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3); }
+.mn-cat-badge-relationships { background: rgba(244, 63, 94, 0.15); color: #FB7185; border: 1px solid rgba(244, 63, 94, 0.3); }
 .mn-cat-badge-research { background: rgba(245, 158, 11, 0.15); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3); }
 .mn-cat-badge-general { background: rgba(99, 102, 241, 0.15); color: #818CF8; border: 1px solid rgba(99, 102, 241, 0.3); }
 
@@ -2299,28 +2329,49 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     if (!text) return 'general';
     const lower = text.toLowerCase();
 
-    // 💻 Coding check: code blocks, keywords, functions, programming syntax
+    // 💼 Work & Projects check
+    if (
+      /\b(?:work|job|company|project|client|task|sprint|deadline|meeting|salary|resume|career|office|team|manager|boss)\b/i.test(lower)
+    ) {
+      return 'work';
+    }
+
+    // 💻 Coding & Tech check
     if (
       text.includes('```') ||
-      /\b(?:function|const|let|var|import|export|class|def|return|async|await|select-string|powershell|bash|npm|git|html|css|javascript|python|java|c\+\+|sql|json|api|endpoint)\b/i.test(text) ||
+      /\b(?:function|const|let|var|import|export|class|def|return|async|await|select-string|powershell|bash|npm|git|html|css|javascript|python|java|c\+\+|sql|json|api|endpoint|bug|fix|code)\b/i.test(text) ||
       /[{}<>;=]\s*[{}<>;=]/.test(text) ||
       /\b(?:if|else|for|while|try|catch)\s*\(/.test(text)
     ) {
       return 'coding';
     }
 
-    // 📚 Research check: URLs, citations, documentation, references
+    // 🩺 Health & Wellbeing check
+    if (
+      /\b(?:health|medical|doctor|workout|gym|fitness|diet|sleep|exercise|medication|hospital|blood|weight|energy|mental|habit|routine)\b/i.test(lower)
+    ) {
+      return 'health';
+    }
+
+    // ❤️ Relationships & Family check
+    if (
+      /\b(?:family|friend|relationship|married|dating|parent|sister|brother|son|daughter|partner|anniversary|gift|love|wife|husband|mother|father)\b/i.test(lower)
+    ) {
+      return 'relationships';
+    }
+
+    // 📚 Research & Knowledge check
     if (
       /https?:\/\/\S+/i.test(text) ||
-      /\b(?:http|www|github\.com|wikipedia|doi|paper|research|documentation|reference|source|study|citation|according to)\b/i.test(lower)
+      /\b(?:http|www|github\.com|wikipedia|doi|paper|research|documentation|reference|source|study|citation|according to|article|book|link)\b/i.test(lower)
     ) {
       return 'research';
     }
 
-    // 💬 Personal check: preferences, location, feelings, identity
+    // 💬 Personal & Profile check
     if (
-      /\b(?:my\s+(?:name|birthday|age|location|city|address|job|hobbies|hobby|favorite|wife|husband|pet|dog|cat|phone|email)\b)/i.test(lower) ||
-      /\b(?:i\s+(?:live|work|love|hate|prefer|enjoy|dislike|am\s+feeling|am\s+a|feel|want\s+to\s+shift))\b/i.test(lower) ||
+      /\b(?:my\s+(?:name|birthday|age|location|city|address|hobbies|hobby|favorite|pet|dog|cat|phone|email)\b)/i.test(lower) ||
+      /\b(?:i\s+(?:live|love|hate|prefer|enjoy|dislike|am\s+feeling|am\s+a|feel|want\s+to\s+shift))\b/i.test(lower) ||
       /\b[1-9][0-9]{5}\b/.test(text) ||
       /\b(?:bhopal|mumbai|delhi|bangalore|pune|indore)\b/i.test(lower)
     ) {
@@ -2469,10 +2520,13 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     }
 
     const categoriesMap = {
-      coding:   { title: 'Coding Snippets', icon: '💻', items: [], class: 'mn-sq-coding' },
-      personal: { title: 'Personal Info',   icon: '💬', items: [], class: 'mn-sq-personal' },
-      research: { title: 'Research & Links',icon: '📚', items: [], class: 'mn-sq-research' },
-      general:  { title: 'General Vault',   icon: '📌', items: [], class: 'mn-sq-general' }
+      work:          { title: 'Work & Projects',       icon: '💼', items: [], class: 'mn-sq-work' },
+      coding:        { title: 'Coding & Tech',          icon: '💻', items: [], class: 'mn-sq-coding' },
+      personal:      { title: 'Personal & Profile',     icon: '💬', items: [], class: 'mn-sq-personal' },
+      health:        { title: 'Health & Wellbeing',     icon: '🩺', items: [], class: 'mn-sq-health' },
+      relationships: { title: 'Relationships & Family', icon: '❤️', items: [], class: 'mn-sq-relationships' },
+      research:      { title: 'Research & Knowledge',   icon: '📚', items: [], class: 'mn-sq-research' },
+      general:       { title: 'General Vault',          icon: '📌', items: [], class: 'mn-sq-general' }
     };
 
     memories.forEach((m) => {
