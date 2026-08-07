@@ -115,4 +115,43 @@ const handlers = {
       respond({ success: true });
     });
   },
+
+  /* ── Memory Freeze & Snapshots (#24) ── */
+  GET_SNAPSHOTS(_msg, respond) {
+    chrome.storage.local.get('memoneg_snapshots', (r) => {
+      respond({ snapshots: r.memoneg_snapshots || [] });
+    });
+  },
+
+  CREATE_SNAPSHOT(msg, respond) {
+    chrome.storage.local.get(['memoneg_kept', 'memoneg_snapshots'], (r) => {
+      const kept = r.memoneg_kept || [];
+      const snapshots = r.memoneg_snapshots || [];
+      const newSnapshot = {
+        id: 'snap_' + Date.now().toString(36),
+        name: msg.name || 'Memory Freeze ' + new Date().toLocaleDateString(),
+        timestamp: Date.now(),
+        keptCount: kept.length,
+        kept: JSON.parse(JSON.stringify(kept)),
+      };
+      snapshots.unshift(newSnapshot);
+      chrome.storage.local.set({ memoneg_snapshots: snapshots }, () => {
+        respond({ success: true, snapshots });
+      });
+    });
+  },
+
+  RESTORE_SNAPSHOT(msg, respond) {
+    chrome.storage.local.get('memoneg_snapshots', (r) => {
+      const snapshots = r.memoneg_snapshots || [];
+      const target = snapshots.find((s) => s.id === msg.id);
+      if (target) {
+        chrome.storage.local.set({ memoneg_kept: target.kept }, () => {
+          respond({ success: true, kept: target.kept });
+        });
+      } else {
+        respond({ success: false });
+      }
+    });
+  },
 };

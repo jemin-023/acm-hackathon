@@ -621,6 +621,49 @@
 .mn-diff-body { font-size: 11px; word-break: break-word; }
 del.mn-diff-del { color: #f87171; text-decoration: line-through; background: rgba(248,113,113,.15); padding: 0 3px; border-radius: 3px; }
 ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211,153,.15); padding: 0 3px; border-radius: 3px; }
+
+/* ── Provenance & Lineage (#19) ── */
+.mn-btn-p { background: rgba(52,211,153,.12); color: #34d399; }
+.mn-btn-p:hover { background: rgba(52,211,153,.25); }
+
+.mn-prov-panel {
+  margin-top: 10px; padding: 10px; border-radius: 8px;
+  background: rgba(16,16,28,.85); border: 1px solid rgba(52,211,153,.2);
+  font-size: 11px; line-height: 1.6; color: #c8c8dc;
+}
+.mn-prov-ttl { font-weight: 700; color: #34d399; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
+.mn-prov-row { display: flex; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px dashed rgba(255,255,255,.05); padding-bottom: 3px; }
+.mn-prov-lbl { color: #6e6e86; font-weight: 500; }
+.mn-prov-val { color: #e0e0f0; word-break: break-all; }
+
+/* ── Sensitivity Tier Badges (#20) ── */
+.mn-sens-badge {
+  display: inline-block; padding: 1px 6px; border-radius: 4px;
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  margin-left: 6px; vertical-align: middle;
+}
+.mn-sens-low { background: rgba(52,211,153,.15); color: #34d399; }
+.mn-sens-medium { background: rgba(251,191,36,.15); color: #fbbf24; }
+.mn-sens-high { background: rgba(248,113,113,.15); color: #f87171; }
+
+/* ── Natural Language Rules & Snapshots (#21, #24) ── */
+.mn-rules-warn { padding: 6px 10px; font-size: 11px; color: #fbbf24; background: rgba(251,191,36,.08); border-radius: 6px; margin: 6px 10px; border: 1px solid rgba(251,191,36,.2); }
+
+.mn-snaps-toggle {
+  width: 100%; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.06); background: rgba(255,255,255,.03);
+  color: #7e7e96; font-size: 12px; font-weight: 500; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  outline: none; font-family: inherit; margin-top: 6px; transition: all .2s;
+}
+.mn-snaps-toggle:hover { color: #34d399; border-color: rgba(52,211,153,.2); }
+.mn-snaps-toggle .mn-arrow { transition: transform .22s; font-size: 10px; }
+.mn-snaps-toggle.open .mn-arrow { transform: rotate(180deg); }
+.mn-snaps-panel { margin-top: 6px; border: 1px solid rgba(52,211,153,.15); border-radius: 8px; overflow: hidden; display: none; }
+.mn-snaps-panel.open { display: block; }
+.mn-snaps-inp-row { display: flex; gap: 6px; padding: 8px 10px; border-bottom: 1px solid rgba(52,211,153,.1); }
+.mn-snaps-list { max-height: 110px; overflow-y: auto; padding: 4px 0; }
+.mn-snap-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,.03); }
     `;
   }
 
@@ -764,16 +807,27 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
       <div class="mn-foot">
         <div class="mn-trash-zone">${IC.close} Drag memory here to purge</div>
         <button class="mn-exp">${IC.download} Export All (JSON)</button>
-        <button class="mn-rules-toggle" title="Configure never-save keywords">
+        <button class="mn-rules-toggle" title="Configure never-save keywords & natural rules">
           <span>Never-Save Rules</span>
           <span class="mn-arrow">▾</span>
         </button>
         <div class="mn-rules-panel">
           <div class="mn-rules-inp-row">
-            <input class="mn-rules-inp" type="text" placeholder="e.g. salary, health, password" maxlength="80" />
+            <input class="mn-rules-inp" type="text" placeholder="e.g. Never remember salary details" maxlength="80" />
             <button class="mn-rules-add">Add</button>
           </div>
           <div class="mn-rules-list"></div>
+        </div>
+        <button class="mn-snaps-toggle" title="Memory Freeze & Snapshots">
+          <span>Memory Freeze & Snapshots</span>
+          <span class="mn-arrow">▾</span>
+        </button>
+        <div class="mn-snaps-panel">
+          <div class="mn-snaps-inp-row">
+            <input class="mn-rules-inp mn-snaps-inp" type="text" placeholder="Snapshot label" maxlength="40" />
+            <button class="mn-rules-add mn-snaps-add">Freeze</button>
+          </div>
+          <div class="mn-snaps-list"></div>
         </div>
       </div>
     `;
@@ -817,20 +871,35 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
       rulesPanel.classList.toggle('open', state.rulesOpen);
     });
 
-    // Rules add — button click
+    // Rules add — button click (#21)
     const inp = dr.querySelector('.mn-rules-inp');
     dr.querySelector('.mn-rules-add').addEventListener('click', () => {
       addRule(inp.value);
       inp.value = '';
     });
-    // Rules add — Enter key
     inp.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { addRule(inp.value); inp.value = ''; }
+    });
+
+    // Snapshots toggle & add (#24)
+    const snapsToggle = dr.querySelector('.mn-snaps-toggle');
+    const snapsPanel = dr.querySelector('.mn-snaps-panel');
+    snapsToggle.addEventListener('click', () => {
+      state.snapsOpen = !state.snapsOpen;
+      snapsToggle.classList.toggle('open', state.snapsOpen);
+      snapsPanel.classList.toggle('open', state.snapsOpen);
+      if (state.snapsOpen) loadSnapshots();
+    });
+    const snapInp = dr.querySelector('.mn-snaps-inp');
+    dr.querySelector('.mn-snaps-add').addEventListener('click', () => {
+      createSnapshot(snapInp.value);
+      snapInp.value = '';
     });
 
     ui.noticed = dr.querySelector('[data-pane="noticed"]');
     ui.kept = dr.querySelector('[data-pane="kept"]');
     ui.rulesList = dr.querySelector('.mn-rules-list');
+    ui.snapsList = dr.querySelector('.mn-snaps-list');
 
     // ── Drag & Drop Trash Zone (#4) ──
     const tz = dr.querySelector('.mn-trash-zone');
@@ -983,11 +1052,28 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
   function renderRulesPanel() {
     const list = ui.rulesList;
     if (!list) return;
+
+    let warningHTML = '';
+    // Detect semantic conflicts between rules (#21)
+    if (state.rules.length > 1) {
+      for (let i = 0; i < state.rules.length; i++) {
+        for (let j = i + 1; j < state.rules.length; j++) {
+          const r1 = state.rules[i].pattern.toLowerCase();
+          const r2 = state.rules[j].pattern.toLowerCase();
+          if (r1.includes(r2) || r2.includes(r1)) {
+            warningHTML = '<div class="mn-rules-warn">⚠️ Rule overlap detected between "' + esc(r1) + '" and "' + esc(r2) + '"</div>';
+            break;
+          }
+        }
+      }
+    }
+
     if (!state.rules.length) {
       list.innerHTML = '<div class="mn-rules-empty">No rules yet — memories matching your keywords will be silently ignored.</div>';
       return;
     }
-    list.innerHTML = state.rules.map((r) =>
+
+    list.innerHTML = warningHTML + state.rules.map((r) =>
       '<div class="mn-rule-row" data-id="' + r.id + '">' +
       '<span class="mn-rule-kw">' + esc(r.pattern) + '</span>' +
       '<button class="mn-rule-del" data-rid="' + r.id + '" title="Remove rule">×</button>' +
@@ -995,6 +1081,50 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
     ).join('');
     list.querySelectorAll('.mn-rule-del').forEach((b) =>
       b.addEventListener('click', () => deleteRule(b.dataset.rid))
+    );
+  }
+
+  /* ── Snapshot Panel (#24) ── */
+  async function loadSnapshots() {
+    const r = await send({ type: 'GET_SNAPSHOTS' });
+    state.snapshots = r?.snapshots || [];
+    renderSnapshotsPanel();
+  }
+
+  async function createSnapshot(name) {
+    const r = await send({ type: 'CREATE_SNAPSHOT', name });
+    state.snapshots = r?.snapshots || [];
+    renderSnapshotsPanel();
+    showToast('Memory freeze snapshot created ✓');
+  }
+
+  async function restoreSnapshot(id) {
+    const r = await send({ type: 'RESTORE_SNAPSHOT', id });
+    if (r?.success) {
+      state.kept = r.kept || [];
+      renderAll();
+      showToast('Vault restored to snapshot ✓');
+    }
+  }
+
+  function renderSnapshotsPanel() {
+    const list = ui.snapsList;
+    if (!list) return;
+    if (!state.snapshots || !state.snapshots.length) {
+      list.innerHTML = '<div class="mn-rules-empty">No snapshots yet — click Freeze to create a 1-click restore point.</div>';
+      return;
+    }
+    list.innerHTML = state.snapshots.map((s) =>
+      '<div class="mn-snap-row" data-id="' + s.id + '">' +
+      '<div>' +
+      '<strong>' + esc(s.name) + '</strong> (' + s.keptCount + ' items)<br/>' +
+      '<span style="color:#6e6e86;font-size:10px">' + timeAgo(s.timestamp) + '</span>' +
+      '</div>' +
+      '<button class="mn-btn mn-btn-r" data-act="restore-snap" data-sid="' + s.id + '">Rollback</button>' +
+      '</div>'
+    ).join('');
+    list.querySelectorAll('[data-act="restore-snap"]').forEach((b) =>
+      b.addEventListener('click', () => restoreSnapshot(b.dataset.sid))
     );
   }
 
@@ -1054,6 +1184,7 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
   }
 
   const openHistories = new Set();
+  const openProvenances = new Set();
   const activeEdits = new Set();
 
   function renderDiffHTML(oldStr, newStr) {
@@ -1091,7 +1222,14 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
         const roleLabel = m.role || 'saved';
         const isEditing = activeEdits.has(m.id);
         const isHistOpen = openHistories.has(m.id);
+        const isProvOpen = openProvenances.has(m.id);
         const historyCount = m.history ? m.history.length : 0;
+
+        // Classifier & Sensitivity check (#13, #20)
+        const classification = classifyMemoryCandidate(m.text);
+        const sens = classification.sensitivity;
+        const sensBadgeHTML =
+          '<span class="mn-sens-badge mn-sens-' + sens + '">' + sens + '</span>';
 
         let contentHTML = isEditing
           ? '<div class="mn-edit-area">' +
@@ -1100,7 +1238,7 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
             '<button class="mn-btn mn-btn-k" data-act="save-edit" data-id="' + m.id + '">Save</button>' +
             '<button class="mn-btn mn-btn-d" data-act="cancel-edit" data-id="' + m.id + '">Cancel</button>' +
             '</div></div>'
-          : '<div class="mn-card-txt"><span class="mn-role mn-role-' + roleClass + '">' + esc(roleLabel) + '</span>' + esc(truncate(m.text)) + '</div>';
+          : '<div class="mn-card-txt"><span class="mn-role mn-role-' + roleClass + '">' + esc(roleLabel) + '</span>' + sensBadgeHTML + esc(truncate(m.text)) + '</div>';
 
         let histHTML = '';
         if (isHistOpen && m.history && m.history.length > 0) {
@@ -1121,6 +1259,20 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
             '</div>';
         }
 
+        // Provenance & Lineage Inspector (#19)
+        let provHTML = '';
+        if (isProvOpen) {
+          const confidencePct = Math.round(classification.score * 100);
+          provHTML =
+            '<div class="mn-prov-panel">' +
+            '<div class="mn-prov-ttl"><span>Audit Lineage & Provenance</span><span>' + confidencePct + '% score</span></div>' +
+            '<div class="mn-prov-row"><span class="mn-prov-lbl">Source Page:</span><span class="mn-prov-val">' + esc(m.source || location.hostname) + '</span></div>' +
+            '<div class="mn-prov-row"><span class="mn-prov-lbl">Captured At:</span><span class="mn-prov-val">' + new Date(m.keptAt || m.timestamp).toLocaleString() + '</span></div>' +
+            '<div class="mn-prov-row"><span class="mn-prov-lbl">Extraction Role:</span><span class="mn-prov-val">' + esc(m.role || 'user') + '</span></div>' +
+            '<div class="mn-prov-row"><span class="mn-prov-lbl">Edit Iterations:</span><span class="mn-prov-val">' + historyCount + '</span></div>' +
+            '</div>';
+        }
+
         return (
           '<div class="mn-card" data-id="' + m.id + '">' +
           contentHTML +
@@ -1128,10 +1280,12 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
           '<span>' + timeAgo(m.keptAt || m.timestamp) + (m.updatedAt ? ' (edited)' : '') + '</span>' +
           '<div class="mn-card-acts">' +
           (!isEditing ? '<button class="mn-btn mn-btn-e" data-act="edit" data-id="' + m.id + '">Edit</button>' : '') +
+          '<button class="mn-btn mn-btn-p" data-act="tog-prov" data-id="' + m.id + '">Audit</button>' +
           (historyCount > 0 ? '<button class="mn-btn mn-btn-h" data-act="tog-hist" data-id="' + m.id + '">Diff (' + historyCount + ')</button>' : '') +
           '<button class="mn-btn mn-btn-d" data-act="del" data-id="' + m.id + '">Delete</button>' +
           '</div></div>' +
           histHTML +
+          provHTML +
           '</div>'
         );
       })
@@ -1154,6 +1308,13 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
           activeEdits.delete(b.dataset.id);
           updateKept(b.dataset.id, area.value.trim());
         }
+      })
+    );
+    p.querySelectorAll('[data-act="tog-prov"]').forEach((b) =>
+      b.addEventListener('click', () => {
+        if (openProvenances.has(b.dataset.id)) openProvenances.delete(b.dataset.id);
+        else openProvenances.add(b.dataset.id);
+        renderKept();
       })
     );
     p.querySelectorAll('[data-act="tog-hist"]').forEach((b) =>
@@ -1314,6 +1475,50 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
   const dismissedChips = new Set();
   const resolvedConflicts = new Set();
 
+  /* ── Ambient Background Memory Classifier (#13) ── */
+  function classifyMemoryCandidate(text) {
+    if (!text || text.length < 20) {
+      return { score: 0, isDurable: false, isSession: false, conflict: null, sensitivity: 'low', filteredByRule: false };
+    }
+
+    if (matchesAnyRule(text)) {
+      return { score: 0, isDurable: false, isSession: false, conflict: null, sensitivity: 'high', filteredByRule: true };
+    }
+
+    let sensitivity = 'low';
+    const lower = text.toLowerCase();
+    const highSensKeywords = ['password', 'ssn', 'credit card', 'salary', 'income', 'medical', 'diagnosis', 'bank account', 'secret', 'confidential'];
+    const medSensKeywords = ['phone', 'address', 'email', 'location', 'family', 'employer', 'health'];
+
+    if (highSensKeywords.some((k) => lower.includes(k))) sensitivity = 'high';
+    else if (medSensKeywords.some((k) => lower.includes(k))) sensitivity = 'medium';
+
+    let score = 0.35;
+    const durablePatterns = [
+      /\b(i am|i live|i work|my name|my favorite|i prefer|i use|i have|always|never|located in|role is|stack is|build with)\b/i,
+      /\b(user prefers|user lives|user works|user uses|user has|user's)\b/i
+    ];
+    durablePatterns.forEach((pat) => {
+      if (pat.test(lower)) score += 0.25;
+    });
+
+    if (text.length >= 40 && text.length <= 600) score += 0.15;
+
+    const conflict = findMemoryConflict(text);
+
+    const isDurable = score >= 0.55;
+    const isSession = score >= 0.35 && !isDurable;
+
+    return {
+      score: Math.min(1.0, score),
+      isDurable,
+      isSession,
+      conflict,
+      sensitivity,
+      filteredByRule: false
+    };
+  }
+
   function findMemoryConflict(text) {
     if (!state.kept.length || !text || text.length < 20) return null;
 
@@ -1368,56 +1573,57 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
       let conflictAnno = el.querySelector('.mn-conflict-annotation');
       const textKey = text.slice(0, 40);
 
+      // Central classification pass (#13)
+      const classified = classifyMemoryCandidate(text);
+
       if (!matchingKept && !matchingNoticed) {
         if (dot) dot.remove();
 
-        // ── Conflict Check (#12) ──
-        if (!resolvedConflicts.has(textKey)) {
-          const conflict = findMemoryConflict(text);
-          if (conflict) {
-            el.classList.remove('mn-pulse-candidate');
-            if (chip) chip.remove();
+        // ── Conflict Check via Classifier (#12 / #13) ──
+        if (classified.conflict && !resolvedConflicts.has(textKey)) {
+          const conflict = classified.conflict;
+          el.classList.remove('mn-pulse-candidate');
+          if (chip) chip.remove();
 
-            if (!conflictAnno) {
-              conflictAnno = document.createElement('div');
-              conflictAnno.className = 'mn-conflict-annotation';
-              conflictAnno.innerHTML =
-                '<div class="mn-conflict-hdr">⚠️ Memory Conflict Detected</div>' +
-                '<div class="mn-conflict-diff">' + conflict.diffHTML + '</div>' +
-                '<div class="mn-conflict-acts">' +
-                '<button class="mn-conflict-btn mn-conflict-keep" title="Keep original stored memory">Keep Stored</button>' +
-                '<button class="mn-conflict-btn mn-conflict-update" title="Update memory to new statement">Accept New</button>' +
-                '<button class="mn-conflict-btn mn-conflict-ignore" title="Dismiss warning">Ignore</button>' +
-                '</div>';
-              el.appendChild(conflictAnno);
+          if (!conflictAnno) {
+            conflictAnno = document.createElement('div');
+            conflictAnno.className = 'mn-conflict-annotation';
+            conflictAnno.innerHTML =
+              '<div class="mn-conflict-hdr">⚠️ Memory Conflict Detected</div>' +
+              '<div class="mn-conflict-diff">' + conflict.diffHTML + '</div>' +
+              '<div class="mn-conflict-acts">' +
+              '<button class="mn-conflict-btn mn-conflict-keep" title="Keep original stored memory">Keep Stored</button>' +
+              '<button class="mn-conflict-btn mn-conflict-update" title="Update memory to new statement">Accept New</button>' +
+              '<button class="mn-conflict-btn mn-conflict-ignore" title="Dismiss warning">Ignore</button>' +
+              '</div>';
+            el.appendChild(conflictAnno);
 
-              conflictAnno.querySelector('.mn-conflict-keep').onclick = (e) => {
-                e.stopPropagation();
-                resolvedConflicts.add(textKey);
-                conflictAnno.remove();
-                showToast('Conflict resolved — kept original memory');
-              };
-              conflictAnno.querySelector('.mn-conflict-update').onclick = (e) => {
-                e.stopPropagation();
-                resolvedConflicts.add(textKey);
-                updateKept(conflict.memory.id, text.slice(0, 800));
-                conflictAnno.remove();
-                showToast('Memory updated with new statement ✓');
-              };
-              conflictAnno.querySelector('.mn-conflict-ignore').onclick = (e) => {
-                e.stopPropagation();
-                resolvedConflicts.add(textKey);
-                conflictAnno.remove();
-              };
-            }
-            return;
+            conflictAnno.querySelector('.mn-conflict-keep').onclick = (e) => {
+              e.stopPropagation();
+              resolvedConflicts.add(textKey);
+              conflictAnno.remove();
+              showToast('Conflict resolved — kept original memory');
+            };
+            conflictAnno.querySelector('.mn-conflict-update').onclick = (e) => {
+              e.stopPropagation();
+              resolvedConflicts.add(textKey);
+              updateKept(conflict.memory.id, text.slice(0, 800));
+              conflictAnno.remove();
+              showToast('Memory updated with new statement ✓');
+            };
+            conflictAnno.querySelector('.mn-conflict-ignore').onclick = (e) => {
+              e.stopPropagation();
+              resolvedConflicts.add(textKey);
+              conflictAnno.remove();
+            };
           }
+          return;
         }
 
         if (conflictAnno) conflictAnno.remove();
 
-        // Check if text is a candidate (not saved/noticed yet and not dismissed)
-        if (text.length >= 60 && !dismissedChips.has(text.slice(0, 30)) && state.collectionEnabled) {
+        // ── Ambient Candidate Pulse via Classifier (#15 / #13) ──
+        if (classified.score >= 0.35 && !classified.filteredByRule && !dismissedChips.has(textKey) && state.collectionEnabled) {
           el.classList.add('mn-pulse-candidate');
           if (!chip) {
             chip = document.createElement('span');
@@ -1457,7 +1663,7 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
             };
             chip.querySelector('.mn-chip-fg').onclick = (e) => {
               e.stopPropagation();
-              dismissedChips.add(text.slice(0, 30));
+              dismissedChips.add(textKey);
               el.classList.remove('mn-pulse-candidate');
               chip.remove();
             };

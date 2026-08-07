@@ -78,7 +78,7 @@ Opens a side-by-side comparison UI allowing users to keep the newest memory, mer
 
 ---
 
-### 13. Ambient Background Memory Classifier
+### 13. ✅ Ambient Background Memory Classifier
 Non-blocking evaluation algorithm that identifies durable facts immediately after assistant responses finish.  
 Silently populates the session candidate list without freezing input bars or interrupting typing.
 
@@ -116,19 +116,19 @@ Renders memories with gradual visual fading, micro-sparkline decay curves, and p
 
 ---
 
-### 19. Bidirectional Provenance & Lineage Inspector
+### 19. ✅ Bidirectional Provenance & Lineage Inspector
 Complete audit trail linking AI responses back to source memories, and memories forward to all responses influenced.  
 Displays extraction reasoning, confidence scores, edit histories, and chronological usage logs.
 
 ---
 
-### 20. Sensitivity-Tiered Consent Handshakes
+### 20. ✅ Sensitivity-Tiered Consent Handshakes
 Automated classification of memories into Low (Green), Medium (Amber), and High (Red) sensitivity tiers.  
 Triggers mandatory, conversational inline consent dialogs for high-stakes health, financial, or personal data.
 
 ---
 
-### 21. Natural Language Memory Rules & End-User Programming
+### 21. ✅ Natural Language Memory Rules & End-User Programming
 Policy builder allowing users to declare memory rules in plain text or by example ("Never remember salary details").  
 Automatically parses logic, detects semantic conflicts between rules, and offers visual rule construction.
 
@@ -146,7 +146,7 @@ Establishes mutual agreements on memory retention through structured speech acts
 
 ---
 
-### 24. Memory Freeze & Snapshot Version Control
+### 24. ✅ Memory Freeze & Snapshot Version Control
 Crystallization tool allowing users to take named snapshots of their entire memory profile state.  
 Features snapshot diffing and 1-click rollback to revert accidental deletions or unwanted rule changes.
 
