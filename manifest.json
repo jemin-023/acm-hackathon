@@ -19,8 +19,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "memoneg-270m-int4.onnx",
-        "memoneg-270m-finetuned/*",
         "src/lib/*"
       ],
       "matches": ["<all_urls>"]

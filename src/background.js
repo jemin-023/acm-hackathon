@@ -205,4 +205,17 @@ const handlers = {
       }
     });
   },
+
+  /* ── PenEcho Spatial Canvas State Persistence ── */
+  GET_CANVAS_STATE(_msg, respond) {
+    chrome.storage.local.get('memoneg_canvas_state', (r) => {
+      respond({ canvasState: r.memoneg_canvas_state || null });
+    });
+  },
+
+  SAVE_CANVAS_STATE(msg, respond) {
+    chrome.storage.local.set({ memoneg_canvas_state: msg.canvasState }, () => {
+      respond({ success: true });
+    });
+  },
 };
