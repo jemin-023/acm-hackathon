@@ -1914,9 +1914,55 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         color: #000000 !important;
       }
 
+      .mn-prompt-kept {
+        background: #67E8F9 !important;
+        color: #000000 !important;
+      }
+
+      .mn-prompt-edit {
+        background: #DDD6FE !important;
+        color: #000000 !important;
+      }
+
       .mn-prompt-reject {
         background: #FCA5A5 !important;
         color: #000000 !important;
+      }
+
+      .mn-cancel-edited {
+        background: #E5E7EB !important;
+        color: #000000 !important;
+      }
+
+      .mn-prompt-edit-wrap {
+        margin: 8px 0 10px 0 !important;
+      }
+
+      .mn-prompt-snippet-box {
+        font-size: 12.5px !important;
+        font-weight: 600 !important;
+        color: #1F2937 !important;
+        background: #F9FAFB !important;
+        border: 1.5px solid #000000 !important;
+        border-radius: 8px !important;
+        padding: 8px 10px !important;
+        line-height: 1.45 !important;
+        white-space: pre-wrap !important;
+        word-break: break-word !important;
+      }
+
+      .mn-prompt-textarea {
+        width: 100% !important;
+        min-height: 60px !important;
+        padding: 8px 10px !important;
+        border-radius: 8px !important;
+        border: 2px solid #000000 !important;
+        font-family: inherit !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        background: #F9FAFB !important;
+        box-sizing: border-box !important;
+        outline: none !important;
       }
 
       .mn-status-dot {
@@ -2288,52 +2334,167 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     msgElement.classList.add('mn-purple-memory-border');
 
+    let currentSnippet = snippet;
+
     const promptEl = document.createElement('div');
     promptEl.className = 'mn-inline-memory-prompt';
-    promptEl.innerHTML =
-      '<div class="mn-prompt-hdr"><span>🧠 Claude Memory Detected</span></div>' +
-      '<div class="mn-prompt-body">Do you want to accept this memory into your permanent vault or reject it to the noticed section?</div>' +
-      '<div class="mn-prompt-acts">' +
-      '<button class="mn-prompt-btn mn-prompt-accept">Accept & Save</button>' +
-      '<button class="mn-prompt-btn mn-prompt-reject">Reject → Store in Noticed</button>' +
-      '</div>';
 
+    function renderBannerStep(step = 'initial') {
+      if (step === 'initial') {
+        promptEl.innerHTML =
+          '<div class="mn-prompt-hdr"><span>🧠 Claude Memory Detected</span></div>' +
+          '<div class="mn-prompt-body">Claude has noted personal info/preferences from this response.</div>' +
+          '<div class="mn-prompt-acts">' +
+          '<button class="mn-prompt-btn mn-prompt-accept" title="Accept memory & save">Accept & Save</button>' +
+          '<button class="mn-prompt-btn mn-prompt-kept" title="View stored details or change options">Change Something / Options</button>' +
+          '</div>';
+
+        promptEl.querySelector('.mn-prompt-accept').onclick = (e) => {
+          e.stopPropagation();
+          msgElement.classList.remove('mn-purple-memory-border');
+          promptEl.remove();
+
+          addKept({
+            id: uid(),
+            text: currentSnippet,
+            role: 'assistant',
+            source: location.hostname,
+            url: location.href,
+            timestamp: Date.now(),
+            keptAt: Date.now(),
+          });
+
+          showToast('Memory Accepted & Saved ✓');
+        };
+
+        promptEl.querySelector('.mn-prompt-kept').onclick = (e) => {
+          e.stopPropagation();
+          renderBannerStep('options');
+        };
+        return;
+      }
+
+      if (step === 'options') {
+        promptEl.innerHTML =
+          '<div class="mn-prompt-hdr"><span>📋 Stored Personal Info & Preferences</span></div>' +
+          '<div class="mn-prompt-body" style="font-weight:700;color:#1F2937;margin-bottom:6px">Detected Memory Detail:</div>' +
+          '<div class="mn-prompt-snippet-box">' + esc(currentSnippet) + '</div>' +
+          '<div class="mn-prompt-acts" style="margin-top:10px">' +
+          '<button class="mn-prompt-btn mn-prompt-accept" title="Accept memory">Accept</button>' +
+          '<button class="mn-prompt-btn mn-prompt-kept" title="Store in Kept Vault">Store in Kept</button>' +
+          '<button class="mn-prompt-btn mn-prompt-edit" title="Edit memory text">Edit</button>' +
+          '<button class="mn-prompt-btn mn-prompt-reject" title="Reject memory to Noticed section">Reject</button>' +
+          '<button class="mn-prompt-btn mn-cancel-edited" title="Back to main prompt">Back</button>' +
+          '</div>';
+
+        promptEl.querySelector('.mn-prompt-accept').onclick = (e) => {
+          e.stopPropagation();
+          msgElement.classList.remove('mn-purple-memory-border');
+          promptEl.remove();
+
+          addKept({
+            id: uid(),
+            text: currentSnippet,
+            role: 'assistant',
+            source: location.hostname,
+            url: location.href,
+            timestamp: Date.now(),
+            keptAt: Date.now(),
+          });
+
+          showToast('Memory Accepted & Saved ✓');
+        };
+
+        promptEl.querySelector('.mn-prompt-kept').onclick = (e) => {
+          e.stopPropagation();
+          msgElement.classList.remove('mn-purple-memory-border');
+          promptEl.remove();
+
+          addKept({
+            id: uid(),
+            text: currentSnippet,
+            role: 'assistant',
+            source: location.hostname,
+            url: location.href,
+            timestamp: Date.now(),
+            keptAt: Date.now(),
+          });
+
+          showToast('Stored in Kept Vault ✓');
+        };
+
+        promptEl.querySelector('.mn-prompt-edit').onclick = (e) => {
+          e.stopPropagation();
+          renderBannerStep('edit');
+        };
+
+        promptEl.querySelector('.mn-prompt-reject').onclick = (e) => {
+          e.stopPropagation();
+          msgElement.classList.remove('mn-purple-memory-border');
+          promptEl.remove();
+
+          addNoticed({
+            id: uid(),
+            text: currentSnippet,
+            role: 'assistant',
+            source: location.hostname,
+            url: location.href,
+            timestamp: Date.now(),
+          });
+
+          showToast('Memory Rejected → Stored in Noticed Sidebar');
+        };
+
+        promptEl.querySelector('.mn-cancel-edited').onclick = (e) => {
+          e.stopPropagation();
+          renderBannerStep('initial');
+        };
+        return;
+      }
+
+      if (step === 'edit') {
+        promptEl.innerHTML =
+          '<div class="mn-prompt-hdr"><span>✏️ Edit Memory Before Saving</span></div>' +
+          '<div class="mn-prompt-edit-wrap">' +
+          '<textarea class="mn-prompt-textarea">' + esc(currentSnippet) + '</textarea>' +
+          '</div>' +
+          '<div class="mn-prompt-acts">' +
+          '<button class="mn-prompt-btn mn-prompt-accept mn-save-edited">Save Edited Memory</button>' +
+          '<button class="mn-prompt-btn mn-cancel-edited">Cancel</button>' +
+          '</div>';
+
+        promptEl.querySelector('.mn-save-edited').onclick = (e) => {
+          e.stopPropagation();
+          const txt = promptEl.querySelector('.mn-prompt-textarea').value.trim();
+          if (txt) {
+            currentSnippet = txt;
+            msgElement.classList.remove('mn-purple-memory-border');
+            promptEl.remove();
+
+            addKept({
+              id: uid(),
+              text: currentSnippet,
+              role: 'assistant',
+              source: location.hostname,
+              url: location.href,
+              timestamp: Date.now(),
+              keptAt: Date.now(),
+            });
+
+            showToast('Edited Memory Accepted & Saved ✓');
+          }
+        };
+
+        promptEl.querySelector('.mn-cancel-edited').onclick = (e) => {
+          e.stopPropagation();
+          renderBannerStep('options');
+        };
+        return;
+      }
+    }
+
+    renderBannerStep('initial');
     msgElement.appendChild(promptEl);
-
-    promptEl.querySelector('.mn-prompt-accept').onclick = (e) => {
-      e.stopPropagation();
-      msgElement.classList.remove('mn-purple-memory-border');
-      promptEl.remove();
-
-      addKept({
-        id: uid(),
-        text: snippet,
-        role: 'assistant',
-        source: location.hostname,
-        url: location.href,
-        timestamp: Date.now(),
-        keptAt: Date.now(),
-      });
-
-      showToast('Memory Accepted & Saved ✓');
-    };
-
-    promptEl.querySelector('.mn-prompt-reject').onclick = (e) => {
-      e.stopPropagation();
-      msgElement.classList.remove('mn-purple-memory-border');
-      promptEl.remove();
-
-      addNoticed({
-        id: uid(),
-        text: snippet,
-        role: 'assistant',
-        source: location.hostname,
-        url: location.href,
-        timestamp: Date.now(),
-      });
-
-      showToast('Memory Rejected → Stored in Noticed Sidebar');
-    };
   }
 
   /* ═══════════════════════════════════════
