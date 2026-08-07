@@ -60,7 +60,7 @@ Silently drops matching facts before they enter the memory pipeline without inte
 
 ---
 
-### 10. Track-Changes Diff & Version History
+### 10. ✅ Track-Changes Diff & Version History
 Visual red-strikethrough and green-highlight editor showing how a stored memory evolved over time.  
 Allows users to view historical edits and instantly revert any memory item to a previous state.
 
@@ -92,7 +92,7 @@ Injects only minimal, relevant memory excerpts into prompt contexts during activ
 
 ## Part II — Research-Grounded HCI Features (from MemoNeg Solution)
 
-### 15. Ambient Memory Capture Pulse
+### 15. ✅ Ambient Memory Capture Pulse
 Real-time subtle visual glow around message text whenever the system detects a potential memory candidate.  
 Hovering expands a micro-negotiation chip offering immediate Remember, Session-Only, Edit, or Forget actions.
 

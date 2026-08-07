@@ -52,6 +52,25 @@ const handlers = {
     });
   },
 
+  UPDATE_KEPT(msg, respond) {
+    chrome.storage.local.get('memoneg_kept', (r) => {
+      const kept = r.memoneg_kept || [];
+      const idx = kept.findIndex((m) => m.id === msg.id);
+      if (idx !== -1) {
+        const item = kept[idx];
+        const history = item.history || [];
+        // Save current state into history before updating
+        history.unshift({ text: item.text, timestamp: Date.now() });
+        kept[idx] = { ...item, text: msg.text, history, updatedAt: Date.now() };
+        chrome.storage.local.set({ memoneg_kept: kept }, () => {
+          respond({ success: true, kept });
+        });
+      } else {
+        respond({ success: false, kept });
+      }
+    });
+  },
+
   /* ── Noticed memories (session-scoped) ── */
   GET_NOTICED(_msg, respond) {
     chrome.storage.session.get('memoneg_noticed', (r) => {

@@ -98,6 +98,13 @@
     showToast('Memory deleted');
   }
 
+  async function updateKept(id, text) {
+    const r = await send({ type: 'UPDATE_KEPT', id, text });
+    state.kept = r?.kept || [];
+    renderAll();
+    showToast('Memory updated ✓');
+  }
+
   async function addNoticed(mem) {
     // ── Never-Save Rules filter (#9) ──
     if (matchesAnyRule(mem.text)) return;
@@ -585,6 +592,35 @@
   transform: scale(1.02);
 }
 .mn-trash-zone svg { width: 14px; height: 14px; }
+
+/* ── Edit & Version History (#10) ── */
+.mn-btn-e { background: rgba(139,92,246,.12); color: #a78bfa; }
+.mn-btn-e:hover { background: rgba(139,92,246,.25); }
+.mn-btn-h { background: rgba(255,255,255,.05); color: #8e8ea6; }
+.mn-btn-h:hover { color: #c8c8dc; background: rgba(255,255,255,.1); }
+.mn-btn-r { background: rgba(52,211,153,.12); color: #34d399; padding: 2px 7px; font-size: 10px; }
+.mn-btn-r:hover { background: rgba(52,211,153,.25); }
+
+.mn-edit-area { margin-top: 8px; }
+.mn-edit-box {
+  width: 100%; min-height: 60px; padding: 8px; border-radius: 6px;
+  border: 1px solid rgba(139,92,246,.3); background: rgba(16,16,28,.9);
+  color: #e0e0f0; font-size: 12px; font-family: inherit; outline: none;
+  resize: vertical;
+}
+.mn-edit-acts { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+
+.mn-hist-panel {
+  margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(139,92,246,.15);
+}
+.mn-hist-item {
+  padding: 6px 8px; border-radius: 6px; background: rgba(255,255,255,.03);
+  margin-bottom: 6px; font-size: 11px; line-height: 1.5;
+}
+.mn-hist-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; color: #6e6e86; font-size: 10px; }
+.mn-diff-body { font-size: 11px; word-break: break-word; }
+del.mn-diff-del { color: #f87171; text-decoration: line-through; background: rgba(248,113,113,.15); padding: 0 3px; border-radius: 3px; }
+ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211,153,.15); padding: 0 3px; border-radius: 3px; }
     `;
   }
 
@@ -1017,6 +1053,26 @@
     });
   }
 
+  const openHistories = new Set();
+  const activeEdits = new Set();
+
+  function renderDiffHTML(oldStr, newStr) {
+    const oldWords = oldStr.split(/\s+/);
+    const newWords = newStr.split(/\s+/);
+    const oldSet = new Set(oldWords);
+    const newSet = new Set(newWords);
+
+    let html = '';
+    oldWords.forEach((w) => {
+      if (!newSet.has(w)) html += '<del class="mn-diff-del">' + esc(w) + '</del> ';
+    });
+    newWords.forEach((w) => {
+      if (!oldSet.has(w)) html += '<ins class="mn-diff-ins">' + esc(w) + '</ins> ';
+      else html += esc(w) + ' ';
+    });
+    return html.trim();
+  }
+
   function renderKept() {
     const p = ui.kept;
     if (!p) return;
@@ -1030,28 +1086,93 @@
       return;
     }
     p.innerHTML = state.kept
-      .map(
-        (m) => {
-          const roleClass = m.role === 'assistant' ? 'a' : m.role === 'user' ? 'u' : 's';
-          const roleLabel = m.role || 'saved';
-          return (
-            '<div class="mn-card" data-id="' + m.id + '">' +
-            '<div class="mn-card-txt">' +
-            '<span class="mn-role mn-role-' + roleClass + '">' + esc(roleLabel) + '</span>' +
-            esc(truncate(m.text)) +
-            '</div>' +
-            '<div class="mn-card-meta">' +
-            '<span>' + timeAgo(m.keptAt || m.timestamp) + '</span>' +
-            '<div class="mn-card-acts">' +
-            '<button class="mn-btn mn-btn-d" data-act="del" data-id="' + m.id + '">Delete</button>' +
-            '</div></div></div>'
-          );
+      .map((m) => {
+        const roleClass = m.role === 'assistant' ? 'a' : m.role === 'user' ? 'u' : 's';
+        const roleLabel = m.role || 'saved';
+        const isEditing = activeEdits.has(m.id);
+        const isHistOpen = openHistories.has(m.id);
+        const historyCount = m.history ? m.history.length : 0;
+
+        let contentHTML = isEditing
+          ? '<div class="mn-edit-area">' +
+            '<textarea class="mn-edit-box" data-id="' + m.id + '">' + esc(m.text) + '</textarea>' +
+            '<div class="mn-edit-acts">' +
+            '<button class="mn-btn mn-btn-k" data-act="save-edit" data-id="' + m.id + '">Save</button>' +
+            '<button class="mn-btn mn-btn-d" data-act="cancel-edit" data-id="' + m.id + '">Cancel</button>' +
+            '</div></div>'
+          : '<div class="mn-card-txt"><span class="mn-role mn-role-' + roleClass + '">' + esc(roleLabel) + '</span>' + esc(truncate(m.text)) + '</div>';
+
+        let histHTML = '';
+        if (isHistOpen && m.history && m.history.length > 0) {
+          histHTML =
+            '<div class="mn-hist-panel">' +
+            m.history
+              .map(
+                (h, idx) =>
+                  '<div class="mn-hist-item">' +
+                  '<div class="mn-hist-hdr">' +
+                  '<span>v' + (m.history.length - idx) + ' • ' + timeAgo(h.timestamp) + '</span>' +
+                  '<button class="mn-btn mn-btn-r" data-act="revert" data-id="' + m.id + '" data-ver="' + idx + '">Revert</button>' +
+                  '</div>' +
+                  '<div class="mn-diff-body">' + renderDiffHTML(h.text, m.text) + '</div>' +
+                  '</div>'
+              )
+              .join('') +
+            '</div>';
         }
-      )
+
+        return (
+          '<div class="mn-card" data-id="' + m.id + '">' +
+          contentHTML +
+          '<div class="mn-card-meta">' +
+          '<span>' + timeAgo(m.keptAt || m.timestamp) + (m.updatedAt ? ' (edited)' : '') + '</span>' +
+          '<div class="mn-card-acts">' +
+          (!isEditing ? '<button class="mn-btn mn-btn-e" data-act="edit" data-id="' + m.id + '">Edit</button>' : '') +
+          (historyCount > 0 ? '<button class="mn-btn mn-btn-h" data-act="tog-hist" data-id="' + m.id + '">Diff (' + historyCount + ')</button>' : '') +
+          '<button class="mn-btn mn-btn-d" data-act="del" data-id="' + m.id + '">Delete</button>' +
+          '</div></div>' +
+          histHTML +
+          '</div>'
+        );
+      })
       .join('');
 
+    // Actions
     p.querySelectorAll('[data-act="del"]').forEach((b) =>
       b.addEventListener('click', () => deleteKept(b.dataset.id))
+    );
+    p.querySelectorAll('[data-act="edit"]').forEach((b) =>
+      b.addEventListener('click', () => { activeEdits.add(b.dataset.id); renderKept(); })
+    );
+    p.querySelectorAll('[data-act="cancel-edit"]').forEach((b) =>
+      b.addEventListener('click', () => { activeEdits.delete(b.dataset.id); renderKept(); })
+    );
+    p.querySelectorAll('[data-act="save-edit"]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const area = p.querySelector('textarea[data-id="' + b.dataset.id + '"]');
+        if (area && area.value.trim()) {
+          activeEdits.delete(b.dataset.id);
+          updateKept(b.dataset.id, area.value.trim());
+        }
+      })
+    );
+    p.querySelectorAll('[data-act="tog-hist"]').forEach((b) =>
+      b.addEventListener('click', () => {
+        if (openHistories.has(b.dataset.id)) openHistories.delete(b.dataset.id);
+        else openHistories.add(b.dataset.id);
+        renderKept();
+      })
+    );
+    p.querySelectorAll('[data-act="revert"]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const item = state.kept.find((m) => m.id === b.dataset.id);
+        const verIdx = parseInt(b.dataset.ver, 10);
+        if (item && item.history && item.history[verIdx]) {
+          openHistories.delete(b.dataset.id);
+          updateKept(b.dataset.id, item.history[verIdx].text);
+          showToast('Reverted to version v' + (item.history.length - verIdx) + ' ✓');
+        }
+      })
     );
 
     // Attach drag handlers (#4)
@@ -1074,7 +1195,7 @@
   }
 
   /* ═══════════════════════════════════════
-     PER-MESSAGE STATUS INDICATOR (#2)
+     PER-MESSAGE STATUS INDICATOR (#2) & AMBIENT CAPTURE PULSE (#15)
      ═══════════════════════════════════════ */
   function injectHostCSS() {
     if (document.getElementById('mn-host-styles')) return;
@@ -1107,9 +1228,53 @@
       .mn-status-dot:hover {
         transform: scale(1.4) !important;
       }
+
+      /* Ambient Memory Capture Pulse (#15) */
+      @keyframes mnGlowPulse {
+        0%, 100% { box-shadow: 0 0 6px rgba(167,139,250,0.2); border-color: rgba(167,139,250,0.25); }
+        50% { box-shadow: 0 0 16px rgba(167,139,250,0.55); border-color: rgba(167,139,250,0.65); }
+      }
+      .mn-pulse-candidate {
+        animation: mnGlowPulse 2.8s ease-in-out infinite !important;
+        border: 1px solid rgba(167,139,250,0.3) !important;
+        border-radius: 10px !important;
+        transition: all .3s ease !important;
+      }
+
+      .mn-chip {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+        margin-left: 8px !important;
+        padding: 3px 8px !important;
+        border-radius: 12px !important;
+        background: rgba(16,16,28,0.94) !important;
+        border: 1px solid rgba(139,92,246,0.3) !important;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.4) !important;
+        font-size: 11px !important;
+        font-family: 'Inter', sans-serif !important;
+      }
+      .mn-chip-btn {
+        padding: 2px 7px !important;
+        border-radius: 5px !important;
+        border: none !important;
+        font-size: 10px !important;
+        font-weight: 600 !important;
+        cursor: pointer !important;
+        transition: background .2s !important;
+        font-family: inherit !important;
+      }
+      .mn-chip-rem { background: rgba(52,211,153,0.18) !important; color: #34d399 !important; }
+      .mn-chip-rem:hover { background: rgba(52,211,153,0.35) !important; }
+      .mn-chip-ses { background: rgba(251,191,36,0.15) !important; color: #fbbf24 !important; }
+      .mn-chip-ses:hover { background: rgba(251,191,36,0.3) !important; }
+      .mn-chip-fg { background: rgba(248,113,113,0.15) !important; color: #f87171 !important; }
+      .mn-chip-fg:hover { background: rgba(248,113,113,0.3) !important; }
     `;
     (document.head || document.documentElement).appendChild(style);
   }
+
+  const dismissedChips = new Set();
 
   function updateMessageStatusIndicators() {
     injectHostCSS();
@@ -1134,11 +1299,66 @@
       const matchingNoticed = !matchingKept && state.noticed.find((n) => text.includes(n.text.slice(0, 30)));
 
       let dot = el.querySelector('.mn-status-dot');
+      let chip = el.querySelector('.mn-chip');
 
       if (!matchingKept && !matchingNoticed) {
         if (dot) dot.remove();
+        if (chip) chip.remove();
+        el.classList.remove('mn-pulse-candidate');
+
+        // Check if text is a candidate (not saved/noticed yet and not dismissed)
+        if (text.length >= 60 && !dismissedChips.has(text.slice(0, 30)) && state.collectionEnabled) {
+          el.classList.add('mn-pulse-candidate');
+          if (!chip) {
+            chip = document.createElement('span');
+            chip.className = 'mn-chip';
+            chip.innerHTML =
+              '<button class="mn-chip-btn mn-chip-rem" title="Save to Vault">Remember</button>' +
+              '<button class="mn-chip-btn mn-chip-ses" title="Keep for Session">Session</button>' +
+              '<button class="mn-chip-btn mn-chip-fg" title="Dismiss">Forget</button>';
+            el.appendChild(chip);
+
+            chip.querySelector('.mn-chip-rem').onclick = (e) => {
+              e.stopPropagation();
+              addKept({
+                id: uid(),
+                text: text.slice(0, 800),
+                role: 'assistant',
+                source: location.hostname,
+                url: location.href,
+                timestamp: Date.now(),
+                keptAt: Date.now(),
+              });
+              el.classList.remove('mn-pulse-candidate');
+              chip.remove();
+            };
+            chip.querySelector('.mn-chip-ses').onclick = (e) => {
+              e.stopPropagation();
+              addNoticed({
+                id: uid(),
+                text: text.slice(0, 800),
+                role: 'assistant',
+                source: location.hostname,
+                url: location.href,
+                timestamp: Date.now(),
+              });
+              el.classList.remove('mn-pulse-candidate');
+              chip.remove();
+            };
+            chip.querySelector('.mn-chip-fg').onclick = (e) => {
+              e.stopPropagation();
+              dismissedChips.add(text.slice(0, 30));
+              el.classList.remove('mn-pulse-candidate');
+              chip.remove();
+            };
+          }
+        }
         return;
       }
+
+      // If matched, remove pulse glow & chip, show status dot
+      el.classList.remove('mn-pulse-candidate');
+      if (chip) chip.remove();
 
       if (!dot) {
         dot = document.createElement('span');
