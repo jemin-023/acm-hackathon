@@ -696,7 +696,7 @@ For every response in this conversation:
 }
 .mn-card-title-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
 .mn-card-main-title { font-size: 14px; font-weight: 600; color: #1A1A2E; line-height: 1.5; flex: 1; word-break: break-word; }
-.mn-card-meta-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; }
+.mn-card-meta-bar { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 12px !important; margin-top: 10px !important; padding-top: 8px !important; border-top: 1px solid #E5E7EB !important; }
 .mn-card-time { font-size: 11px; font-weight: 500; color: var(--mn-fg-muted); display: flex; align-items: center; gap: 6px; font-family: 'DM Mono', monospace; }
 .mn-card-acts { display: flex; align-items: center; gap: 6px; }
 
@@ -953,7 +953,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 .mn-cat-row-hdr { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; user-select: none; }
 .mn-cat-row-title { font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 700; color: #1A1A2E !important; letter-spacing: -0.2px; text-transform: uppercase; }
 .mn-cat-row-count { font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 8px; background: var(--mn-pink) !important; color: #FFFFFF !important; border: 2px solid #1A1A2E !important; box-shadow: 1px 1px 0px #1A1A2E; }
-.mn-cat-row-cards { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 12px 12px; border-top: 2px dashed #D1D5DB; animation: mnSlideIn 0.2s ease-out; }
+.mn-cat-row-cards { display: flex !important; flex-direction: column !important; gap: 12px !important; padding: 12px 14px 14px 14px !important; border-top: 2px dashed #E5E7EB !important; animation: mnSlideIn 0.2s ease-out !important; }
 
 .mn-sq-icon { font-size: 36px; margin-bottom: 8px; line-height: 1; }
 .mn-sq-title { font-size: 14px; font-weight: 700; color: #1A1A2E; margin-bottom: 4px; }
@@ -988,23 +988,23 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
 .mn-scrapbook-card {
   position: relative; border-radius: 12px; border: 2px solid #1A1A2E !important;
-  background: #FFFFFF !important; padding: 12px 14px;
+  background: #FFFFFF !important; padding: 14px 16px !important;
   transition: all 0.15s ease; display: flex; flex-direction: column;
-  justify-content: space-between; height: 104px; min-height: 104px;
-  box-sizing: border-box; overflow: hidden; cursor: pointer;
-  color: #1A1A2E !important; box-shadow: 3px 3px 0px #1A1A2E;
+  justify-content: space-between; height: auto !important; min-height: auto !important;
+  box-sizing: border-box; overflow: visible !important; cursor: pointer;
+  color: #1A1A2E !important; box-shadow: 3px 3px 0px #1A1A2E !important;
 }
-.mn-scrapbook-card.open { height: auto; min-height: 104px; }
-.mn-scrapbook-card:hover { transform: translate(-2px, -2px); border-color: var(--mn-pink) !important; background: #FFF5FA !important; box-shadow: 5px 5px 0px var(--mn-pink); z-index: 2; }
+.mn-scrapbook-card.open { height: auto !important; min-height: auto !important; }
+.mn-scrapbook-card:hover { transform: translate(-2px, -2px); border-color: var(--mn-pink) !important; background: #FFFFFF !important; box-shadow: 4px 4px 0px #1A1A2E !important; z-index: 2; }
 
-.mn-scrapbook-card.mn-cat-coding { font-family: 'DM Mono', monospace !important; border-color: #0891B2 !important; box-shadow: 3px 3px 0px #0891B2; }
-.mn-scrapbook-card.mn-cat-coding:hover { box-shadow: 5px 5px 0px #0891B2; background: #ECFEFF !important; }
-.mn-scrapbook-card.mn-cat-personal { border-radius: 14px; border-color: #DB2777 !important; background: #FDF2F8 !important; font-style: italic; box-shadow: 3px 3px 0px #DB2777; }
-.mn-scrapbook-card.mn-cat-personal:hover { box-shadow: 5px 5px 0px #DB2777; }
-.mn-scrapbook-card.mn-cat-research { border-color: #D97706 !important; background: #FFFBEB !important; box-shadow: 3px 3px 0px #D97706; }
-.mn-scrapbook-card.mn-cat-research:hover { box-shadow: 5px 5px 0px #D97706; }
-.mn-scrapbook-card.mn-cat-general { border-color: #4F46E5 !important; background: #EEF2FF !important; box-shadow: 3px 3px 0px #4F46E5; }
-.mn-scrapbook-card.mn-cat-general:hover { box-shadow: 5px 5px 0px #4F46E5; }
+.mn-scrapbook-card.mn-cat-coding { font-family: 'Space Grotesk', -apple-system, sans-serif !important; border-color: #1A1A2E !important; box-shadow: 3px 3px 0px #1A1A2E !important; background: #FFFFFF !important; }
+.mn-scrapbook-card.mn-cat-coding:hover { box-shadow: 4px 4px 0px #1A1A2E !important; background: #FFFFFF !important; }
+.mn-scrapbook-card.mn-cat-personal { border-radius: 12px; border-color: #1A1A2E !important; background: #FFFFFF !important; box-shadow: 3px 3px 0px #1A1A2E !important; }
+.mn-scrapbook-card.mn-cat-personal:hover { box-shadow: 4px 4px 0px #1A1A2E !important; }
+.mn-scrapbook-card.mn-cat-research { border-color: #1A1A2E !important; background: #FFFFFF !important; box-shadow: 3px 3px 0px #1A1A2E !important; }
+.mn-scrapbook-card.mn-cat-research:hover { box-shadow: 4px 4px 0px #1A1A2E !important; }
+.mn-scrapbook-card.mn-cat-general { border-color: #1A1A2E !important; background: #FFFFFF !important; box-shadow: 3px 3px 0px #1A1A2E !important; }
+.mn-scrapbook-card.mn-cat-general:hover { box-shadow: 4px 4px 0px #1A1A2E !important; }
 
 .mn-card-hdr-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .mn-card-cb-wrap { display: flex; align-items: center; gap: 6px; }
@@ -1023,7 +1023,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 .mn-copy-snippet-btn:hover { background: #CFFAFE; transform: translate(-1px, -1px); box-shadow: 2px 2px 0px #0E7490; }
 
 .mn-citation-tag { font-size: 10px; font-weight: 700; color: #92400E; background: #FEF3C7; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; word-break: break-all; border: 1px solid #D97706; }
-.mn-card-snippet-text { font-size: 12px; line-height: 1.5; color: #1A1A2E; word-break: break-word; margin-bottom: 10px; white-space: pre-wrap; }
+.mn-card-snippet-text { font-family: 'Space Grotesk', -apple-system, sans-serif !important; font-size: 13px !important; line-height: 1.55 !important; color: #1F2937 !important; word-break: break-word !important; margin: 10px 0 !important; white-space: pre-wrap !important; }
 
 .mn-synthesize-bar {
   position: sticky; bottom: 0; left: 0; right: 0;
