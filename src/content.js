@@ -1862,6 +1862,28 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
         position: relative !important;
       }
 
+      .mn-blue-memory-border {
+        border: 2px solid #3B82F6 !important;
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.35), inset 0 0 12px rgba(59, 130, 246, 0.1) !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
+        margin-top: 8px !important;
+        margin-bottom: 8px !important;
+        transition: all .25s ease !important;
+        position: relative !important;
+      }
+
+      .mn-red-memory-border {
+        border: 2px solid #EF4444 !important;
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.35), inset 0 0 12px rgba(239, 68, 68, 0.1) !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
+        margin-top: 8px !important;
+        margin-bottom: 8px !important;
+        transition: all .25s ease !important;
+        position: relative !important;
+      }
+
       .mn-inline-memory-prompt {
         margin-top: 10px !important;
         padding: 14px 16px !important;
@@ -2290,43 +2312,161 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
   /* ═══════════════════════════════════════
      AUTO-NOTICE & CLAUDE MEMORY DETECTION
-     Scans Claude chat for assistant messages, adds purple boundary box,
-     and displays 2-step prompt banner ("Claude Memory Detected").
+     3-tier content classifier:
+       1. Claude Memory Saved — detects when Claude explicitly saves/updates a memory
+       2. Emotional / Personal Tone — detects personal details, preferences, emotional sharing
+       3. Private Info Leak — detects credit cards, SSN, passwords, API keys in USER messages
+     Only matching messages get the purple boundary box + prompt banner.
      ═══════════════════════════════════════ */
+
+  // ── Tier 1: Claude Memory Saved detection ──
+  // These patterns match when Claude explicitly tells the user it has remembered/saved something
+  const CLAUDE_MEMORY_PATTERNS = [
+    /i(?:'ve|'ll| have| will)?\s+(?:remember(?:ed)?|noted?|saved?|stored?|recorded?|added?\s+(?:that|this)\s+to)\b/i,
+    /(?:memory|memories)\s+(?:updated?|saved?|stored?|added?|created?)/i,
+    /(?:added?|saved?|stored?|noted?|updated?)\s+(?:to|in)\s+(?:my\s+)?(?:memory|memories|notes?)/i,
+    /i(?:'ll)?\s+keep\s+(?:that|this)\s+in\s+mind/i,
+    /(?:thanks?\s+for\s+(?:sharing|telling|letting\s+me\s+know))/i,
+    /(?:got\s+it|noted|understood)[,.]?\s+(?:i(?:'ll| will)\s+remember|your\s+(?:name|preference|location|birthday|job|work|hobby))/i,
+    /(?:updating|updated)\s+(?:my\s+)?(?:understanding|knowledge|memory|profile)/i,
+    /(?:i\s+now\s+know|i\s+know\s+(?:that\s+)?you(?:r|\s+are|\s+like|\s+prefer|\s+work|\s+live))/i,
+    /\bpersonal\s+(?:memory|preference|detail)\s+(?:saved|stored|updated|recorded)\b/i,
+  ];
+
+  // ── Tier 2: Emotional / Personal Tone detection ──
+  // Detects sharing of personal details, emotional content, life events
+  const PERSONAL_TONE_PATTERNS = [
+    /(?:my\s+(?:name|birthday|age|address|email|phone|job|occupation|hobby|hobbies|wife|husband|partner|daughter|son|child(?:ren)?|family|pet|dog|cat)\s+is\b)/i,
+    /(?:i\s+(?:am|was|have\s+been|'m)\s+(?:feeling|diagnosed|suffering|struggling|dealing\s+with|going\s+through|recovering|grieving|depressed|anxious|stressed|lonely|scared|worried|excited|pregnant|engaged|married|divorced|retired))/i,
+    /(?:i\s+(?:love|hate|prefer|enjoy|dislike|am\s+afraid\s+of|am\s+allergic\s+to|am\s+passionate\s+about|believe\s+in))\b/i,
+    /(?:i\s+(?:live|work|study|grew\s+up|was\s+born|moved|relocated)\s+(?:in|at|to|near|from)\b)/i,
+    /(?:i(?:'m| am)\s+(?:a|an)\s+(?:student|teacher|doctor|engineer|developer|designer|artist|musician|nurse|lawyer|therapist|manager|ceo|founder|parent|veteran))\b/i,
+    /(?:i\s+recently\s+(?:lost|found|bought|sold|started|quit|joined|left|broke|got))\b/i,
+    /(?:my\s+(?:salary|income|budget|savings|debt|rent|mortgage|medical|health|condition|diagnosis|medication|therapy|religion|faith|political)\b)/i,
+  ];
+
+  // ── Tier 3: Private Information Leak detection (for USER messages) ──
+  // Credit cards, SSN, passwords, API keys, bank accounts
+  const PRIVATE_INFO_PATTERNS = [
+    /\b(?:\d{4}[\s-]?){3}\d{4}\b/,                                     // Credit card number
+    /\b\d{3}[\s-]?\d{2}[\s-]?\d{4}\b/,                                // SSN
+    /\b(?:password|passwd|pwd)\s*[:=]\s*\S+/i,                        // Password sharing
+    /\b(?:api[_\s-]?key|secret[_\s-]?key|access[_\s-]?token|auth[_\s-]?token)\s*[:=]\s*\S+/i, // API keys
+    /\b[A-Za-z]{2}\d{2}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{0,2}\b/, // IBAN
+    /\b(?:sk|pk|rk)[-_](?:live|test)[-_][a-zA-Z0-9]{20,}\b/,          // Stripe-like keys
+    /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{30,}\b/,                   // GitHub tokens
+    /\bAIza[0-9A-Za-z\-_]{35}\b/,                                      // Google API keys
+    /\b(?:bank\s*account|routing\s*number|account\s*number)\s*[:=]?\s*\d+/i, // Bank details
+    /\b(?:cvv|cvc|security\s+code)\s*[:=]?\s*\d{3,4}\b/i,              // CVV
+  ];
+
+  /**
+   * Classify a message's text content.
+   * @param {string} text - The text content to analyze
+   * @param {string} role - 'assistant' or 'user'
+   * @returns {{ type: string|null, label: string, description: string }}
+   */
+  function classifyMessage(text, role) {
+    if (!text || text.length < 15) return { type: null };
+
+    // For ASSISTANT messages: check Tier 1 (Claude Memory Saved) first
+    if (role === 'assistant') {
+      for (const pat of CLAUDE_MEMORY_PATTERNS) {
+        if (pat.test(text)) {
+          return {
+            type: 'claude_memory',
+            label: '🧠 Claude Memory Detected',
+            description: 'Claude has saved personal information from this conversation as a memory.',
+          };
+        }
+      }
+    }
+
+    // For ASSISTANT messages: check Tier 2 (response references personal/emotional content)
+    if (role === 'assistant') {
+      for (const pat of PERSONAL_TONE_PATTERNS) {
+        if (pat.test(text)) {
+          return {
+            type: 'personal_tone',
+            label: '💬 Personal Info Detected',
+            description: 'This response references personal details or emotional content shared in this conversation.',
+          };
+        }
+      }
+    }
+
+    // For USER messages: check Tier 3 (Private Info Leak)
+    if (role === 'user') {
+      for (const pat of PRIVATE_INFO_PATTERNS) {
+        if (pat.test(text)) {
+          return {
+            type: 'private_leak',
+            label: '🔒 Sensitive Data Warning',
+            description: 'Private information (credit card, SSN, password, API key, etc.) was detected in your message.',
+          };
+        }
+      }
+    }
+
+    // For USER messages: check Tier 2 (user sharing personal/emotional info)
+    if (role === 'user') {
+      for (const pat of PERSONAL_TONE_PATTERNS) {
+        if (pat.test(text)) {
+          return {
+            type: 'personal_tone',
+            label: '💬 Personal Info Shared',
+            description: 'You shared personal details or emotional content. Claude may remember this.',
+          };
+        }
+      }
+    }
+
+    return { type: null };
+  }
+
   function scanAndPromptClaudeMemories() {
     if (!state.collectionEnabled) return;
     injectHostCSS();
 
-    // Selectors for Claude assistant messages in claude.ai DOM
-    const selectors = [
+    // ── Scan ASSISTANT messages ──
+    const assistantSelectors = [
       '[data-message-author-role="assistant"]',
       '.font-claude-response',
       '.font-claude-message',
       '[class*="assistant-message"]',
       '[class*="assistantMessage"]',
-      'div[class*="Message"]:not([class*="user"])',
-      '.prose',
       '[data-is-streaming]'
     ];
 
-    let elements = [];
-    for (const sel of selectors) {
+    let assistantElements = [];
+    for (const sel of assistantSelectors) {
       const found = document.querySelectorAll(sel);
       if (found && found.length > 0) {
-        elements = Array.from(found);
+        assistantElements = Array.from(found);
         break;
       }
     }
 
-    if (elements.length === 0) {
-      elements = Array.from(document.querySelectorAll('div, article, section')).filter((el) => {
-        const cls = (el.className || '').toString().toLowerCase();
-        return (cls.includes('assistant') || cls.includes('response') || cls.includes('claude-msg')) &&
-               !cls.includes('user') && el.textContent.trim().length > 15;
-      });
+    // ── Scan USER messages ──
+    const userSelectors = [
+      '[data-message-author-role="user"]',
+      '[class*="user-message"]',
+      '[class*="userMessage"]',
+      '[class*="human-message"]',
+      '[class*="humanMessage"]',
+    ];
+
+    let userElements = [];
+    for (const sel of userSelectors) {
+      const found = document.querySelectorAll(sel);
+      if (found && found.length > 0) {
+        userElements = Array.from(found);
+        break;
+      }
     }
 
-    elements.forEach((el) => {
+    // Process assistant messages
+    assistantElements.forEach((el) => {
       const container = el.closest('[data-message-author-role="assistant"]') ||
                         el.closest('[class*="Message"]') ||
                         el.closest('article') ||
@@ -2337,14 +2477,38 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       }
 
       const text = container.textContent.trim();
-      if (text.length < 15) return;
+      const result = classifyMessage(text, 'assistant');
+      if (!result.type) return;
 
       let snippet = text.slice(0, 400);
       const lastDot = snippet.lastIndexOf('. ');
       if (lastDot > 100) snippet = snippet.slice(0, lastDot + 1);
 
       container.dataset.mnPrompted = 'true';
-      highlightAndPromptClaudeMemory(container, snippet.trim());
+      highlightAndPromptClaudeMemory(container, snippet.trim(), result);
+    });
+
+    // Process user messages (private info leak + personal tone detection)
+    userElements.forEach((el) => {
+      const container = el.closest('[data-message-author-role="user"]') ||
+                        el.closest('[class*="Message"]') ||
+                        el.closest('article') ||
+                        el;
+
+      if (container.dataset.mnPrompted === 'true' || container.querySelector('.mn-inline-memory-prompt')) {
+        return;
+      }
+
+      const text = container.textContent.trim();
+      const result = classifyMessage(text, 'user');
+      if (!result.type) return;
+
+      let snippet = text.slice(0, 400);
+      const lastDot = snippet.lastIndexOf('. ');
+      if (lastDot > 100) snippet = snippet.slice(0, lastDot + 1);
+
+      container.dataset.mnPrompted = 'true';
+      highlightAndPromptClaudeMemory(container, snippet.trim(), result);
     });
   }
 
@@ -2373,32 +2537,42 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
   }
 
-  function highlightAndPromptClaudeMemory(msgElement, snippet) {
+  function highlightAndPromptClaudeMemory(msgElement, snippet, classification) {
     if (!msgElement || !snippet) return;
     if (msgElement.querySelector('.mn-inline-memory-prompt')) return;
 
     injectHostCSS();
 
-    msgElement.classList.add('mn-purple-memory-border');
+    // Apply type-specific border class
+    const borderClass = classification.type === 'private_leak'
+      ? 'mn-red-memory-border'
+      : classification.type === 'personal_tone'
+        ? 'mn-blue-memory-border'
+        : 'mn-purple-memory-border';
+    msgElement.classList.add(borderClass);
 
     let currentSnippet = snippet;
 
     const promptEl = document.createElement('div');
     promptEl.className = 'mn-inline-memory-prompt';
 
+    function removeBorder() {
+      msgElement.classList.remove('mn-purple-memory-border', 'mn-blue-memory-border', 'mn-red-memory-border');
+    }
+
     function renderBannerStep(step = 'initial') {
       if (step === 'initial') {
         promptEl.innerHTML =
-          '<div class="mn-prompt-hdr"><span>🧠 Claude Memory Detected</span></div>' +
-          '<div class="mn-prompt-body">Claude has noted personal info/preferences from this response.</div>' +
+          '<div class="mn-prompt-hdr"><span>' + classification.label + '</span></div>' +
+          '<div class="mn-prompt-body">' + esc(classification.description) + '</div>' +
           '<div class="mn-prompt-acts">' +
-          '<button class="mn-prompt-btn mn-prompt-accept" title="Accept memory & save">Accept & Save</button>' +
+          '<button class="mn-prompt-btn mn-prompt-accept" title="Accept memory &amp; save">Accept & Save</button>' +
           '<button class="mn-prompt-btn mn-prompt-kept" title="View stored details or change options">Change Something / Options</button>' +
           '</div>';
 
         promptEl.querySelector('.mn-prompt-accept').onclick = (e) => {
           e.stopPropagation();
-          msgElement.classList.remove('mn-purple-memory-border');
+          removeBorder();
           promptEl.remove();
 
           addKept({
@@ -2436,7 +2610,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
         promptEl.querySelector('.mn-prompt-accept').onclick = (e) => {
           e.stopPropagation();
-          msgElement.classList.remove('mn-purple-memory-border');
+          removeBorder();
           promptEl.remove();
 
           addKept({
@@ -2454,7 +2628,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
         promptEl.querySelector('.mn-prompt-kept').onclick = (e) => {
           e.stopPropagation();
-          msgElement.classList.remove('mn-purple-memory-border');
+          removeBorder();
           promptEl.remove();
 
           addKept({
@@ -2477,7 +2651,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
         promptEl.querySelector('.mn-prompt-reject').onclick = (e) => {
           e.stopPropagation();
-          msgElement.classList.remove('mn-purple-memory-border');
+          removeBorder();
           promptEl.remove();
 
           addNoticed({
@@ -2515,7 +2689,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
           const txt = promptEl.querySelector('.mn-prompt-textarea').value.trim();
           if (txt) {
             currentSnippet = txt;
-            msgElement.classList.remove('mn-purple-memory-border');
+            removeBorder();
             promptEl.remove();
 
             addKept({
