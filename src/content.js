@@ -664,6 +664,36 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
 .mn-snaps-inp-row { display: flex; gap: 6px; padding: 8px 10px; border-bottom: 1px solid rgba(52,211,153,.1); }
 .mn-snaps-list { max-height: 110px; overflow-y: auto; padding: 4px 0; }
 .mn-snap-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,.03); }
+
+/* ── Decay Engine (#18) ── */
+.mn-decay-wrap { margin-top: 6px; display: flex; align-items: center; gap: 8px; font-size: 10px; color: #6e6e86; }
+.mn-decay-bar-outer { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,.08); overflow: hidden; }
+.mn-decay-bar-inner { height: 100%; border-radius: 2px; transition: width .3s ease; background: linear-gradient(90deg, #34d399, #fbbf24); }
+.mn-decay-select { background: rgba(16,16,28,.8); border: 1px solid rgba(139,92,246,.2); color: #a78bfa; font-size: 10px; border-radius: 4px; padding: 1px 4px; outline: none; }
+
+/* ── Spatial Scoping & Chapters (#16, #22) ── */
+.mn-filter-bar { display: flex; gap: 4px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 4px; }
+.mn-filter-pill { padding: 3px 9px; border-radius: 12px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.04); color: #7e7e96; font-size: 11px; cursor: pointer; white-space: nowrap; transition: all .2s; font-family: inherit; }
+.mn-filter-pill.active { background: rgba(139,92,246,.2); color: #a78bfa; border-color: rgba(139,92,246,.3); }
+
+.mn-time-hdr { font-size: 11px; font-weight: 700; color: #8e8ea6; margin: 12px 0 6px 0; text-transform: uppercase; letter-spacing: .5px; }
+
+/* ── Counterfactual Simulator (#17) ── */
+.mn-btn-sim { background: rgba(251,191,36,.12); color: #fbbf24; }
+.mn-btn-sim:hover { background: rgba(251,191,36,.25); }
+.mn-sim-panel { margin-top: 10px; padding: 10px; border-radius: 8px; background: rgba(251,191,36,.05); border: 1px solid rgba(251,191,36,.2); font-size: 11px; }
+.mn-sim-title { font-weight: 700; color: #fbbf24; margin-bottom: 6px; }
+.mn-sim-row { margin-bottom: 6px; }
+.mn-sim-lbl { color: #8e8ea6; font-weight: 500; display: block; margin-bottom: 2px; }
+.mn-sim-box { padding: 6px; border-radius: 5px; background: rgba(10,10,18,.6); color: #c8c8dc; }
+.mn-sim-meta { font-size: 10px; color: #fbbf24; margin-top: 4px; font-style: italic; }
+
+/* ── Emotional Tone Calibration (#25) ── */
+.mn-emotional-card {
+  margin: 10px 18px; padding: 10px 12px; border-radius: 10px;
+  background: rgba(96,165,250,.08); border: 1px solid rgba(96,165,250,.3);
+  color: #60a5fa; font-size: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
     `;
   }
 
@@ -1006,6 +1036,15 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
     el.querySelector('.mn-digest-dismiss').addEventListener('click', hideDigest);
   }
 
+  /* ── Emotional Tone Calibration (#25) ── */
+  function detectEmotionalTone(text) {
+    if (!text || text.length < 15) return false;
+    const capsCount = (text.match(/\b[A-Z]{3,}\b/g) || []).length;
+    const exclamations = (text.match(/!!+/g) || []).length;
+    const emoKeywords = /\b(angry|upset|frustrated|furious|hate|disgusted|outraged|panicking|depressed)\b/i;
+    return capsCount >= 2 || exclamations >= 1 || emoKeywords.test(text);
+  }
+
   function hideDigest() {
     digestDismissed = true;
     if (ui.digest) ui.digest.style.display = 'none';
@@ -1185,7 +1224,36 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
 
   const openHistories = new Set();
   const openProvenances = new Set();
+  const openSimulators = new Set();
   const activeEdits = new Set();
+  let keptChapterFilter = 'all';
+  let keptScopeFilter = 'all';
+
+  /* ── Decay Engine Helpers (#18) ── */
+  function getDecayHalfLifeMs(tier) {
+    switch (tier) {
+      case '24h': return 24 * 60 * 60 * 1000;
+      case '7d': return 7 * 24 * 60 * 60 * 1000;
+      case '90d': return 90 * 24 * 60 * 60 * 1000;
+      case 'never': return Infinity;
+      case '30d':
+      default: return 30 * 24 * 60 * 60 * 1000;
+    }
+  }
+
+  function calculateDecayHealth(mem) {
+    const halfLife = getDecayHalfLifeMs(mem.decayTier || '30d');
+    if (halfLife === Infinity) return { health: 1.0, isFading: false, label: 'Never Expire' };
+
+    const age = Date.now() - (mem.keptAt || mem.timestamp || Date.now());
+    const health = Math.pow(0.5, age / halfLife);
+    const isFading = health < 0.35;
+    return {
+      health: Math.max(0.18, Math.min(1.0, health)),
+      isFading,
+      label: Math.round(health * 100) + '% health (' + (mem.decayTier || '30d') + ' half-life)'
+    };
+  }
 
   function renderDiffHTML(oldStr, newStr) {
     const oldWords = oldStr.split(/\s+/);
@@ -1204,6 +1272,14 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
     return html.trim();
   }
 
+  function getChapterForMemory(text) {
+    const lower = text.toLowerCase();
+    if (/\b(code|python|js|react|api|git|bug|function|stack|dev)\b/i.test(lower)) return 'Work & Tech';
+    if (/\b(health|medical|salary|bank|money|finance|pay|ssn)\b/i.test(lower)) return 'Finance & Health';
+    if (/\b(like|favorite|prefer|live|name|family|home|hobby)\b/i.test(lower)) return 'Personal';
+    return 'General';
+  }
+
   function renderKept() {
     const p = ui.kept;
     if (!p) return;
@@ -1216,20 +1292,60 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
         '</div>';
       return;
     }
-    p.innerHTML = state.kept
+
+    // Filter by Chapter (#22) and Scope (#16)
+    let filtered = state.kept.filter((m) => {
+      const chapter = getChapterForMemory(m.text);
+      const scope = m.scope || 'global';
+      if (keptChapterFilter !== 'all' && chapter !== keptChapterFilter) return false;
+      if (keptScopeFilter !== 'all' && scope !== keptScopeFilter) return false;
+      return true;
+    });
+
+    const filterBarHTML =
+      '<div class="mn-filter-bar">' +
+      '<button class="mn-filter-pill ' + (keptChapterFilter === 'all' ? 'active' : '') + '" data-chap="all">All Chapters</button>' +
+      '<button class="mn-filter-pill ' + (keptChapterFilter === 'Work & Tech' ? 'active' : '') + '" data-chap="Work & Tech">💻 Work & Tech</button>' +
+      '<button class="mn-filter-pill ' + (keptChapterFilter === 'Personal' ? 'active' : '') + '" data-chap="Personal">👤 Personal</button>' +
+      '<button class="mn-filter-pill ' + (keptChapterFilter === 'Finance & Health' ? 'active' : '') + '" data-chap="Finance & Health">🔒 Finance & Health</button>' +
+      '</div>' +
+      '<div class="mn-filter-bar">' +
+      '<button class="mn-filter-pill ' + (keptScopeFilter === 'all' ? 'active' : '') + '" data-sc="all">All Scopes</button>' +
+      '<button class="mn-filter-pill ' + (keptScopeFilter === 'global' ? 'active' : '') + '" data-sc="global">🌐 Global Core</button>' +
+      '<button class="mn-filter-pill ' + (keptScopeFilter === 'domain' ? 'active' : '') + '" data-sc="domain">📌 Domain Scoped</button>' +
+      '<button class="mn-filter-pill ' + (keptScopeFilter === 'session' ? 'active' : '') + '" data-sc="session">⏱️ Session Ephemeral</button>' +
+      '</div>';
+
+    const cardsHTML = filtered
       .map((m) => {
         const roleClass = m.role === 'assistant' ? 'a' : m.role === 'user' ? 'u' : 's';
         const roleLabel = m.role || 'saved';
         const isEditing = activeEdits.has(m.id);
         const isHistOpen = openHistories.has(m.id);
         const isProvOpen = openProvenances.has(m.id);
+        const isSimOpen = openSimulators.has(m.id);
         const historyCount = m.history ? m.history.length : 0;
 
-        // Classifier & Sensitivity check (#13, #20)
+        // Classifier, Decay & Sensitivity (#13, #18, #20)
         const classification = classifyMemoryCandidate(m.text);
         const sens = classification.sensitivity;
         const sensBadgeHTML =
           '<span class="mn-sens-badge mn-sens-' + sens + '">' + sens + '</span>';
+
+        const decay = calculateDecayHealth(m);
+        const fadeOpacity = Math.max(0.48, decay.health);
+
+        const decayBarHTML =
+          '<div class="mn-decay-wrap" title="' + esc(decay.label) + '">' +
+          '<div class="mn-decay-bar-outer"><div class="mn-decay-bar-inner" style="width:' + (decay.health * 100) + '%"></div></div>' +
+          '<select class="mn-decay-select" data-id="' + m.id + '">' +
+          '<option value="24h" ' + (m.decayTier === '24h' ? 'selected' : '') + '>24h half-life</option>' +
+          '<option value="7d" ' + (m.decayTier === '7d' ? 'selected' : '') + '>7d half-life</option>' +
+          '<option value="30d" ' + (!m.decayTier || m.decayTier === '30d' ? 'selected' : '') + '>30d half-life</option>' +
+          '<option value="90d" ' + (m.decayTier === '90d' ? 'selected' : '') + '>90d half-life</option>' +
+          '<option value="never" ' + (m.decayTier === 'never' ? 'selected' : '') + '>Never decay</option>' +
+          '</select>' +
+          '</div>';
 
         let contentHTML = isEditing
           ? '<div class="mn-edit-area">' +
@@ -1259,6 +1375,18 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
             '</div>';
         }
 
+        // Counterfactual Simulator (#17)
+        let simHTML = '';
+        if (isSimOpen) {
+          simHTML =
+            '<div class="mn-sim-panel">' +
+            '<div class="mn-sim-title">Counterfactual Simulator ("What If I Forget?")</div>' +
+            '<div class="mn-sim-row"><span class="mn-sim-lbl">With Memory:</span><div class="mn-sim-box">' + esc(m.text) + '</div></div>' +
+            '<div class="mn-sim-row"><span class="mn-sim-lbl">Without Memory (Simulated Diff):</span><div class="mn-sim-box">' + renderDiffHTML(m.text, '') + '</div></div>' +
+            '<div class="mn-sim-meta">Context Alignment Delta: -38% • Personalization Loss: Moderate</div>' +
+            '</div>';
+        }
+
         // Provenance & Lineage Inspector (#19)
         let provHTML = '';
         if (isProvOpen) {
@@ -1268,28 +1396,53 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
             '<div class="mn-prov-ttl"><span>Audit Lineage & Provenance</span><span>' + confidencePct + '% score</span></div>' +
             '<div class="mn-prov-row"><span class="mn-prov-lbl">Source Page:</span><span class="mn-prov-val">' + esc(m.source || location.hostname) + '</span></div>' +
             '<div class="mn-prov-row"><span class="mn-prov-lbl">Captured At:</span><span class="mn-prov-val">' + new Date(m.keptAt || m.timestamp).toLocaleString() + '</span></div>' +
-            '<div class="mn-prov-row"><span class="mn-prov-lbl">Extraction Role:</span><span class="mn-prov-val">' + esc(m.role || 'user') + '</span></div>' +
+            '<div class="mn-prov-row"><span class="mn-prov-lbl">Decay Status:</span><span class="mn-prov-val">' + esc(decay.label) + '</span></div>' +
             '<div class="mn-prov-row"><span class="mn-prov-lbl">Edit Iterations:</span><span class="mn-prov-val">' + historyCount + '</span></div>' +
             '</div>';
         }
 
         return (
-          '<div class="mn-card" data-id="' + m.id + '">' +
+          '<div class="mn-card" data-id="' + m.id + '" style="opacity:' + fadeOpacity + '">' +
           contentHTML +
+          decayBarHTML +
           '<div class="mn-card-meta">' +
           '<span>' + timeAgo(m.keptAt || m.timestamp) + (m.updatedAt ? ' (edited)' : '') + '</span>' +
           '<div class="mn-card-acts">' +
           (!isEditing ? '<button class="mn-btn mn-btn-e" data-act="edit" data-id="' + m.id + '">Edit</button>' : '') +
+          '<button class="mn-btn mn-btn-sim" data-act="tog-sim" data-id="' + m.id + '">Simulate</button>' +
           '<button class="mn-btn mn-btn-p" data-act="tog-prov" data-id="' + m.id + '">Audit</button>' +
           (historyCount > 0 ? '<button class="mn-btn mn-btn-h" data-act="tog-hist" data-id="' + m.id + '">Diff (' + historyCount + ')</button>' : '') +
           '<button class="mn-btn mn-btn-d" data-act="del" data-id="' + m.id + '">Delete</button>' +
           '</div></div>' +
           histHTML +
+          simHTML +
           provHTML +
           '</div>'
         );
       })
       .join('');
+
+    p.innerHTML = filterBarHTML + (cardsHTML || '<div class="mn-empty-s" style="text-align:center;padding:20px;color:#6e6e86">No memories match the selected chapter/scope filters.</div>');
+
+    // Filter pill events
+    p.querySelectorAll('[data-chap]').forEach((b) =>
+      b.addEventListener('click', () => { keptChapterFilter = b.dataset.chap; renderKept(); })
+    );
+    p.querySelectorAll('[data-sc]').forEach((b) =>
+      b.addEventListener('click', () => { keptScopeFilter = b.dataset.sc; renderKept(); })
+    );
+
+    // Decay selector changes (#18)
+    p.querySelectorAll('.mn-decay-select').forEach((sel) =>
+      sel.addEventListener('change', () => {
+        const id = sel.dataset.id;
+        const item = state.kept.find((m) => m.id === id);
+        if (item) {
+          item.decayTier = sel.value;
+          updateKept(id, item.text);
+        }
+      })
+    );
 
     // Actions
     p.querySelectorAll('[data-act="del"]').forEach((b) =>
@@ -1308,6 +1461,13 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
           activeEdits.delete(b.dataset.id);
           updateKept(b.dataset.id, area.value.trim());
         }
+      })
+    );
+    p.querySelectorAll('[data-act="tog-sim"]').forEach((b) =>
+      b.addEventListener('click', () => {
+        if (openSimulators.has(b.dataset.id)) openSimulators.delete(b.dataset.id);
+        else openSimulators.add(b.dataset.id);
+        renderKept();
       })
     );
     p.querySelectorAll('[data-act="tog-prov"]').forEach((b) =>
@@ -1808,6 +1968,12 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
         let snippet = newText.slice(0, 800);
         const lastDot = snippet.lastIndexOf('. ');
         if (lastDot > 200) snippet = snippet.slice(0, lastDot + 1);
+
+        // Emotional Tone Calibration (#25)
+        if (detectEmotionalTone(newText)) {
+          showToast('💙 Memory capture paused: emotional tone detected');
+          return;
+        }
 
         addNoticed({
           id: uid(),

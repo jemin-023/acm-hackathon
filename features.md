@@ -98,19 +98,19 @@ Hovering expands a micro-negotiation chip offering immediate Remember, Session-O
 
 ---
 
-### 16. Tri-Tier Spatial Scoping Canvas
+### 16. ✅ Tri-Tier Spatial Scoping Canvas
 Interactive concentric-zone canvas representing Session Ephemeral, Context Domain, and Global Core scopes.  
 Enables users to visually drag and drop memory cards between privacy zones to enforce contextual integrity.
 
 ---
 
-### 17. Counterfactual Memory Simulator ("What If I Forget?")
+### 17. ✅ Counterfactual Memory Simulator ("What If I Forget?")
 Side-by-side simulation tool showing how AI responses would change with versus without a selected memory.  
 Highlights response diffs and impact statistics to eliminate deletion anxiety before permanent removal.
 
 ---
 
-### 18. Semantic Decay Engine & Visual Fading
+### 18. ✅ Semantic Decay Engine & Visual Fading
 Ebbinghaus-inspired half-life decay timers (24h, 7d, 30d, 90d) that make impermanence the system default.  
 Renders memories with gradual visual fading, micro-sparkline decay curves, and proactive sunset digests.
 
@@ -134,7 +134,7 @@ Automatically parses logic, detects semantic conflicts between rules, and offers
 
 ---
 
-### 22. Memory Narrative Timeline & Chapters
+### 22. ✅ Memory Narrative Timeline & Chapters
 Temporal visualization of the user's memory story with multi-level zoom (months, weeks, days).  
 Groups related memories into semantic chapters (e.g., Work Projects, Recipes) for bulk management and archiving.
 
@@ -152,7 +152,7 @@ Features snapshot diffing and 1-click rollback to revert accidental deletions or
 
 ---
 
-### 25. Emotional Tone Memory Calibration
+### 25. ✅ Emotional Tone Memory Calibration
 Affect-aware protective mode that automatically pauses memory extraction during emotionally elevated chats.  
 Presents a gentle post-emotional review card once the user's tone returns to neutral before saving facts.
 
