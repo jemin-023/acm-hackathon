@@ -275,9 +275,9 @@
 :host, * { box-sizing: border-box; margin: 0; padding: 0; }
 
 .mn {
-  --mn-bg: #09090b;
-  --mn-bg-card: rgba(18, 18, 24, 0.75);
-  --mn-bg-elevated: rgba(28, 28, 36, 0.80);
+  --mn-bg: #000000;
+  --mn-bg-card: rgba(8, 8, 12, 0.90);
+  --mn-bg-elevated: rgba(14, 14, 18, 0.92);
   --mn-fg: #F8FAFC;
   --mn-fg-muted: #94A3B8;
   --mn-primary: rgba(236, 72, 153, 0.25);
@@ -290,7 +290,7 @@
   --mn-border: rgba(255, 255, 255, 0.12);
   --mn-border-focus: rgba(236, 72, 153, 0.5);
   --mn-ring: rgba(236, 72, 153, 0.4);
-  --mn-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+  --mn-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.9), inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
   --mn-radius: 18px;
   --mn-radius-sm: 10px;
   --mn-radius-xs: 6px;
@@ -403,19 +403,19 @@
 .mn-dr {
   position: fixed !important; top: 0 !important; right: 0 !important;
   width: 680px; max-width: 48vw; height: 100vh; height: 100dvh;
-  background-color: #09090b !important;
+  background-color: #141417 !important;
   background-image: 
-    radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 20% 80%, rgba(244, 63, 94, 0.06) 0%, transparent 60%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M30 40c10-5 30 15 40 5s-10-30 20-25 15 35 30 20S140 10 160 30s-10 40 10 50 30-20 40 10-20 40 0 60 40-10 30 20-30 30-10 50 30 10 20 40-30 10-20 30 20 20 0 40-20 10-30 30z'/%3E%3Cpath d='M220 180c15-10 45 20 60 10s-15-40 30-35 25 50 45 30 60-40 80-10-15 60 15 75 45-30 60 15-30 60 0 90 60-15 45 30-45 45-15 75 45 15 30 60-45 15-30 45 30 30 0 60-30 15-45 45z'/%3E%3Ctext x='40' y='160' font-family='sans-serif' font-size='28' font-weight='900' letter-spacing='4'%3ETHINKERS%3C/text%3E%3Ctext x='180' y='320' font-family='sans-serif' font-size='32' font-weight='900' letter-spacing='6'%3EDIGITAL%3C/text%3E%3Ctext x='20' y='360' font-family='sans-serif' font-size='24' font-weight='900'%3EWE ARE%3C/text%3E%3C/g%3E%3C/svg%3E") !important;
-  backdrop-filter: blur(20px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
-  border-left: 1px solid rgba(255, 255, 255, 0.16) !important;
+    radial-gradient(circle at 50% 50%, rgba(24, 24, 30, 0.4) 0%, rgba(8, 8, 10, 0.92) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='500' viewBox='0 0 500 500'%3E%3Cg fill='none' stroke='%23040405' stroke-opacity='0.75' stroke-width='16' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 60 C80 10, 160 110, 120 160 C80 210, 10 90, 90 40 C140 10, 220 90, 280 40 C340 -10, 390 110, 420 50'/%3E%3Cpath d='M180 180 C240 120, 320 260, 280 320 C240 380, 140 220, 220 160 C280 110, 420 220, 460 160'/%3E%3Cpath d='M40 320 C90 260, 190 420, 140 480 C90 520, 10 380, 80 300 C140 240, 260 380, 340 290'/%3E%3Ctext x='40' y='120' fill='%23040405' fill-opacity='0.7' font-family='Impact, sans-serif' font-size='64' font-weight='900'%3ECHINO%3C/text%3E%3Ctext x='200' y='280' fill='%23040405' fill-opacity='0.7' font-family='Impact, sans-serif' font-size='72' font-weight='900'%3EBYT%3C/text%3E%3Ctext x='60' y='440' fill='%23040405' fill-opacity='0.7' font-family='Impact, sans-serif' font-size='68' font-weight='900'%3ECLT15%3C/text%3E%3Ccircle cx='360' cy='120' r='35' stroke-width='10'/%3E%3Ccircle cx='90' cy='260' r='25' stroke-width='10'/%3E%3C/g%3E%3C/svg%3E") !important;
+  background-size: 450px 450px !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.12) !important;
   transform: translateX(100%);
   transition: transform .28s cubic-bezier(.32,.72,0,1);
   display: flex; flex-direction: column;
   z-index: 99998;
-  box-shadow: -16px 0 48px rgba(0,0,0,0.7), inset 1px 0 0 rgba(255, 255, 255, 0.15) !important;
+  box-shadow: -16px 0 48px rgba(0,0,0,0.85), inset 1px 0 0 rgba(255, 255, 255, 0.12) !important;
   overflow: hidden;
 }
 .mn-dr.open {
@@ -426,7 +426,7 @@
 .mn-hdr {
   position: relative; z-index: 2;
   padding: 18px 22px;
-  background: rgba(15, 23, 42, 0.75);
+  background: #000000 !important;
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--mn-border);
   display: flex; align-items: center; justify-content: space-between;
@@ -487,7 +487,7 @@
 .mn-tabs {
   position: relative; z-index: 2;
   display: flex; padding: 0 22px;
-  background: rgba(15, 23, 42, 0.65);
+  background: #000000 !important;
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--mn-border);
   flex-shrink: 0; gap: 2px;
@@ -510,7 +510,7 @@
 .mn-sidebar-subhdr {
   position: relative; z-index: 2;
   padding: 8px 18px;
-  background: rgba(15, 23, 42, 0.65);
+  background: #000000 !important;
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--mn-border);
   font-size: 11px; font-weight: 600; color: var(--mn-fg-muted);
@@ -519,24 +519,24 @@
 
 .mn-memory-section {
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 18px;
   padding: 14px;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(4, 4, 6, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   display: flex;
   flex-direction: column;
   min-height: 420px;
   height: 100%;
   transition: all 0.25s ease;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .mn-memory-section.mn-drop-target-active {
-  border-color: #8B5CF6 !important;
-  background: rgba(139, 92, 246, 0.18) !important;
-  box-shadow: 0 0 28px rgba(139, 92, 246, 0.4), inset 0 0 12px rgba(139, 92, 246, 0.2) !important;
+  border-color: #EC4899 !important;
+  background: rgba(236, 72, 153, 0.18) !important;
+  box-shadow: 0 0 28px rgba(236, 72, 153, 0.4), inset 0 0 12px rgba(236, 72, 153, 0.2) !important;
   transform: scale(1.01);
 }
 
@@ -577,7 +577,7 @@
 
 /* ── Memory Card (Glassmorphism) ── */
 .mn-card {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(10, 10, 14, 0.90);
   backdrop-filter: blur(14px) saturate(160%);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -585,7 +585,7 @@
   margin-bottom: 12px;
   transition: all var(--mn-transition);
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 .mn-card:hover {
   border-color: rgba(167, 139, 250, 0.5);
@@ -699,7 +699,7 @@
 .mn-foot {
   position: relative; z-index: 2;
   padding: 14px 18px;
-  background: rgba(15, 23, 42, 0.75);
+  background: #000000 !important;
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--mn-border);
   flex-shrink: 0;
@@ -1027,7 +1027,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
 .mn-category-square-card.mn-sq-work {
   border-color: rgba(59, 130, 246, 0.4);
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.65), rgba(30, 58, 138, 0.45));
+  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(30, 58, 138, 0.35));
 }
 .mn-category-square-card.mn-sq-work:hover {
   box-shadow: 0 16px 40px rgba(59, 130, 246, 0.35), inset 0 0 20px rgba(59, 130, 246, 0.2);
@@ -1036,7 +1036,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
 .mn-category-square-card.mn-sq-coding {
   border-color: rgba(6, 182, 212, 0.4);
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.65), rgba(8, 47, 73, 0.45));
+  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(8, 47, 73, 0.35));
 }
 .mn-category-square-card.mn-sq-coding:hover {
   box-shadow: 0 16px 40px rgba(6, 182, 212, 0.35), inset 0 0 20px rgba(6, 182, 212, 0.2);
@@ -1045,7 +1045,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
 .mn-category-square-card.mn-sq-personal {
   border-color: rgba(236, 72, 153, 0.4);
-  background: linear-gradient(135deg, rgba(30, 27, 75, 0.65), rgba(88, 28, 135, 0.45));
+  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(88, 28, 135, 0.35));
 }
 .mn-category-square-card.mn-sq-personal:hover {
   box-shadow: 0 16px 40px rgba(236, 72, 153, 0.35), inset 0 0 20px rgba(236, 72, 153, 0.2);
@@ -1054,7 +1054,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
 .mn-category-square-card.mn-sq-health {
   border-color: rgba(16, 185, 129, 0.4);
-  background: linear-gradient(135deg, rgba(6, 78, 59, 0.65), rgba(4, 120, 87, 0.45));
+  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(4, 120, 87, 0.35));
 }
 .mn-category-square-card.mn-sq-health:hover {
   box-shadow: 0 16px 40px rgba(16, 185, 129, 0.35), inset 0 0 20px rgba(16, 185, 129, 0.2);
@@ -1063,7 +1063,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
 .mn-category-square-card.mn-sq-relationships {
   border-color: rgba(244, 63, 94, 0.4);
-  background: linear-gradient(135deg, rgba(76, 5, 25, 0.65), rgba(159, 18, 57, 0.45));
+  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(159, 18, 57, 0.35));
 }
 .mn-category-square-card.mn-sq-relationships:hover {
   box-shadow: 0 16px 40px rgba(244, 63, 94, 0.35), inset 0 0 20px rgba(244, 63, 94, 0.2);
@@ -1072,7 +1072,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
 .mn-category-square-card.mn-sq-research {
   border-color: rgba(245, 158, 11, 0.4);
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.65), rgba(69, 26, 3, 0.45));
+  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(69, 26, 3, 0.35));
 }
 .mn-category-square-card.mn-sq-research:hover {
   box-shadow: 0 16px 40px rgba(245, 158, 11, 0.35), inset 0 0 20px rgba(245, 158, 11, 0.2);
@@ -1081,7 +1081,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
 .mn-category-square-card.mn-sq-general {
   border-color: rgba(99, 102, 241, 0.4);
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.65), rgba(49, 46, 129, 0.45));
+  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(49, 46, 129, 0.35));
 }
 .mn-category-square-card.mn-sq-general:hover {
   box-shadow: 0 16px 40px rgba(99, 102, 241, 0.35), inset 0 0 20px rgba(99, 102, 241, 0.2);
@@ -1766,9 +1766,6 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     `;
     root.appendChild(dr);
     ui.dr = dr;
-
-    // Attach MoltenMetal WebGL Shader Backdrop to Cover ENTIRE Extension Drawer
-    createMoltenMetalCanvas(dr, { opacity: 0.35, speed: 0.35, scale: 4.0 });
 
     // Close button
     const closeBtn = dr.querySelector('.mn-cls');
