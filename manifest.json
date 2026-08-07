@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "MemoNeg — AI Memory Negotiator",
+  "name": "ACMHCI — AI Memory Negotiator",
   "version": "0.1.0",
   "description": "Privacy-first, local-first AI memory negotiation and consent layer for Claude.ai",
   "permissions": ["storage", "offscreen"],

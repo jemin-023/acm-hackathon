@@ -128,6 +128,10 @@ const handlers = {
   ADD_NOTICED(msg, respond) {
     chrome.storage.session.get('memoneg_noticed', (r) => {
       const noticed = r.memoneg_noticed || [];
+      if (msg.memory?.text && noticed.some((n) => n.text === msg.memory.text)) {
+        respond({ success: true, noticed });
+        return;
+      }
       noticed.unshift(msg.memory);
       chrome.storage.session.set({ memoneg_noticed: noticed }, () => {
         respond({ success: true, noticed });
