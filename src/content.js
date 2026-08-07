@@ -46,7 +46,7 @@
     canvasPan: { x: 0, y: 0 },
   };
 
-  let shadow = null;
+  var shadow = null;
   const ui = {};
 
   /* ═══════════════════════════════════════════════════════════════
@@ -1398,7 +1398,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         'all:initial!important;position:fixed!important;top:0!important;left:0!important;' +
         'width:0!important;height:0!important;z-index:2147483647!important;pointer-events:none!important;';
       document.documentElement.appendChild(host);
-      shadow = host.attachShadow({ mode: 'closed' });
+      shadow = host.attachShadow({ mode: 'open' });
 
       const style = document.createElement('style');
       style.textContent = getCSS();
