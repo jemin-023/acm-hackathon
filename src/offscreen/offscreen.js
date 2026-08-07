@@ -46,6 +46,24 @@ async function initModel() {
       const modelUrl = chrome.runtime.getURL('memoneg-270m-int4.onnx');
       const tokenizerUrl = chrome.runtime.getURL('memoneg-270m-finetuned/');
 
+      // Pre-check if local ONNX model binary is present in bundle
+      const checkRes = await fetch(modelUrl, { method: 'HEAD' }).catch(() => null);
+      if (!checkRes || !checkRes.ok) {
+        const warningMsg = 'Local ONNX model file ("memoneg-270m-int4.onnx") is not present. Local ONNX standby.';
+        console.log('[MemoNeg Offscreen]', warningMsg);
+        modelStats = { loaded: false, ep: null, loadTimeMs: 0, error: warningMsg };
+        return null;
+      }
+
+      // Pre-check if local tokenizer config is present in bundle
+      const checkTok = await fetch(chrome.runtime.getURL('memoneg-270m-finetuned/tokenizer_config.json'), { method: 'HEAD' }).catch(() => null);
+      if (!checkTok || !checkTok.ok) {
+        const warningMsg = 'Local tokenizer ("memoneg-270m-finetuned/") is not present. Local ONNX standby.';
+        console.log('[MemoNeg Offscreen]', warningMsg);
+        modelStats = { loaded: false, ep: null, loadTimeMs: 0, error: warningMsg };
+        return null;
+      }
+
       console.log('[MemoNeg Offscreen] Loading tokenizer from:', tokenizerUrl);
       if (typeof AutoTokenizer === 'undefined') {
         throw new Error('Transformers AutoTokenizer failed to load.');
@@ -53,15 +71,6 @@ async function initModel() {
       tokenizer = await AutoTokenizer.from_pretrained(tokenizerUrl, {
         local_files_only: true
       });
-
-      console.log('[MemoNeg Offscreen] Checking model binary at:', modelUrl);
-      const checkRes = await fetch(modelUrl, { method: 'HEAD' }).catch(() => null);
-      if (!checkRes || !checkRes.ok) {
-        const warningMsg = 'Model file "memoneg-270m-int4.onnx" is not present in extension directory. Local ONNX standby.';
-        console.log('[MemoNeg Offscreen]', warningMsg);
-        modelStats = { loaded: false, ep: null, loadTimeMs: 0, error: warningMsg };
-        return null;
-      }
 
       // Try WebGPU first, then WASM
       let epUsed = 'webgpu';
