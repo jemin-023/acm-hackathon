@@ -2333,17 +2333,23 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     /\bpersonal\s+(?:memory|preference|detail)\s+(?:saved|stored|updated|recorded)\b/i,
   ];
 
-  // ── Tier 2: Emotional / Personal Tone detection ──
-  // Detects sharing of personal details, emotional content, life events
+  // ── Tier 2: Emotional / Personal Tone & Location detection ──
+  // Detects sharing of personal details, locations, emotional content, life events
   const PERSONAL_TONE_PATTERNS = [
     /(?:my\s+(?:name|birthday|age|address|email|phone|job|occupation|hobby|hobbies|wife|husband|partner|daughter|son|child(?:ren)?|family|pet|dog|cat)\s+is\b)/i,
     /(?:i\s+(?:am|was|have\s+been|'m)\s+(?:feeling|diagnosed|suffering|struggling|dealing\s+with|going\s+through|recovering|grieving|depressed|anxious|stressed|lonely|scared|worried|excited|pregnant|engaged|married|divorced|retired))/i,
     /(?:i\s+(?:love|hate|prefer|enjoy|dislike|am\s+afraid\s+of|am\s+allergic\s+to|am\s+passionate\s+about|believe\s+in))\b/i,
-    /(?:i\s+(?:live|work|study|grew\s+up|was\s+born|moved|relocated)\s+(?:in|at|to|near|from)\b)/i,
+    /(?:i\s+(?:live|work|study|grew\s+up|was\s+born|moved|relocated|reside|stay)\s+(?:in|at|to|near|from)\b)/i,
     /(?:i(?:'m| am)\s+(?:a|an)\s+(?:student|teacher|doctor|engineer|developer|designer|artist|musician|nurse|lawyer|therapist|manager|ceo|founder|parent|veteran))\b/i,
     /(?:i\s+recently\s+(?:lost|found|bought|sold|started|quit|joined|left|broke|got))\b/i,
     /(?:my\s+(?:salary|income|budget|savings|debt|rent|mortgage|medical|health|condition|diagnosis|medication|therapy|religion|faith|political)\b)/i,
-    /(?:since|as|because)?\s*you\s+(?:live|work|study|are|prefer|enjoy|like|shared|mentioned|said)\s+(?:in|at|a|an|that|you)?/i,
+    /(?:since|as|because)?\s*i\s+(?:live|work|study|reside|stay)\s+(?:in|at|near|around)\b/i,
+    /(?:my\s+(?:location|pincode|zipcode|city|address|area)\s+(?:is|in)\b)/i,
+    /(?:want|planning|looking|aiming)\s+to\s+(?:shift|move|relocate)\s+to\b/i,
+    /\b[1-9][0-9]{5}\b/, // Indian 6-digit PIN codes (e.g. 462023)
+    /(?:bhopal|mumbai|delhi|bangalore|bengaluru|hyderabad|chennai|kolkata|pune|ahmedabad|jaipur|indore|surat)\b/i,
+    /(?:shifting|moving|relocating)\s+(?:from|to)\b/i,
+    /(?:since|as|because)?\s*you\s+(?:live|work|study|are|prefer|enjoy|like|shared|mentioned|said|want)\s+(?:in|at|a|an|that|to)?/i,
     /(?:your\s+(?:location|city|hometown|job|profession|occupation|preference|hobby|family|address))/i,
   ];
 
@@ -2369,7 +2375,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
    * @returns {{ type: string|null, label: string, description: string }}
    */
   function classifyMessage(text, role) {
-    if (!text || text.length < 15) return { type: null };
+    if (!text || text.length < 10) return { type: null };
 
     // For ASSISTANT messages: check Tier 1 (Claude Memory Saved) first
     if (role === 'assistant') {
@@ -2384,20 +2390,20 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       }
     }
 
-    // For ASSISTANT messages: check Tier 2 (response references personal/emotional content)
+    // For ASSISTANT messages: check Tier 2 (response references personal/location content)
     if (role === 'assistant') {
       for (const pat of PERSONAL_TONE_PATTERNS) {
         if (pat.test(text)) {
           return {
             type: 'personal_tone',
             label: '💬 Personal Info Detected',
-            description: 'This response references personal details or emotional content shared in this conversation.',
+            description: 'This response references personal details, location, or preferences from this conversation.',
           };
         }
       }
     }
 
-    // For USER messages: check Tier 3 (Private Info Leak)
+    // For USER messages: check Tier 3 (Private Info Leak) first
     if (role === 'user') {
       for (const pat of PRIVATE_INFO_PATTERNS) {
         if (pat.test(text)) {
@@ -2410,14 +2416,14 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       }
     }
 
-    // For USER messages: check Tier 2 (user sharing personal/emotional info)
+    // For USER messages: check Tier 2 (user sharing personal/location info)
     if (role === 'user') {
       for (const pat of PERSONAL_TONE_PATTERNS) {
         if (pat.test(text)) {
           return {
             type: 'personal_tone',
             label: '💬 Personal Info Shared',
-            description: 'You shared personal details or emotional content. Claude may remember this.',
+            description: 'You shared personal/location details. Claude may remember this.',
           };
         }
       }
@@ -2430,50 +2436,52 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     if (!state.collectionEnabled) return;
     injectHostCSS();
 
-    // ── Scan ASSISTANT messages ──
+    // ── Find ALL ASSISTANT message elements in claude.ai DOM ──
     const assistantSelectors = [
       '[data-message-author-role="assistant"]',
       '.font-claude-response',
       '.font-claude-message',
       '[class*="assistant-message"]',
       '[class*="assistantMessage"]',
+      '[class*="font-claude"]',
       '[data-is-streaming]'
     ];
 
-    let assistantElements = [];
+    const assistantContainersSet = new Set();
     for (const sel of assistantSelectors) {
-      const found = document.querySelectorAll(sel);
-      if (found && found.length > 0) {
-        assistantElements = Array.from(found);
-        break;
-      }
+      document.querySelectorAll(sel).forEach((el) => {
+        const container = el.closest('[data-message-author-role="assistant"]') ||
+                          el.closest('[class*="Message"]') ||
+                          el.closest('article') ||
+                          el;
+        if (container) assistantContainersSet.add(container);
+      });
     }
 
-    // ── Scan USER messages ──
+    // ── Find ALL USER message elements in claude.ai DOM ──
     const userSelectors = [
       '[data-message-author-role="user"]',
       '[class*="user-message"]',
       '[class*="userMessage"]',
       '[class*="human-message"]',
       '[class*="humanMessage"]',
+      '[class*="font-user"]',
+      'div[class*="UserMessage"]'
     ];
 
-    let userElements = [];
+    const userContainersSet = new Set();
     for (const sel of userSelectors) {
-      const found = document.querySelectorAll(sel);
-      if (found && found.length > 0) {
-        userElements = Array.from(found);
-        break;
-      }
+      document.querySelectorAll(sel).forEach((el) => {
+        const container = el.closest('[data-message-author-role="user"]') ||
+                          el.closest('[class*="Message"]') ||
+                          el.closest('article') ||
+                          el;
+        if (container) userContainersSet.add(container);
+      });
     }
 
     // Process assistant messages
-    assistantElements.forEach((el) => {
-      const container = el.closest('[data-message-author-role="assistant"]') ||
-                        el.closest('[class*="Message"]') ||
-                        el.closest('article') ||
-                        el;
-
+    assistantContainersSet.forEach((container) => {
       if (container.dataset.mnPrompted === 'true' || container.querySelector('.mn-inline-memory-prompt')) {
         return;
       }
@@ -2490,13 +2498,8 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       highlightAndPromptClaudeMemory(container, snippet.trim(), result);
     });
 
-    // Process user messages (private info leak + personal tone detection)
-    userElements.forEach((el) => {
-      const container = el.closest('[data-message-author-role="user"]') ||
-                        el.closest('[class*="Message"]') ||
-                        el.closest('article') ||
-                        el;
-
+    // Process user messages
+    userContainersSet.forEach((container) => {
       if (container.dataset.mnPrompted === 'true' || container.querySelector('.mn-inline-memory-prompt')) {
         return;
       }
