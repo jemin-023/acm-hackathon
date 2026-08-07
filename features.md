@@ -72,7 +72,7 @@ Ensures complete user data ownership and seamless portability across different p
 
 ---
 
-### 12. In-Thread Conflict Resolution Annotations
+### 12. ✅ In-Thread Conflict Resolution Annotations
 Quiet inline warning under assistant responses when generated using memory contradicted by new input.  
 Opens a side-by-side comparison UI allowing users to keep the newest memory, merge both, or scope them.
 

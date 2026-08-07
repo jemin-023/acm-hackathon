@@ -1270,11 +1270,76 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
       .mn-chip-ses:hover { background: rgba(251,191,36,0.3) !important; }
       .mn-chip-fg { background: rgba(248,113,113,0.15) !important; color: #f87171 !important; }
       .mn-chip-fg:hover { background: rgba(248,113,113,0.3) !important; }
+
+      /* In-Thread Conflict Resolution Annotations (#12) */
+      .mn-conflict-annotation {
+        margin-top: 8px !important;
+        padding: 10px 12px !important;
+        border-radius: 10px !important;
+        background: rgba(251,191,36,0.06) !important;
+        border: 1px solid rgba(251,191,36,0.3) !important;
+        color: #e0e0f0 !important;
+        font-size: 12px !important;
+        font-family: 'Inter', sans-serif !important;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.2) !important;
+      }
+      .mn-conflict-hdr {
+        display: flex !important; align-items: center !important; gap: 6px !important;
+        font-weight: 700 !important; color: #fbbf24 !important; font-size: 12px !important;
+        margin-bottom: 6px !important;
+      }
+      .mn-conflict-diff {
+        font-size: 11px !important; color: #c8c8dc !important;
+        margin-bottom: 8px !important; line-height: 1.5 !important;
+        background: rgba(10,10,18,0.5) !important; padding: 6px 8px !important; border-radius: 6px !important;
+      }
+      .mn-conflict-acts {
+        display: flex !important; gap: 6px !important; flex-wrap: wrap !important;
+      }
+      .mn-conflict-btn {
+        padding: 4px 9px !important; border-radius: 6px !important; border: none !important;
+        font-size: 11px !important; font-weight: 600 !important; cursor: pointer !important;
+        transition: all .2s !important; font-family: inherit !important;
+      }
+      .mn-conflict-keep { background: rgba(139,92,246,0.2) !important; color: #a78bfa !important; }
+      .mn-conflict-keep:hover { background: rgba(139,92,246,0.35) !important; }
+      .mn-conflict-update { background: rgba(52,211,153,0.18) !important; color: #34d399 !important; }
+      .mn-conflict-update:hover { background: rgba(52,211,153,0.35) !important; }
+      .mn-conflict-ignore { background: rgba(255,255,255,0.06) !important; color: #7e7e96 !important; }
+      .mn-conflict-ignore:hover { background: rgba(255,255,255,0.12) !important; color: #c8c8dc !important; }
     `;
     (document.head || document.documentElement).appendChild(style);
   }
 
   const dismissedChips = new Set();
+  const resolvedConflicts = new Set();
+
+  function findMemoryConflict(text) {
+    if (!state.kept.length || !text || text.length < 20) return null;
+
+    const textLower = text.toLowerCase();
+    const words = textLower.split(/\s+/).filter((w) => w.length > 3);
+
+    for (const mem of state.kept) {
+      const memLower = mem.text.toLowerCase();
+      const memWords = memLower.split(/\s+/).filter((w) => w.length > 3);
+
+      let overlap = 0;
+      for (const w of memWords) {
+        if (words.includes(w)) overlap++;
+      }
+
+      const similarity = overlap / Math.max(memWords.length, 1);
+
+      if (similarity >= 0.35 && similarity < 0.85) {
+        const diffHTML = renderDiffHTML(mem.text, text);
+        if (diffHTML.includes('mn-diff-del') && diffHTML.includes('mn-diff-ins')) {
+          return { memory: mem, diffHTML };
+        }
+      }
+    }
+    return null;
+  }
 
   function updateMessageStatusIndicators() {
     injectHostCSS();
@@ -1300,11 +1365,56 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
 
       let dot = el.querySelector('.mn-status-dot');
       let chip = el.querySelector('.mn-chip');
+      let conflictAnno = el.querySelector('.mn-conflict-annotation');
+      const textKey = text.slice(0, 40);
 
       if (!matchingKept && !matchingNoticed) {
         if (dot) dot.remove();
-        if (chip) chip.remove();
-        el.classList.remove('mn-pulse-candidate');
+
+        // ── Conflict Check (#12) ──
+        if (!resolvedConflicts.has(textKey)) {
+          const conflict = findMemoryConflict(text);
+          if (conflict) {
+            el.classList.remove('mn-pulse-candidate');
+            if (chip) chip.remove();
+
+            if (!conflictAnno) {
+              conflictAnno = document.createElement('div');
+              conflictAnno.className = 'mn-conflict-annotation';
+              conflictAnno.innerHTML =
+                '<div class="mn-conflict-hdr">⚠️ Memory Conflict Detected</div>' +
+                '<div class="mn-conflict-diff">' + conflict.diffHTML + '</div>' +
+                '<div class="mn-conflict-acts">' +
+                '<button class="mn-conflict-btn mn-conflict-keep" title="Keep original stored memory">Keep Stored</button>' +
+                '<button class="mn-conflict-btn mn-conflict-update" title="Update memory to new statement">Accept New</button>' +
+                '<button class="mn-conflict-btn mn-conflict-ignore" title="Dismiss warning">Ignore</button>' +
+                '</div>';
+              el.appendChild(conflictAnno);
+
+              conflictAnno.querySelector('.mn-conflict-keep').onclick = (e) => {
+                e.stopPropagation();
+                resolvedConflicts.add(textKey);
+                conflictAnno.remove();
+                showToast('Conflict resolved — kept original memory');
+              };
+              conflictAnno.querySelector('.mn-conflict-update').onclick = (e) => {
+                e.stopPropagation();
+                resolvedConflicts.add(textKey);
+                updateKept(conflict.memory.id, text.slice(0, 800));
+                conflictAnno.remove();
+                showToast('Memory updated with new statement ✓');
+              };
+              conflictAnno.querySelector('.mn-conflict-ignore').onclick = (e) => {
+                e.stopPropagation();
+                resolvedConflicts.add(textKey);
+                conflictAnno.remove();
+              };
+            }
+            return;
+          }
+        }
+
+        if (conflictAnno) conflictAnno.remove();
 
         // Check if text is a candidate (not saved/noticed yet and not dismissed)
         if (text.length >= 60 && !dismissedChips.has(text.slice(0, 30)) && state.collectionEnabled) {
@@ -1356,9 +1466,10 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
         return;
       }
 
-      // If matched, remove pulse glow & chip, show status dot
+      // If matched, remove pulse glow, chip, & conflict banner, show status dot
       el.classList.remove('mn-pulse-candidate');
       if (chip) chip.remove();
+      if (conflictAnno) conflictAnno.remove();
 
       if (!dot) {
         dot = document.createElement('span');
