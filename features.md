@@ -72,13 +72,13 @@ Ensures complete user data ownership and seamless portability across different p
 
 ---
 
-### 12. ✅ In-Thread Conflict Resolution Annotations
+### 12. ⚠️ In-Thread Conflict Resolution Annotations [INCOMPLETE - Implemented via word-overlap ratio, not semantic contradiction model]
 Quiet inline warning under assistant responses when generated using memory contradicted by new input.  
 Opens a side-by-side comparison UI allowing users to keep the newest memory, merge both, or scope them.
 
 ---
 
-### 13. ✅ Ambient Background Memory Classifier
+### 13. ⚠️ Ambient Background Memory Classifier [INCOMPLETE - Implemented via regex/keyword heuristic, not ML classifier]
 Non-blocking evaluation algorithm that identifies durable facts immediately after assistant responses finish.  
 Silently populates the session candidate list without freezing input bars or interrupting typing.
 
@@ -104,7 +104,7 @@ Enables users to visually drag and drop memory cards between privacy zones to en
 
 ---
 
-### 17. ✅ Counterfactual Memory Simulator ("What If I Forget?")
+### 17. ⚠️ Counterfactual Memory Simulator ("What If I Forget?") [INCOMPLETE - Implemented via diff-to-empty string & hardcoded stats, not AI response simulation]
 Side-by-side simulation tool showing how AI responses would change with versus without a selected memory.  
 Highlights response diffs and impact statistics to eliminate deletion anxiety before permanent removal.
 
@@ -122,19 +122,19 @@ Displays extraction reasoning, confidence scores, edit histories, and chronologi
 
 ---
 
-### 20. ✅ Sensitivity-Tiered Consent Handshakes
+### 20. ⚠️ Sensitivity-Tiered Consent Handshakes [INCOMPLETE - Implemented via string keyword array matching, not ML sensitivity classifier]
 Automated classification of memories into Low (Green), Medium (Amber), and High (Red) sensitivity tiers.  
 Triggers mandatory, conversational inline consent dialogs for high-stakes health, financial, or personal data.
 
 ---
 
-### 21. ✅ Natural Language Memory Rules & End-User Programming
+### 21. ⚠️ Natural Language Memory Rules & End-User Programming [INCOMPLETE - Implemented via RegExp compilation, not NL logic parser or conflict detector]
 Policy builder allowing users to declare memory rules in plain text or by example ("Never remember salary details").  
 Automatically parses logic, detects semantic conflicts between rules, and offers visual rule construction.
 
 ---
 
-### 22. ✅ Memory Narrative Timeline & Chapters
+### 22. ⚠️ Memory Narrative Timeline & Chapters [INCOMPLETE - Implemented via hardcoded keyword regexes, not semantic topic clustering model]
 Temporal visualization of the user's memory story with multi-level zoom (months, weeks, days).  
 Groups related memories into semantic chapters (e.g., Work Projects, Recipes) for bulk management and archiving.
 
@@ -152,13 +152,13 @@ Features snapshot diffing and 1-click rollback to revert accidental deletions or
 
 ---
 
-### 25. ✅ Emotional Tone Memory Calibration
+### 25. ⚠️ Emotional Tone Memory Calibration [INCOMPLETE - Implemented via ALL-CAPS count & 9-word regex, not affect/tone classifier]
 Affect-aware protective mode that automatically pauses memory extraction during emotionally elevated chats.  
 Presents a gentle post-emotional review card once the user's tone returns to neutral before saving facts.
 
 ---
 
-### 26. ✅ Collaborative Memory Sharing & Third-Party Protection
+### 26. ⚠️ Collaborative Memory Sharing & Third-Party Protection [INCOMPLETE - Implemented via relationship keyword regex, not NER entity model]
 Interpersonal privacy engine that detects third-party facts (e.g., family health data) and defaults to session-only scope.  
 Supports shared team memory domains requiring mutual consent and unilateral data removal rights.
 
