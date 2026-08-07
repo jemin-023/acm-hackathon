@@ -4,8 +4,10 @@
     Session initialized ONCE and reused.
     ═══════════════════════════════════════════════════════ */
 
-import ort from '../lib/ort.all.min.js';
+import * as ortModule from '../lib/ort.all.min.js';
 import { AutoTokenizer, env } from '../lib/transformers.min.js';
+
+const ort = ortModule.default || ortModule;
 
 // Suppress uncaught extension context errors
 self.addEventListener('unhandledrejection', (event) => {
