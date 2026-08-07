@@ -1744,22 +1744,8 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       return;
     }
 
-    // Filter by Scope (#16)
-    let filtered = state.kept.filter((m) => {
-      const scope = m.scope || 'global';
-      if (keptScopeFilter !== 'all' && scope !== keptScopeFilter) return false;
-      return true;
-    });
-
-    const filterBarHTML =
-      '<div class="mn-filter-bar">' +
-      '<button class="mn-filter-pill ' + (keptScopeFilter === 'all' ? 'active' : '') + '" data-sc="all">All Scopes</button>' +
-      '<button class="mn-filter-pill ' + (keptScopeFilter === 'global' ? 'active' : '') + '" data-sc="global">🌐 Global Core</button>' +
-      '<button class="mn-filter-pill ' + (keptScopeFilter === 'domain' ? 'active' : '') + '" data-sc="domain">📌 Domain Scoped</button>' +
-      '<button class="mn-filter-pill ' + (keptScopeFilter === 'session' ? 'active' : '') + '" data-sc="session">⏱️ Session Ephemeral</button>' +
-      '<button class="mn-filter-pill ' + (state.gravityOpen ? 'active' : '') + '" data-act="tog-grav">🪐 Gravity Canvas (#28)</button>' +
-      '</div>' +
-      (state.gravityOpen ? renderSemanticGravityCanvas(filtered) : '');
+    // All kept memories
+    let filtered = state.kept;
 
     const cardsHTML = filtered
       .map((m) => {
@@ -1885,20 +1871,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       })
       .join('');
 
-    p.innerHTML = filterBarHTML + (cardsHTML || '<div class="mn-empty-s" style="text-align:center;padding:20px;color:#6e6e86">No memories match the selected scope filters.</div>');
-
-    // Filter pill events
-    p.querySelectorAll('[data-sc]').forEach((b) =>
-      b.addEventListener('click', () => { keptScopeFilter = b.dataset.sc; renderKept(); })
-    );
-
-    const gravBtn = p.querySelector('[data-act="tog-grav"]');
-    if (gravBtn) {
-      gravBtn.addEventListener('click', () => {
-        state.gravityOpen = !state.gravityOpen;
-        renderKept();
-      });
-    }
+    p.innerHTML = cardsHTML;
 
     // Decay selector changes (#18)
     p.querySelectorAll('.mn-decay-select').forEach((sel) =>
