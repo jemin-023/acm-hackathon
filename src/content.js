@@ -483,6 +483,18 @@ For every response in this conversation:
     inbox: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><circle cx="12" cy="15" r="1.2" stroke-width="1.5"/></svg>',
     vault: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1.5" stroke-width="1.5"/></svg>',
     lock: '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="8" height="6" rx="1"/><path d="M4 5V3.5a2 2 0 0 1 4 0V5"/><circle cx="6" cy="8" r="1" stroke-width="1.5"/></svg>',
+    wipSign: '<svg viewBox="0 0 100 100" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;display:inline-block;"><path d="M50 18 L25 45 M50 18 L75 45" stroke="#1A1A2E" stroke-width="5" stroke-linecap="round"/><circle cx="50" cy="16" r="6" fill="#3B82F6" stroke="#1A1A2E" stroke-width="4"/><rect x="15" y="40" width="70" height="48" rx="8" fill="#FFD100" stroke="#1A1A2E" stroke-width="5"/><circle cx="30" cy="48" r="3" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="2"/><circle cx="70" cy="48" r="3" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="2"/><text x="50" y="62" font-family="sans-serif" font-weight="900" font-size="10" fill="#1A1A2E" text-anchor="middle">WORK IN</text><text x="50" y="76" font-family="sans-serif" font-weight="900" font-size="10" fill="#1A1A2E" text-anchor="middle">PROGRESS</text></svg>',
+    personAvatar: '<svg viewBox="0 0 100 100" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;display:inline-block;"><path d="M15 95 C15 68 32 64 50 64 C68 64 85 68 85 95 Z" fill="#2C1D1D"/><path d="M42 60 C42 60 50 68 58 60 L58 72 C58 72 50 80 42 72 Z" fill="#FFA099"/><circle cx="50" cy="42" r="22" fill="#FFA099"/><path d="M20 34 C20 18 36 14 50 14 C66 14 78 24 78 38 C74 32 66 28 58 35 C58 35 50 20 32 28 C25 32 21 34 20 34 Z" fill="#2C1D1D"/><ellipse cx="39" cy="42" rx="2.5" ry="3.5" fill="#2C1D1D"/><ellipse cx="57" cy="42" rx="2.5" ry="3.5" fill="#2C1D1D"/><path d="M42 53 Q50 57 58 53" stroke="#E63946" stroke-width="2.5" stroke-linecap="round" fill="none"/></svg>',
+    cppLogo: '<svg viewBox="0 0 100 100" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;display:inline-block;"><polygon points="50,5 92,28 92,72 50,95 8,72 8,28" fill="#00599C"/><polygon points="50,5 92,28 92,72 50,95" fill="#004482" opacity="0.3"/><path d="M46 35 A 16 16 0 1 0 46 65 L 54 65 A 24 24 0 1 1 54 35 Z" fill="#FFFFFF"/><rect x="60" y="47" width="9" height="3" fill="#FFFFFF"/><rect x="63" y="44" width="3" height="9" fill="#FFFFFF"/><rect x="73" y="47" width="9" height="3" fill="#FFFFFF"/><rect x="76" y="44" width="3" height="9" fill="#FFFFFF"/></svg>',
+    healthCross: '<svg viewBox="0 0 100 100" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;display:inline-block;"><rect x="10" y="10" width="80" height="80" rx="20" fill="#EF4444" stroke="#1A1A2E" stroke-width="4"/><path d="M50 25 V75 M25 50 H75" stroke="#FFFFFF" stroke-width="14" stroke-linecap="round"/><path d="M32 50 Q41 38 50 50 T68 50" stroke="#1A1A2E" stroke-width="4" fill="none" stroke-linecap="round"/></svg>',
+    familyHeart: '<svg viewBox="0 0 100 100" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;display:inline-block;"><path d="M50 85 C20 60 10 40 25 22 C38 6 50 25 50 25 C50 25 62 6 75 22 C90 40 80 60 50 85 Z" fill="#EC4899" stroke="#1A1A2E" stroke-width="4"/><path d="M35 45 A 8 8 0 1 1 45 35 M55 35 A 8 8 0 1 1 65 45" stroke="#FFFFFF" stroke-width="4" fill="none"/></svg>',
+    researchAtom: '<svg viewBox="0 0 100 100" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;display:inline-block;"><ellipse cx="50" cy="50" rx="40" ry="14" stroke="#06B6D4" stroke-width="5" transform="rotate(30 50 50)"/><ellipse cx="50" cy="50" rx="40" ry="14" stroke="#3B82F6" stroke-width="5" transform="rotate(-30 50 50)"/><ellipse cx="50" cy="50" rx="40" ry="14" stroke="#8B5CF6" stroke-width="5" transform="rotate(90 50 50)"/><circle cx="50" cy="50" r="10" fill="#F59E0B" stroke="#1A1A2E" stroke-width="3"/></svg>',
+    safeVault: '<svg viewBox="0 0 100 100" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;display:inline-block;"><rect x="12" y="12" width="76" height="76" rx="16" fill="#F59E0B" stroke="#1A1A2E" stroke-width="5"/><circle cx="50" cy="50" r="20" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="5"/><circle cx="50" cy="50" r="6" fill="#1A1A2E"/><path d="M50 30 V36 M50 64 V70 M30 50 H36 M64 50 H70" stroke="#1A1A2E" stroke-width="4" stroke-linecap="round"/></svg>',
+    railGlobal: '<svg viewBox="0 0 100 100" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;"><circle cx="50" cy="50" r="40" fill="#9333EA" stroke="#1A1A2E" stroke-width="5"/><ellipse cx="50" cy="50" rx="40" ry="16" stroke="#FFFFFF" stroke-width="4"/><ellipse cx="50" cy="50" rx="16" ry="40" stroke="#FFFFFF" stroke-width="4"/><line x1="10" y1="50" x2="90" y2="50" stroke="#FFFFFF" stroke-width="4"/></svg>',
+    railSession: '<svg viewBox="0 0 100 100" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;"><path d="M15 22 H85 V65 H50 L30 80 V65 H15 Z" fill="#06B6D4" stroke="#1A1A2E" stroke-width="5" stroke-linejoin="round"/><circle cx="35" cy="43" r="5" fill="#FFFFFF"/><circle cx="50" cy="43" r="5" fill="#FFFFFF"/><circle cx="65" cy="43" r="5" fill="#FFFFFF"/></svg>',
+    railCanvas: '<svg viewBox="0 0 100 100" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;"><path d="M15 20 H85 V80 H15 Z" fill="#EC4899" stroke="#1A1A2E" stroke-width="5" rx="10"/><circle cx="35" cy="40" r="8" fill="#F59E0B"/><circle cx="65" cy="40" r="8" fill="#3B82F6"/><path d="M30 65 L45 50 L60 65 L75 55" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    railExport: '<svg viewBox="0 0 100 100" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;"><rect x="15" y="45" width="70" height="42" rx="10" fill="#10B981" stroke="#1A1A2E" stroke-width="5"/><path d="M50 12 V55 M30 38 L50 58 L70 38" stroke="#1A1A2E" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    railSettings: '<svg viewBox="0 0 100 100" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;"><path d="M50 15 L57 25 H70 L73 38 L85 43 L80 56 L88 67 L76 73 L70 85 L57 80 L50 88 L43 80 L30 85 L24 73 L12 67 L20 56 L15 43 L27 38 L30 25 H43 Z" fill="#F59E0B" stroke="#1A1A2E" stroke-width="4"/><circle cx="50" cy="50" r="16" fill="#FFFFFF" stroke="#1A1A2E" stroke-width="4"/></svg>',
   };
 
   /* ═══════════════════════════════════════════
@@ -1436,6 +1448,10 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   };
 
   function openTab(tabName) {
+    if (tabName === 'export') {
+      doExport();
+      return;
+    }
     toggleDrawer(true);
     if (!ui.dr) return;
 
@@ -1467,24 +1483,24 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     rail.className = 'mn-side-rail';
     rail.innerHTML =
       '<button class="mn-rail-item active" data-tab="global-memory" title="Global Memory">' +
-        '<span class="mn-rail-icon">🌐</span>' +
+        '<span class="mn-rail-icon">' + IC.railGlobal + '</span>' +
         '<span class="mn-rail-label">Global Memory</span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="current-session" title="Current Session">' +
-        '<span class="mn-rail-icon">💬</span>' +
+        '<span class="mn-rail-icon">' + IC.railSession + '</span>' +
         '<span class="mn-rail-label">Current Session</span>' +
         '<span class="mn-rail-badge" style="display:none"></span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="canvas" title="Spatial Canvas">' +
-        '<span class="mn-rail-icon">🎨</span>' +
+        '<span class="mn-rail-icon">' + IC.railCanvas + '</span>' +
         '<span class="mn-rail-label">Spatial Canvas</span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="export" title="Export">' +
-        '<span class="mn-rail-icon">📥</span>' +
+        '<span class="mn-rail-icon">' + IC.railExport + '</span>' +
         '<span class="mn-rail-label">Export</span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="settings" title="Settings">' +
-        '<span class="mn-rail-icon">⚙️</span>' +
+        '<span class="mn-rail-icon">' + IC.railSettings + '</span>' +
         '<span class="mn-rail-label">Settings</span>' +
       '</button>';
 
@@ -1492,6 +1508,10 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const tabName = btn.dataset.tab;
+        if (tabName === 'export') {
+          doExport();
+          return;
+        }
         openTab(tabName);
       });
     });
@@ -1723,10 +1743,6 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           <span class="mn-drawer-title-text">Global Memory</span>
         </div>
         <div class="mn-hdr-r">
-          <label class="mn-lock" style="cursor:pointer;" title="Toggle PenEcho Spatial Canvas Protocol on Claude.ai">
-            <span>🎨 Protocol</span>
-            <input type="checkbox" class="mn-tgl mn-spatial-proto-tgl" ${state.spatialProtocolEnabled ? 'checked' : ''} style="width:28px;height:16px;margin-left:4px;" />
-          </label>
           <button class="mn-cls" title="Close drawer">${IC.close}</button>
         </div>
       </div>
@@ -2521,7 +2537,6 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           <span>${draft ? 'Live Draft Streaming' : 'Live Spatial Board Ready'}</span>
         </div>
         <div class="mn-spatial-actions">
-          <button class="mn-spatial-btn mn-spatial-btn-primary mn-btn-inject-proto" title="Inject PenEcho protocol prompt to Claude">📋 Inject Protocol</button>
           <button class="mn-spatial-btn mn-btn-load-demo" title="Load sample architecture & formulas from canvas.md">✨ Demo</button>
           <button class="mn-spatial-btn mn-btn-clear-canvas" title="Clear canvas elements">🧹 Clear</button>
         </div>
@@ -3195,13 +3210,13 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     }
 
     const categoriesMap = {
-      work:          { title: 'Work & Projects',       icon: '💼', items: [] },
-      coding:        { title: 'Coding & Tech',          icon: '💻', items: [] },
-      personal:      { title: 'Personal & Profile',     icon: '👤', items: [] },
-      health:        { title: 'Health & Wellbeing',     icon: '🩺', items: [] },
-      relationships: { title: 'Relationships & Family', icon: '👨‍👩‍👧', items: [] },
-      research:      { title: 'Research & Knowledge',   icon: '🔬', items: [] },
-      general:       { title: 'General Vault',          icon: '📂', items: [] }
+      work:          { title: 'Work & Projects',       icon: IC.wipSign, items: [] },
+      coding:        { title: 'Coding & Tech',          icon: IC.cppLogo, items: [] },
+      personal:      { title: 'Personal & Profile',     icon: IC.personAvatar, items: [] },
+      health:        { title: 'Health & Wellbeing',     icon: IC.healthCross, items: [] },
+      relationships: { title: 'Relationships & Family', icon: IC.familyHeart, items: [] },
+      research:      { title: 'Research & Knowledge',   icon: IC.researchAtom, items: [] },
+      general:       { title: 'General Vault',          icon: IC.safeVault, items: [] }
     };
 
     memories.forEach((m) => {
@@ -3262,7 +3277,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         '<div style="padding:14px;display:flex;flex-direction:column;gap:14px;">' +
         // Back Header
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">' +
-        '<button class="mn-sq-back-btn" data-act="back-to-cat" style="margin-bottom:0;">← Back to ' + catObj.title + '</button>' +
+        '<button class="mn-sq-back-btn" data-act="back-to-cat" style="margin-bottom:0;">← Back</button>' +
         '<span class="mn-cat-badge mn-cat-badge-' + catKey + '">' + catKey + '</span>' +
         '</div>' +
 
@@ -3386,42 +3401,25 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       let cardsHTML = '';
       if (catItems.length > 0) {
         cardsHTML = catItems.map((m) => {
-          const isSelected = selectedKeptIds.has(m.id);
           const domainTag = getDomainFromUrl(m.url);
           return (
-            '<div class="mn-scrapbook-card mn-cat-' + catKey + '" data-id="' + m.id + '" data-act="open-memory-detail" style="margin-bottom:10px;">' +
-            '<div class="mn-card-hdr-row" onclick="event.stopPropagation()">' +
-            '<div class="mn-card-cb-wrap">' +
-            '<input type="checkbox" class="mn-card-select-cb" data-id="' + m.id + '" ' + (isSelected ? 'checked' : '') + ' title="Select for Merge" />' +
-            '<span class="mn-cat-badge mn-cat-badge-' + catKey + '">' + catKey + '</span>' +
-            '</div>' +
-            (catKey === 'coding' ? '<button class="mn-copy-snippet-btn" data-id="' + m.id + '" data-act="copy-snippet">Copy Snippet</button>' : '') +
-            '</div>' +
-            '<div class="mn-card-snippet-text">' + esc(truncate(m.text, 140)) + '</div>' +
+            '<div class="mn-scrapbook-card mn-cat-' + catKey + '" data-id="' + m.id + '" data-act="open-memory-detail" style="margin-bottom:10px;cursor:pointer;">' +
+            '<div class="mn-card-snippet-text">' + esc(truncate(m.text, 160)) + '</div>' +
             (catKey === 'research' && domainTag ? '<div class="mn-citation-tag">Citation: ' + esc(domainTag) + '</div>' : '') +
-            '<div class="mn-card-meta-bar">' +
+            '<div class="mn-card-meta-bar" style="margin-top:8px;padding-top:6px;border-top:1px solid #E5E7EB;">' +
             '<span class="mn-card-time">' + timeAgo(m.keptAt || m.timestamp) + '</span>' +
-            '<button class="mn-btn mn-btn-e" data-act="open-memory-detail" data-id="' + m.id + '" style="font-size:10px;padding:3px 10px;">View Details →</button>' +
             '</div>' +
             '</div>'
           );
         }).join('');
       } else {
-        cardsHTML = '<div class="mn-empty" style="padding:20px 0;"><div class="mn-empty-t" style="font-size:13px">No memories in ' + catObj.title + ' yet</div></div>';
+        cardsHTML = '<div class="mn-empty" style="padding:20px 0;"><div class="mn-empty-t" style="font-size:13px">No memories saved yet</div></div>';
       }
 
       p.innerHTML =
         '<div style="padding:14px;display:flex;flex-direction:column;gap:12px;">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;">' +
-        '<button class="mn-sq-back-btn" data-act="back-to-all-cats" style="margin-bottom:0;">← All Categories</button>' +
-        (catKey === 'coding' && catItems.length > 0 ? '<button class="mn-btn mn-btn-k" data-act="copy-all-coding" style="font-size:10px;">📋 Copy All Snippets</button>' : '') +
-        '</div>' +
-
-        '<div style="display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #1A1A2E;padding-bottom:10px;">' +
-        '<div style="font-size:15px;font-weight:700;color:#1A1A2E;display:flex;align-items:center;gap:8px;">' +
-        '<span>' + catObj.icon + '</span><span>' + catObj.title + '</span>' +
-        '</div>' +
-        '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--mn-pink);color:#FFFFFF;border:2px solid #1A1A2E;">' + catItems.length + ' items</span>' +
+        '<div style="display:flex;align-items:center;margin-bottom:4px;">' +
+        '<button class="mn-sq-back-btn" data-act="back-to-all-cats" style="margin-bottom:0;">← Back</button>' +
         '</div>' +
 
         '<div class="mn-cat-items-list">' + cardsHTML + '</div>' +
