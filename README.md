@@ -14,7 +14,9 @@ MemoNeg is a privacy-first, local-first browser extension for Chrome & Chromium-
 * **Session Digest Card:** Dismissible summary card appearing at the start of new sessions to review auto-captured candidates.
 * **Never-Save Rules Engine:** Configurable keyword and regex rules to silently filter out sensitive topics (e.g., finances, passwords, health).
 * **Client-Side Data Export:** 1-click JSON export ensuring complete user data ownership.
-* **Local-First On-Device Architecture:** All user memories remain strictly stored inside your browser's local/session storage.
+* **PenEcho Live Spatial Canvas & Mind Map Protocol:** Real-time multimodal canvas with a Running Timeline, force-directed Dynamic Mind Map with taxonomy color coding (#22C55E safe memory, #EAB308 consideration, #EF4444 reconsider, #3B82F6 active focus, #64748B structure), Canvas2D vector shapes, and LaTeX mathematical formula rendering.
+* **Stream Interceptor & Draft Safety Layer:** Intercepts ```json:penecho-canvas``` blocks from Claude's live stream, collapses raw JSON from the chat, and provides an editable preview before committing to persistent board memory.
+* **Local-First On-Device Architecture:** All user memories and spatial canvas states remain strictly stored inside your browser's local/session storage.
 
 ## 🚀 Installation & Setup
 

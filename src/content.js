@@ -24,20 +24,228 @@
   const state = {
     drawerOpen: false,
     activeTab: 'global-memory', // 'global-memory' | 'local-memory'
+    mainViewTab: 'vault',       // 'vault' | 'spatial'
     collectionEnabled: true,
+    spatialProtocolEnabled: true,
     noticed: [],
     kept: [],
     rules: [],          // never-save keyword rules
     rulesOpen: false,   // rules panel expanded in footer
+    snapsOpen: false,
+    snapshots: [],
+    // PenEcho Spatial Canvas Protocol State
+    penechoState: {
+      timeline: [],
+      mindmap: { nodes: [], links: [] },
+      canvas: { elements: [] }
+    },
+    penechoDraft: null,
+    penechoHistory: [],
+    selectedMindMapNode: null,
+    canvasZoom: 1.0,
+    canvasPan: { x: 0, y: 0 },
   };
 
-  let shadow = null;
-  const ui = {};
-  let mutationTimer = null;
-  let toastTimer = null;
-  let digestDismissed = false; // reset on each SPA navigation
+  /* ═══════════════════════════════════════════════════════════════
+     PENECHO + MEMONEG SPATIAL CANVAS PROTOCOL SPECIFICATION
+     ═══════════════════════════════════════════════════════════════ */
+  const PENECHO_PROTOCOL_DIRECTIVE = `[PenEcho + MemoNeg Spatial Canvas Protocol Active]
+For every response in this conversation:
+1. Always output your standard, high-quality, human-readable markdown response first.
+2. At the very bottom of your response, output a single code block tagged \`\`\`json:penecho-canvas\`\`\`.
+3. Adhere strictly to the three synchronized visual streams and standardized color taxonomy:
+- Color Taxonomy:
+  * 🟢 Green "#22C55E" (safe_memory): Long-term memory / verified architecture decisions / safe facts.
+  * 🟡 Yellow "#EAB308" (consideration): Trade-offs / provisional assumptions / revisit if time permits.
+  * 🔴 Red "#EF4444" (reconsider): High-risk failure modes / security risks / must reconsider / sensitive data.
+  * 🔵 Blue "#3B82F6" (active_focus): Current active task / step currently being computed.
+  * ⚪ Slate "#64748B" (neutral_structure): Structural concepts / groupings / neutral connectors.
+- Schema:
+\`\`\`json:penecho-canvas
+{
+  "version": "1.0",
+  "timeline": {
+    "step_id": "step_unique_id",
+    "step_number": 1,
+    "title": "Short Milestone Title",
+    "status": "completed | in_progress | planned",
+    "summary": "Brief 1-line progress summary of what was accomplished or decided in this turn."
+  },
+  "mindmap": {
+    "action": "merge",
+    "nodes": [
+      {
+        "id": "node_unique_id",
+        "label": "Concept or Decision Label",
+        "category": "safe_memory | consideration | reconsider | active_focus | neutral_structure",
+        "color": "#22C55E | #EAB308 | #EF4444 | #3B82F6 | #64748B",
+        "description": "Short explanation of why this node is categorized this way.",
+        "parent": "parent_node_id"
+      }
+    ],
+    "links": [
+      {
+        "source": "source_node_id",
+        "target": "target_node_id",
+        "label": "relationship description",
+        "style": "solid | dashed | arrow"
+      }
+    ]
+  },
+  "canvas": {
+    "elements": [
+      {
+        "type": "render_formula",
+        "id": "elem_id",
+        "x": 380,
+        "y": 100,
+        "latex": "T_{\\\\text{expiry}} = \\\\mu_{\\\\text{session}} + 2\\\\sigma",
+        "caption": "Adaptive Session Expiry Window"
+      },
+      {
+        "type": "draw_box",
+        "id": "box_id",
+        "x": 80,
+        "y": 180,
+        "w": 140,
+        "h": 80,
+        "color": "#3B82F6",
+        "title": "Browser Client",
+        "style": "solid"
+      },
+      {
+        "type": "draw_arrow",
+        "from": [220, 220],
+        "to": [320, 220],
+        "label": "Bearer Token",
+        "color": "#22C55E"
+      },
+      {
+        "type": "draw_text",
+        "x": 80,
+        "y": 300,
+        "text": "Note: Token rotation required every 15 mins",
+        "color": "#EAB308"
+      }
+    ]
+  }
+}
+\`\`\``;
 
-  function playMemoryTone() {}
+  const PENECHO_EXAMPLE_PAYLOAD = {
+    version: "1.0",
+    timeline: {
+      step_id: "step_2_auth_design",
+      step_number: 2,
+      title: "Session Architecture Finalized",
+      status: "completed",
+      summary: "Selected stateless JWT with optional Redis blocklist."
+    },
+    mindmap: {
+      action: "merge",
+      nodes: [
+        {
+          id: "auth_root",
+          label: "Session Management",
+          category: "neutral_structure",
+          color: "#64748B",
+          description: "Core authentication subtree"
+        },
+        {
+          id: "jwt_tokens",
+          label: "Stateless Ed25519 JWT",
+          category: "safe_memory",
+          color: "#22C55E",
+          description: "Committed to permanent memory. Safe and verified.",
+          parent: "auth_root"
+        },
+        {
+          id: "redis_cache",
+          label: "Redis Blocklist",
+          category: "consideration",
+          color: "#EAB308",
+          description: "Moderate priority. Implement if infrastructure budget permits.",
+          parent: "auth_root"
+        },
+        {
+          id: "local_storage_secrets",
+          label: "Secrets in LocalStorage",
+          category: "reconsider",
+          color: "#EF4444",
+          description: "High vulnerability risk! Must be completely removed.",
+          parent: "auth_root"
+        }
+      ],
+      links: [
+        {
+          source: "auth_root",
+          target: "jwt_tokens",
+          label: "primary mechanism",
+          style: "solid"
+        },
+        {
+          source: "auth_root",
+          target: "redis_cache",
+          label: "optional revoke layer",
+          style: "dashed"
+        },
+        {
+          source: "auth_root",
+          target: "local_storage_secrets",
+          label: "prohibited pattern",
+          style: "dashed"
+        }
+      ]
+    },
+    canvas: {
+      elements: [
+        {
+          type: "render_formula",
+          id: "f_expiry",
+          x: 380,
+          y: 100,
+          latex: "T_{\\text{expiry}} = \\mu_{\\text{session}} + 2\\sigma",
+          caption: "Adaptive Session Expiry Window"
+        },
+        {
+          type: "draw_box",
+          id: "b_client",
+          x: 80,
+          y: 180,
+          w: 140,
+          h: 80,
+          color: "#3B82F6",
+          title: "Browser Client",
+          style: "solid"
+        },
+        {
+          type: "draw_box",
+          id: "b_auth",
+          x: 320,
+          y: 180,
+          w: 160,
+          h: 80,
+          color: "#22C55E",
+          title: "JWT Auth Guard",
+          style: "solid"
+        },
+        {
+          type: "draw_arrow",
+          from: [220, 220],
+          to: [320, 220],
+          label: "Bearer Token",
+          color: "#22C55E"
+        },
+        {
+          type: "draw_text",
+          x: 80,
+          y: 300,
+          text: "Note: Token rotation required every 15 mins",
+          color: "#EAB308"
+        }
+      ]
+    }
+  };
 
   function announceScreenReader(msg) {
     try {
@@ -115,14 +323,16 @@
 
   async function loadAll() {
     try {
-      const [kr, nr, rr] = await Promise.all([
+      const [kr, nr, rr, cr] = await Promise.all([
         send({ type: 'GET_KEPT' }),
         send({ type: 'GET_NOTICED' }),
         send({ type: 'GET_RULES' }),
+        send({ type: 'GET_CANVAS_STATE' }),
       ]);
       state.kept = kr?.kept || state.kept || [];
       state.noticed = nr?.noticed || state.noticed || [];
       state.rules = rr?.rules || state.rules || [];
+      if (cr?.canvasState) state.penechoState = cr.canvasState;
       renderAll();
     } catch (_) {
       renderAll();
@@ -1352,6 +1562,229 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
   box-shadow: 0 6px 20px rgba(236, 72, 153, 0.5);
 }
 
+/* ── PenEcho Spatial Canvas & Multi-Stream UI ── */
+.mn-nav-tabs {
+  position: relative; z-index: 3;
+  display: flex; padding: 0 16px;
+  background: #09090b !important;
+  border-bottom: 1px solid var(--mn-border);
+  gap: 6px; flex-shrink: 0;
+}
+.mn-nav-tab {
+  flex: 1; padding: 10px 12px; font-size: 12px; font-weight: 600;
+  color: var(--mn-fg-muted); background: transparent; border: none;
+  border-bottom: 2px solid transparent; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all var(--mn-transition); outline: none;
+}
+.mn-nav-tab:hover { color: var(--mn-fg); background: rgba(255,255,255,0.03); }
+.mn-nav-tab.active {
+  color: #38BDF8; border-bottom: 2px solid #38BDF8; font-weight: 700;
+}
+.mn-nav-tab-badge {
+  font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px;
+  background: rgba(56, 189, 248, 0.15); color: #38BDF8; border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.mn-spatial-view {
+  display: flex; flex-direction: column; height: 100%; flex: 1;
+  overflow-y: auto; padding: 14px 16px; gap: 14px;
+}
+.mn-spatial-view::-webkit-scrollbar { width: 6px; }
+.mn-spatial-view::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+.mn-spatial-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-radius: var(--mn-radius-sm);
+  background: rgba(15, 23, 42, 0.85); border: 1px solid var(--mn-border);
+  backdrop-filter: blur(12px); flex-wrap: wrap; gap: 8px;
+}
+.mn-spatial-status {
+  display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--mn-fg);
+}
+.mn-spatial-pulse-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #22C55E;
+  box-shadow: 0 0 10px #22C55E; animation: mnPulse 2s infinite;
+}
+.mn-spatial-pulse-dot.drafting {
+  background: #EAB308; box-shadow: 0 0 10px #EAB308;
+}
+
+.mn-spatial-actions {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.mn-spatial-btn {
+  padding: 5px 10px; border-radius: var(--mn-radius-xs); border: 1px solid var(--mn-border);
+  background: rgba(255,255,255,0.04); color: var(--mn-fg-muted); font-size: 11px;
+  font-weight: 600; cursor: pointer; transition: all var(--mn-transition); outline: none;
+  font-family: inherit; display: inline-flex; align-items: center; gap: 4px;
+}
+.mn-spatial-btn:hover { background: rgba(255,255,255,0.1); color: var(--mn-fg); border-color: var(--mn-border-focus); }
+.mn-spatial-btn-primary {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(139, 92, 246, 0.25));
+  color: #38BDF8; border-color: rgba(56, 189, 248, 0.4);
+}
+.mn-spatial-btn-primary:hover {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.35), rgba(139, 92, 246, 0.4));
+  color: #FFFFFF;
+}
+.mn-spatial-btn-danger {
+  background: rgba(239, 68, 68, 0.12); color: #F87171; border-color: rgba(239, 68, 68, 0.25);
+}
+.mn-spatial-btn-danger:hover { background: rgba(239, 68, 68, 0.25); color: #EF4444; }
+
+/* ── Draft Layer Banner ── */
+.mn-draft-banner {
+  padding: 12px 14px; border-radius: var(--mn-radius-sm);
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.12), rgba(139, 92, 246, 0.15));
+  border: 1px dashed rgba(234, 179, 8, 0.5);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  box-shadow: 0 4px 20px rgba(234, 179, 8, 0.15); animation: mnUp 0.2s ease-out;
+}
+.mn-draft-info { display: flex; flex-direction: column; gap: 2px; }
+.mn-draft-title { font-size: 12px; font-weight: 700; color: #FBBF24; display: flex; align-items: center; gap: 6px; }
+.mn-draft-subtitle { font-size: 11px; color: var(--mn-fg-muted); }
+.mn-draft-acts { display: flex; align-items: center; gap: 6px; }
+
+/* ── Stream 1: Running Timeline ── */
+.mn-stream-card {
+  border-radius: var(--mn-radius);
+  border: 1px solid var(--mn-border);
+  background: rgba(10, 10, 14, 0.90);
+  backdrop-filter: blur(14px);
+  padding: 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.mn-stream-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.mn-stream-title {
+  font-size: 13px; font-weight: 700; color: var(--mn-fg); display: flex; align-items: center; gap: 8px;
+}
+.mn-timeline-steps {
+  display: flex; flex-direction: column; gap: 10px; position: relative;
+}
+.mn-timeline-step-item {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 12px; border-radius: var(--mn-radius-sm);
+  background: rgba(255, 255, 255, 0.03); border: 1px solid var(--mn-border);
+  transition: all var(--mn-transition);
+}
+.mn-timeline-step-item:hover {
+  background: rgba(255, 255, 255, 0.06); border-color: rgba(56, 189, 248, 0.4);
+}
+.mn-timeline-step-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(56, 189, 248, 0.2); border: 1px solid #38BDF8;
+  color: #38BDF8; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.mn-timeline-step-content { flex: 1; min-width: 0; }
+.mn-timeline-step-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;
+}
+.mn-timeline-step-ttl { font-size: 12px; font-weight: 600; color: var(--mn-fg); }
+.mn-timeline-status-pill {
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase;
+}
+.mn-timeline-status-completed { background: rgba(34, 197, 94, 0.15); color: #4ADE80; border: 1px solid rgba(34, 197, 94, 0.3); }
+.mn-timeline-status-in_progress { background: rgba(59, 130, 246, 0.15); color: #60A5FA; border: 1px solid rgba(59, 130, 246, 0.3); animation: mnPulse 2s infinite; }
+.mn-timeline-status-planned { background: rgba(100, 116, 139, 0.15); color: #94A3B8; border: 1px solid rgba(100, 116, 139, 0.3); }
+.mn-timeline-step-sum { font-size: 11px; color: var(--mn-fg-muted); line-height: 1.4; }
+
+/* ── Stream 2: Dynamic Force-Directed Mind Map ── */
+.mn-mindmap-wrap {
+  position: relative; width: 100%; height: 320px;
+  background: rgba(6, 6, 9, 0.95); border-radius: var(--mn-radius-sm);
+  border: 1px solid var(--mn-border); overflow: hidden;
+}
+.mn-mindmap-svg {
+  width: 100%; height: 100%; cursor: grab;
+}
+.mn-mindmap-svg:active { cursor: grabbing; }
+
+.mn-mindmap-legend {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; font-size: 10px; font-weight: 600;
+}
+.mn-legend-tag {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px;
+  border-radius: 4px; background: rgba(255,255,255,0.04); border: 1px solid var(--mn-border);
+}
+.mn-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+.mn-node-inspector {
+  margin-top: 10px; padding: 10px 12px; border-radius: var(--mn-radius-sm);
+  background: rgba(18, 18, 26, 0.95); border: 1px solid var(--mn-border);
+  animation: mnUp 0.18s ease-out;
+}
+.mn-inspector-hdr {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+}
+.mn-inspector-label { font-size: 13px; font-weight: 700; color: var(--mn-fg); display: flex; align-items: center; gap: 6px; }
+.mn-inspector-desc { font-size: 11px; color: var(--mn-fg-muted); line-height: 1.45; margin-bottom: 8px; }
+.mn-inspector-acts { display: flex; gap: 6px; }
+
+/* ── Stream 3: 2D Vector & LaTeX Formula Canvas ── */
+.mn-canvas-elements-grid {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.mn-formula-card {
+  padding: 12px 14px; border-radius: var(--mn-radius-sm);
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.95));
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.mn-formula-caption {
+  font-size: 11px; font-weight: 700; color: #38BDF8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px;
+}
+.mn-formula-math {
+  font-family: 'Cambria Math', 'Latin Modern Math', 'STIX Two Math', 'Times New Roman', serif;
+  font-size: 16px; font-style: italic; color: #F8FAFC; padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4); border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center; overflow-x: auto;
+}
+
+.mn-vector-boxes-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;
+}
+.mn-vector-box-item {
+  padding: 10px 12px; border-radius: var(--mn-radius-xs);
+  background: rgba(255,255,255,0.03); border: 1px solid var(--mn-border);
+}
+.mn-vector-box-ttl { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.mn-vector-arrow-card {
+  padding: 8px 12px; border-radius: var(--mn-radius-xs);
+  background: rgba(34, 197, 94, 0.06); border: 1px solid rgba(34, 197, 94, 0.25);
+  font-size: 11px; font-weight: 600; color: #4ADE80; display: flex; align-items: center; gap: 6px;
+}
+
+/* ── Chat Stream Interceptor Badge ── */
+.mn-penecho-chat-pill {
+  margin: 10px 0 !important; padding: 10px 14px !important;
+  border-radius: 12px !important;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 27, 75, 0.9)) !important;
+  border: 1px solid rgba(56, 189, 248, 0.4) !important;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.2) !important;
+  display: flex !important; align-items: center !important; justify-content: space-between !important;
+  gap: 12px !important; font-family: 'Inter', sans-serif !important; color: #F8FAFC !important;
+  animation: mnSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.mn-penecho-pill-left { display: flex !important; align-items: center !important; gap: 10px !important; }
+.mn-penecho-pill-icon { font-size: 20px !important; line-height: 1 !important; }
+.mn-penecho-pill-info { display: flex !important; flex-direction: column !important; gap: 2px !important; }
+.mn-penecho-pill-info strong { font-size: 12px !important; font-weight: 700 !important; color: #38BDF8 !important; }
+.mn-penecho-pill-info span { font-size: 11px !important; color: #94A3B8 !important; }
+.mn-penecho-pill-btn {
+  padding: 6px 12px !important; border-radius: 8px !important;
+  background: rgba(56, 189, 248, 0.2) !important; border: 1px solid rgba(56, 189, 248, 0.5) !important;
+  color: #38BDF8 !important; font-size: 11px !important; font-weight: 700 !important;
+  cursor: pointer !important; transition: all 0.2s !important; outline: none !important;
+}
+.mn-penecho-pill-btn:hover {
+  background: #38BDF8 !important; color: #0F172A !important; transform: translateY(-1px) !important;
+}
+
     `;
   }
 
@@ -1676,57 +2109,111 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
           MemoNeg
         </div>
         <div class="mn-hdr-r">
+          <label class="mn-lock" style="cursor:pointer;" title="Toggle PenEcho Spatial Canvas Protocol on Claude.ai">
+            <span>🎨 Protocol</span>
+            <input type="checkbox" class="mn-tgl mn-spatial-proto-tgl" ${state.spatialProtocolEnabled ? 'checked' : ''} style="width:28px;height:16px;margin-left:4px;" />
+          </label>
           <button class="mn-cls" title="Close drawer">${IC.close}</button>
         </div>
       </div>
-      <div class="mn-body">
-        <!-- Section 1: Global Memory -->
-        <div class="mn-memory-section mn-section-global" data-scope="global">
-          <div class="mn-section-hdr">
-            <span>🌐 Global Memory</span>
-            <span class="mn-section-sub">Applies everywhere</span>
-          </div>
-          <div class="mn-pane active" data-pane="global-memory"></div>
-        </div>
 
-        <!-- Section 2: Current Session -->
-        <div class="mn-memory-section mn-section-local" data-scope="local">
-          <div class="mn-section-hdr">
-            <span>📍 Current Session</span>
-            <span class="mn-section-sub">Scoped to site</span>
+      <!-- Navigation Tabs: Memory Vault vs. PenEcho Spatial Canvas -->
+      <div class="mn-nav-tabs">
+        <button class="mn-nav-tab ${state.mainViewTab === 'vault' ? 'active' : ''}" data-vtab="vault">
+          <span>🧠 Memory Vault</span>
+        </button>
+        <button class="mn-nav-tab ${state.mainViewTab === 'spatial' ? 'active' : ''}" data-vtab="spatial">
+          <span>🎨 Spatial Canvas</span>
+          <span class="mn-nav-tab-badge" style="display:${state.penechoDraft ? 'inline-block' : 'none'};">Draft</span>
+        </button>
+      </div>
+
+      <!-- VIEW 1: Memory Vault -->
+      <div class="mn-vault-view" style="display:${state.mainViewTab === 'vault' ? 'flex' : 'none'};flex-direction:column;flex:1;overflow:hidden;">
+        <div class="mn-body">
+          <!-- Section 1: Global Memory -->
+          <div class="mn-memory-section mn-section-global" data-scope="global">
+            <div class="mn-section-hdr">
+              <span>🌐 Global Memory</span>
+              <span class="mn-section-sub">Applies everywhere</span>
+            </div>
+            <div class="mn-pane active" data-pane="global-memory"></div>
           </div>
-          <div class="mn-pane active" data-pane="current-session"></div>
+
+          <!-- Section 2: Current Session -->
+          <div class="mn-memory-section mn-section-local" data-scope="local">
+            <div class="mn-section-hdr">
+              <span>📍 Current Session</span>
+              <span class="mn-section-sub">Scoped to site</span>
+            </div>
+            <div class="mn-pane active" data-pane="current-session"></div>
+          </div>
+        </div>
+        <div class="mn-foot">
+          <div class="mn-trash-zone">${IC.close} Drag memory here to purge</div>
+          <button class="mn-exp">${IC.download} Export All (JSON)</button>
+          <button class="mn-rules-toggle" title="Configure never-save keywords & natural rules">
+            <span>Never-Save Rules</span>
+            <span class="mn-arrow">▾</span>
+          </button>
+          <div class="mn-rules-panel">
+            <div class="mn-rules-inp-row">
+              <input class="mn-rules-inp" type="text" placeholder="e.g. Never remember salary details" maxlength="80" />
+              <button class="mn-rules-add">Add</button>
+            </div>
+            <div class="mn-rules-list"></div>
+          </div>
+          <button class="mn-snaps-toggle" title="Memory Freeze & Snapshots">
+            <span>Memory Freeze & Snapshots</span>
+            <span class="mn-arrow">▾</span>
+          </button>
+          <div class="mn-snaps-panel">
+            <div class="mn-snaps-inp-row">
+              <input class="mn-rules-inp mn-snaps-inp" type="text" placeholder="Snapshot label" maxlength="40" />
+              <button class="mn-rules-add mn-snaps-add">Freeze</button>
+            </div>
+            <div class="mn-snaps-list"></div>
+          </div>
         </div>
       </div>
-      <div class="mn-foot">
-        <div class="mn-trash-zone">${IC.close} Drag memory here to purge</div>
-        <button class="mn-exp">${IC.download} Export All (JSON)</button>
-        <button class="mn-rules-toggle" title="Configure never-save keywords & natural rules">
-          <span>Never-Save Rules</span>
-          <span class="mn-arrow">▾</span>
-        </button>
-        <div class="mn-rules-panel">
-          <div class="mn-rules-inp-row">
-            <input class="mn-rules-inp" type="text" placeholder="e.g. Never remember salary details" maxlength="80" />
-            <button class="mn-rules-add">Add</button>
-          </div>
-          <div class="mn-rules-list"></div>
-        </div>
-        <button class="mn-snaps-toggle" title="Memory Freeze & Snapshots">
-          <span>Memory Freeze & Snapshots</span>
-          <span class="mn-arrow">▾</span>
-        </button>
-        <div class="mn-snaps-panel">
-          <div class="mn-snaps-inp-row">
-            <input class="mn-rules-inp mn-snaps-inp" type="text" placeholder="Snapshot label" maxlength="40" />
-            <button class="mn-rules-add mn-snaps-add">Freeze</button>
-          </div>
-          <div class="mn-snaps-list"></div>
-        </div>
-      </div>
+
+      <!-- VIEW 2: PenEcho Spatial Canvas -->
+      <div class="mn-spatial-view" style="display:${state.mainViewTab === 'spatial' ? 'flex' : 'none'};"></div>
     `;
     root.appendChild(dr);
     ui.dr = dr;
+
+    ui.vaultView = dr.querySelector('.mn-vault-view');
+    ui.spatialView = dr.querySelector('.mn-spatial-view');
+    ui.spatialBadge = dr.querySelector('.mn-nav-tab-badge');
+
+    // Tab switcher wiring
+    const navTabs = dr.querySelectorAll('.mn-nav-tab');
+    navTabs.forEach((tab) => {
+      tab.addEventListener('click', (e) => {
+        e.preventDefault();
+        const vtab = tab.dataset.vtab;
+        state.mainViewTab = vtab;
+        navTabs.forEach((t) => t.classList.toggle('active', t.dataset.vtab === vtab));
+        if (vtab === 'vault') {
+          ui.vaultView.style.display = 'flex';
+          ui.spatialView.style.display = 'none';
+        } else {
+          ui.vaultView.style.display = 'none';
+          ui.spatialView.style.display = 'flex';
+          renderPenechoSpatialView();
+        }
+      });
+    });
+
+    // Protocol toggle
+    const protoTgl = dr.querySelector('.mn-spatial-proto-tgl');
+    if (protoTgl) {
+      protoTgl.addEventListener('change', () => {
+        state.spatialProtocolEnabled = protoTgl.checked;
+        showToast(state.spatialProtocolEnabled ? '🎨 Spatial Canvas Protocol: Enabled' : 'Spatial Canvas Protocol: Disabled');
+      });
+    }
 
     // Close button
     const closeBtn = dr.querySelector('.mn-cls');
@@ -1984,13 +2471,638 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     toastTimer = setTimeout(() => ui.toast.classList.remove('show'), 2200);
   }
 
+  /* ═══════════════════════════════════════════════════════════════
+     PENECHO SPATIAL CANVAS PROTOCOL ENGINE & METHODS
+     ═══════════════════════════════════════════════════════════════ */
+  async function loadCanvasState() {
+    try {
+      const r = await send({ type: 'GET_CANVAS_STATE' });
+      if (r && r.canvasState) {
+        state.penechoState = r.canvasState;
+        renderPenechoSpatialView();
+      }
+    } catch (_) {}
+  }
+
+  async function saveCanvasState() {
+    try {
+      await send({ type: 'SAVE_CANVAS_STATE', canvasState: state.penechoState });
+    } catch (_) {}
+  }
+
+  function parsePenechoJson(rawText) {
+    if (!rawText || typeof rawText !== 'string') return null;
+    const blockRegex = /```(?:json:)?(?:penecho-canvas|memoneg-canvas|penecho)([\s\S]*?)(?:```|$)/i;
+    const match = rawText.match(blockRegex);
+    let jsonStr = match ? match[1].trim() : null;
+
+    if (!jsonStr) {
+      const jsonStartIdx = rawText.indexOf('{"version":');
+      if (jsonStartIdx !== -1) {
+        jsonStr = rawText.slice(jsonStartIdx);
+        const endFence = jsonStr.indexOf('```');
+        if (endFence !== -1) jsonStr = jsonStr.slice(0, endFence);
+      }
+    }
+    if (!jsonStr) return null;
+
+    try {
+      const parsed = JSON.parse(jsonStr);
+      if (parsed && (parsed.timeline || parsed.mindmap || parsed.canvas)) {
+        return parsed;
+      }
+    } catch (_) {
+      try {
+        let sanitized = jsonStr.trim();
+        sanitized = sanitized.replace(/,\s*([\]}])/g, '$1');
+        let openBraces = (sanitized.match(/{/g) || []).length - (sanitized.match(/}/g) || []).length;
+        let openBrackets = (sanitized.match(/\[/g) || []).length - (sanitized.match(/\]/g) || []).length;
+        const quoteCount = (sanitized.match(/"/g) || []).length;
+        if (quoteCount % 2 !== 0) sanitized += '"';
+        while (openBrackets > 0) { sanitized += ']'; openBrackets--; }
+        while (openBraces > 0) { sanitized += '}'; openBraces--; }
+        const recovered = JSON.parse(sanitized);
+        if (recovered && (recovered.timeline || recovered.mindmap || recovered.canvas)) {
+          return recovered;
+        }
+      } catch (e2) {}
+    }
+    return null;
+  }
+
+  function syncCanvasProtocolToClaude() {
+    try {
+      const selectors = [
+        'div.ProseMirror[contenteditable="true"]',
+        'div[contenteditable="true"]',
+        'fieldset textarea',
+        'textarea[placeholder*="Claude"]',
+        'textarea'
+      ];
+      let inputEl = null;
+      for (const sel of selectors) {
+        const el = document.querySelector(sel);
+        if (el && el.offsetParent !== null) {
+          inputEl = el;
+          break;
+        }
+      }
+      if (inputEl) {
+        inputEl.focus();
+        if (inputEl.isContentEditable) {
+          const p = document.createElement('p');
+          p.textContent = PENECHO_PROTOCOL_DIRECTIVE;
+          inputEl.appendChild(p);
+          inputEl.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText' }));
+        } else {
+          const cur = inputEl.value;
+          inputEl.value = cur ? `${cur}\n\n${PENECHO_PROTOCOL_DIRECTIVE}` : PENECHO_PROTOCOL_DIRECTIVE;
+          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+          inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        showToast('Spatial Canvas Protocol injected into prompt ✓');
+      } else {
+        navigator.clipboard.writeText(PENECHO_PROTOCOL_DIRECTIVE);
+        showToast('Protocol copied to clipboard ✓');
+      }
+    } catch (_) {
+      navigator.clipboard.writeText(PENECHO_PROTOCOL_DIRECTIVE);
+      showToast('Protocol copied to clipboard ✓');
+    }
+  }
+
+  function applyPenechoCanvasPayload(payload, isDraft = false) {
+    if (!payload) return;
+    if (isDraft) {
+      state.penechoDraft = {
+        payload,
+        receivedAt: Date.now()
+      };
+      renderPenechoSpatialView();
+      updateBadge();
+    } else {
+      const cur = state.penechoState || { timeline: [], mindmap: { nodes: [], links: [] }, canvas: { elements: [] } };
+      
+      // Merge Timeline
+      if (payload.timeline) {
+        cur.timeline = cur.timeline || [];
+        const existingIdx = cur.timeline.findIndex((t) => t.step_id === payload.timeline.step_id);
+        if (existingIdx !== -1) {
+          cur.timeline[existingIdx] = { ...cur.timeline[existingIdx], ...payload.timeline, updatedAt: Date.now() };
+        } else {
+          cur.timeline.unshift({ ...payload.timeline, timestamp: Date.now() });
+        }
+      }
+
+      // Merge Mindmap
+      if (payload.mindmap && payload.mindmap.nodes) {
+        cur.mindmap = cur.mindmap || { nodes: [], links: [] };
+        const existingNodes = cur.mindmap.nodes || [];
+        payload.mindmap.nodes.forEach((newNode, idx) => {
+          const matchIdx = existingNodes.findIndex((n) => n.id === newNode.id);
+          if (matchIdx !== -1) {
+            existingNodes[matchIdx] = { ...existingNodes[matchIdx], ...newNode };
+          } else {
+            const angle = (existingNodes.length * 2 * Math.PI) / Math.max(payload.mindmap.nodes.length, 1);
+            const radius = 80 + (idx % 3) * 35;
+            existingNodes.push({
+              ...newNode,
+              x: 200 + Math.cos(angle) * radius,
+              y: 150 + Math.sin(angle) * radius,
+              vx: (Math.random() - 0.5) * 2,
+              vy: (Math.random() - 0.5) * 2
+            });
+          }
+        });
+        cur.mindmap.nodes = existingNodes;
+
+        if (payload.mindmap.links) {
+          const existingLinks = cur.mindmap.links || [];
+          payload.mindmap.links.forEach((newLink) => {
+            const exists = existingLinks.some((l) => l.source === newLink.source && l.target === newLink.target);
+            if (!exists) existingLinks.push(newLink);
+          });
+          cur.mindmap.links = existingLinks;
+        }
+      }
+
+      // Merge Canvas Vector Elements
+      if (payload.canvas && payload.canvas.elements) {
+        cur.canvas = cur.canvas || { elements: [] };
+        const existingElems = cur.canvas.elements || [];
+        payload.canvas.elements.forEach((newElem) => {
+          if (newElem.id) {
+            const mIdx = existingElems.findIndex((e) => e.id === newElem.id);
+            if (mIdx !== -1) {
+              existingElems[mIdx] = { ...existingElems[mIdx], ...newElem };
+              return;
+            }
+          }
+          existingElems.push(newElem);
+        });
+        cur.canvas.elements = existingElems;
+      }
+
+      state.penechoState = cur;
+      state.penechoDraft = null;
+      saveCanvasState();
+      renderPenechoSpatialView();
+      startMindMapPhysics();
+    }
+  }
+
+  function acceptPenechoDraft() {
+    if (!state.penechoDraft || !state.penechoDraft.payload) return;
+    applyPenechoCanvasPayload(state.penechoDraft.payload, false);
+    showToast('Spatial Canvas Draft Committed to Board ✓');
+  }
+
+  function discardPenechoDraft() {
+    state.penechoDraft = null;
+    renderPenechoSpatialView();
+    showToast('Draft discarded');
+  }
+
+  function clearPenechoCanvas() {
+    state.penechoState = {
+      timeline: [],
+      mindmap: { nodes: [], links: [] },
+      canvas: { elements: [] }
+    };
+    state.penechoDraft = null;
+    state.selectedMindMapNode = null;
+    saveCanvasState();
+    renderPenechoSpatialView();
+    showToast('Canvas cleared');
+  }
+
+  function loadPenechoDemo() {
+    applyPenechoCanvasPayload(PENECHO_EXAMPLE_PAYLOAD, false);
+    showToast('Loaded PenEcho Protocol Demo ✓');
+  }
+
+  /* ── Mind Map Force-Directed Physics ── */
+  function startMindMapPhysics() {
+    if (state.physicsRaf) cancelAnimationFrame(state.physicsRaf);
+    let iterations = 0;
+    const maxIterations = 160;
+
+    function physicsStep() {
+      const nodes = state.penechoState?.mindmap?.nodes || [];
+      const links = state.penechoState?.mindmap?.links || [];
+      if (!nodes.length) return;
+
+      const cx = 200;
+      const cy = 150;
+      const kRepel = 3200;
+      const kSpring = 0.05;
+      const restLen = 80;
+      const damping = 0.88;
+
+      // 1. Repulsion between all node pairs
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const n1 = nodes[i];
+          const n2 = nodes[j];
+          let dx = (n1.x || cx) - (n2.x || cx);
+          let dy = (n1.y || cy) - (n2.y || cy);
+          let distSq = dx * dx + dy * dy + 100;
+          let dist = Math.sqrt(distSq);
+          let force = kRepel / distSq;
+          let fx = (dx / dist) * force;
+          let fy = (dy / dist) * force;
+          n1.vx = (n1.vx || 0) + fx;
+          n1.vy = (n1.vy || 0) + fy;
+          n2.vx = (n2.vx || 0) - fx;
+          n2.vy = (n2.vy || 0) - fy;
+        }
+      }
+
+      // 2. Spring attraction along links
+      for (const link of links) {
+        const source = nodes.find((n) => n.id === link.source);
+        const target = nodes.find((n) => n.id === link.target);
+        if (source && target) {
+          let dx = target.x - source.x;
+          let dy = target.y - source.y;
+          let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          let delta = dist - restLen;
+          let fx = (dx / dist) * delta * kSpring;
+          let fy = (dy / dist) * delta * kSpring;
+          source.vx = (source.vx || 0) + fx;
+          source.vy = (source.vy || 0) + fy;
+          target.vx = (target.vx || 0) - fx;
+          target.vy = (target.vy || 0) - fy;
+        }
+      }
+
+      // 3. Center gravity & integrate velocity
+      for (const node of nodes) {
+        node.vx = ((node.vx || 0) + (cx - node.x) * 0.015) * damping;
+        node.vy = ((node.vy || 0) + (cy - node.y) * 0.015) * damping;
+        node.x = Math.max(30, Math.min(370, node.x + node.vx));
+        node.y = Math.max(30, Math.min(270, node.y + node.vy));
+      }
+
+      updateMindMapSVG();
+      iterations++;
+      if (iterations < maxIterations) {
+        state.physicsRaf = requestAnimationFrame(physicsStep);
+      }
+    }
+    state.physicsRaf = requestAnimationFrame(physicsStep);
+  }
+
+  function updateMindMapSVG() {
+    const svgEl = ui.spatialView?.querySelector('.mn-mindmap-svg');
+    if (!svgEl) return;
+    const nodes = state.penechoState?.mindmap?.nodes || [];
+    const links = state.penechoState?.mindmap?.links || [];
+
+    // Render Links
+    let linksHtml = '';
+    links.forEach((l) => {
+      const src = nodes.find((n) => n.id === l.source);
+      const tgt = nodes.find((n) => n.id === l.target);
+      if (src && tgt) {
+        const isDashed = l.style === 'dashed';
+        const mx = (src.x + tgt.x) / 2;
+        const my = (src.y + tgt.y) / 2;
+        linksHtml += `
+          <line x1="${src.x}" y1="${src.y}" x2="${tgt.x}" y2="${tgt.y}"
+            stroke="rgba(255,255,255,0.22)" stroke-width="1.5"
+            ${isDashed ? 'stroke-dasharray="4 3"' : ''}
+            marker-end="url(#mn-arrowhead)" />
+          ${l.label ? `<text x="${mx}" y="${my - 4}" fill="#94a3b8" font-size="9" text-anchor="middle" font-family="Inter">${esc(l.label)}</text>` : ''}
+        `;
+      }
+    });
+
+    // Render Nodes with Strict Color Taxonomy
+    let nodesHtml = '';
+    nodes.forEach((n) => {
+      const color = n.color || (
+        n.category === 'safe_memory' ? '#22C55E' :
+        n.category === 'consideration' ? '#EAB308' :
+        n.category === 'reconsider' ? '#EF4444' :
+        n.category === 'active_focus' ? '#3B82F6' : '#64748B'
+      );
+      const isSelected = state.selectedMindMapNode?.id === n.id;
+      nodesHtml += `
+        <g class="mn-node-group" data-nid="${esc(n.id)}" style="cursor:pointer;">
+          <circle cx="${n.x}" cy="${n.y}" r="22" fill="rgba(10,10,14,0.92)" stroke="${color}" stroke-width="${isSelected ? 3.5 : 2}" filter="drop-shadow(0 0 8px ${color}88)" />
+          <circle cx="${n.x}" cy="${n.y - 6}" r="4" fill="${color}" />
+          <text x="${n.x}" y="${n.y + 7}" fill="#F8FAFC" font-size="9.5" font-weight="700" text-anchor="middle" font-family="Inter">${esc(truncate(n.label, 14))}</text>
+        </g>
+      `;
+    });
+
+    svgEl.innerHTML = `
+      <defs>
+        <marker id="mn-arrowhead" markerWidth="8" markerHeight="6" refX="22" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="rgba(255,255,255,0.4)" />
+        </marker>
+      </defs>
+      <g class="mn-links-layer">${linksHtml}</g>
+      <g class="mn-nodes-layer">${nodesHtml}</g>
+    `;
+
+    // Attach click inspection handlers to SVG nodes
+    svgEl.querySelectorAll('.mn-node-group').forEach((g) => {
+      g.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const nid = g.dataset.nid;
+        const node = (state.penechoState?.mindmap?.nodes || []).find((n) => n.id === nid);
+        if (node) {
+          state.selectedMindMapNode = node;
+          renderNodeInspector();
+        }
+      });
+    });
+  }
+
+  function renderNodeInspector() {
+    const inspectorEl = ui.spatialView?.querySelector('.mn-node-inspector');
+    if (!inspectorEl) return;
+    const node = state.selectedMindMapNode;
+    if (!node) {
+      inspectorEl.style.display = 'none';
+      return;
+    }
+    inspectorEl.style.display = 'block';
+    const color = node.color || '#64748B';
+    const catLabel =
+      node.category === 'safe_memory' ? '🟢 Safe Long-Term Memory' :
+      node.category === 'consideration' ? '🟡 Consideration / Revisit' :
+      node.category === 'reconsider' ? '🔴 High Risk / Reconsider' :
+      node.category === 'active_focus' ? '🔵 Active Focus' : '⚪ Structural Connector';
+
+    inspectorEl.innerHTML = `
+      <div class="mn-inspector-hdr">
+        <div class="mn-inspector-label">
+          <span style="color:${color};font-size:14px;">●</span>
+          <strong>${esc(node.label)}</strong>
+        </div>
+        <span class="mn-sens-badge" style="background:${color}22;color:${color};border:1px solid ${color}44;">${catLabel}</span>
+      </div>
+      <div class="mn-inspector-desc">${esc(node.description || 'No description provided.')}</div>
+      <div class="mn-inspector-acts">
+        ${node.category === 'safe_memory' || color === '#22C55E' ? `
+          <button class="mn-spatial-btn mn-spatial-btn-primary mn-node-save-btn">💾 Save Fact to Kept Vault</button>
+        ` : ''}
+        ${node.category === 'reconsider' || color === '#EF4444' ? `
+          <button class="mn-spatial-btn mn-spatial-btn-danger mn-node-rule-btn">🛡️ Add to Never-Save Rules</button>
+        ` : ''}
+        <button class="mn-spatial-btn mn-node-close-btn">Close</button>
+      </div>
+    `;
+
+    const saveBtn = inspectorEl.querySelector('.mn-node-save-btn');
+    if (saveBtn) {
+      saveBtn.onclick = () => {
+        addKept({
+          id: uid(),
+          text: `[${node.label}] ${node.description}`,
+          role: 'assistant',
+          source: location.hostname,
+          url: location.href,
+          timestamp: Date.now(),
+          keptAt: Date.now()
+        });
+        showToast('Node fact committed to Vault ✓');
+      };
+    }
+
+    const ruleBtn = inspectorEl.querySelector('.mn-node-rule-btn');
+    if (ruleBtn) {
+      ruleBtn.onclick = () => {
+        addRule(node.label);
+        showToast(`Rule added: "${node.label}" will be blocked ✓`);
+      };
+    }
+
+    const closeBtn = inspectorEl.querySelector('.mn-node-close-btn');
+    if (closeBtn) {
+      closeBtn.onclick = () => {
+        state.selectedMindMapNode = null;
+        renderNodeInspector();
+      };
+    }
+  }
+
+  function formatLatexFormula(latex) {
+    if (!latex) return '';
+    // Format mathematical formula nicely for canvas display
+    return latex
+      .replace(/\\nabla/g, '∇')
+      .replace(/\\times/g, ' × ')
+      .replace(/\\mathbf\{([^}]+)\}/g, '<b>$1</b>')
+      .replace(/\\frac\{\\partial\s*([^}]+)\}\{\\partial\s*([^}]+)\}/g, '(∂$1/∂$2)')
+      .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1 / $2)')
+      .replace(/\\partial/g, '∂')
+      .replace(/\\mu_\{([^}]+)\}/g, 'μ<sub>$1</sub>')
+      .replace(/\\mu/g, 'μ')
+      .replace(/\\sigma/g, 'σ')
+      .replace(/\\sum/g, '∑')
+      .replace(/\\int/g, '∫')
+      .replace(/\\text\{([^}]+)\}/g, '$1')
+      .replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
+      .replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>');
+  }
+
+  function renderPenechoSpatialView() {
+    const viewEl = ui.spatialView;
+    if (!viewEl) return;
+
+    const data = state.penechoState || { timeline: [], mindmap: { nodes: [], links: [] }, canvas: { elements: [] } };
+    const draft = state.penechoDraft?.payload;
+
+    // 1. Header Toolbar
+    const toolbarHtml = `
+      <div class="mn-spatial-toolbar">
+        <div class="mn-spatial-status">
+          <span class="mn-spatial-pulse-dot ${draft ? 'drafting' : ''}"></span>
+          <span>${draft ? 'Live Draft Streaming' : 'Live Spatial Board Ready'}</span>
+        </div>
+        <div class="mn-spatial-actions">
+          <button class="mn-spatial-btn mn-spatial-btn-primary mn-btn-inject-proto" title="Inject PenEcho protocol prompt to Claude">📋 Inject Protocol</button>
+          <button class="mn-spatial-btn mn-btn-load-demo" title="Load sample architecture & formulas from canvas.md">✨ Demo</button>
+          <button class="mn-spatial-btn mn-btn-clear-canvas" title="Clear canvas elements">🧹 Clear</button>
+        </div>
+      </div>
+    `;
+
+    // 2. Draft Layer Banner
+    let draftBannerHtml = '';
+    if (draft) {
+      const stepTtl = draft.timeline?.title || 'Incoming Turn Update';
+      const nodeCnt = draft.mindmap?.nodes?.length || 0;
+      const elemCnt = draft.canvas?.elements?.length || 0;
+      draftBannerHtml = `
+        <div class="mn-draft-banner">
+          <div class="mn-draft-info">
+            <div class="mn-draft-title">✨ Draft Layer: ${esc(stepTtl)}</div>
+            <div class="mn-draft-subtitle">${nodeCnt} Mind Map Nodes • ${elemCnt} Canvas Visuals</div>
+          </div>
+          <div class="mn-draft-acts">
+            <button class="mn-spatial-btn mn-spatial-btn-primary mn-btn-accept-draft">✅ Accept Draft</button>
+            <button class="mn-spatial-btn mn-spatial-btn-danger mn-btn-discard-draft">Discard</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // 3. Stream 1: Running Timeline
+    const timelineItems = (data.timeline && data.timeline.length ? data.timeline : (draft?.timeline ? [draft.timeline] : []));
+    let timelineHtml = '';
+    if (timelineItems.length) {
+      timelineHtml = timelineItems.map((item, idx) => {
+        const stepNum = item.step_number || (timelineItems.length - idx);
+        const status = item.status || 'completed';
+        const statusClass = `mn-timeline-status-${status}`;
+        const statusLabel = status === 'completed' ? '✓ Completed' : status === 'in_progress' ? '⏳ In Progress' : '📅 Planned';
+        return `
+          <div class="mn-timeline-step-item">
+            <div class="mn-timeline-step-num">#${stepNum}</div>
+            <div class="mn-timeline-step-content">
+              <div class="mn-timeline-step-top">
+                <span class="mn-timeline-step-ttl">${esc(item.title || 'Turn Milestone')}</span>
+                <span class="mn-timeline-status-pill ${statusClass}">${statusLabel}</span>
+              </div>
+              <div class="mn-timeline-step-sum">${esc(item.summary || '')}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      timelineHtml = '<div class="mn-rules-empty">No milestones yet. Claude will populate chronological steps here.</div>';
+    }
+
+    // 4. Stream 2: Dynamic Mind Map Elements
+    const nodesCount = (data.mindmap?.nodes?.length || 0) + (draft?.mindmap?.nodes?.length || 0);
+
+    // 5. Stream 3: General Canvas Visuals (LaTeX Formulas & Vectors)
+    const canvasElements = (data.canvas?.elements?.length ? data.canvas.elements : (draft?.canvas?.elements || []));
+    let formulasHtml = '';
+    let vectorBoxesHtml = '';
+    let vectorArrowsHtml = '';
+
+    canvasElements.forEach((el) => {
+      if (el.type === 'render_formula') {
+        formulasHtml += `
+          <div class="mn-formula-card">
+            ${el.caption ? `<div class="mn-formula-caption">📐 ${esc(el.caption)}</div>` : ''}
+            <div class="mn-formula-math">${formatLatexFormula(el.latex)}</div>
+          </div>
+        `;
+      } else if (el.type === 'draw_box') {
+        const borderStyle = el.style === 'dashed' ? 'dashed' : 'solid';
+        const color = el.color || '#3B82F6';
+        vectorBoxesHtml += `
+          <div class="mn-vector-box-item" style="border: 1.5px ${borderStyle} ${color};">
+            <div class="mn-vector-box-ttl" style="color:${color};">${esc(el.title || 'Component Box')}</div>
+            <div style="font-size:10px;color:#94a3b8;">${el.w}×${el.h}px @ (${el.x}, ${el.y})</div>
+          </div>
+        `;
+      } else if (el.type === 'draw_arrow') {
+        const color = el.color || '#22C55E';
+        vectorArrowsHtml += `
+          <div class="mn-vector-arrow-card">
+            <span>➔</span>
+            <span>${esc(el.label || 'Connection')}</span>
+            <span style="font-size:9px;color:#94a3b8;margin-left:auto;">(${el.from?.[0]},${el.from?.[1]}) ➔ (${el.to?.[0]},${el.to?.[1]})</span>
+          </div>
+        `;
+      } else if (el.type === 'draw_text') {
+        vectorBoxesHtml += `
+          <div class="mn-vector-box-item" style="border-left:3px solid ${el.color || '#EAB308'};">
+            <div style="font-size:11px;color:${el.color || '#EAB308'};">${esc(el.text)}</div>
+          </div>
+        `;
+      }
+    });
+
+    viewEl.innerHTML = `
+      ${toolbarHtml}
+      ${draftBannerHtml}
+
+      <!-- Stream 1: Running Timeline -->
+      <div class="mn-stream-card">
+        <div class="mn-stream-hdr">
+          <div class="mn-stream-title">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#38BDF8" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Running Timeline (${timelineItems.length} steps)</span>
+          </div>
+        </div>
+        <div class="mn-timeline-steps">${timelineHtml}</div>
+      </div>
+
+      <!-- Stream 2: Dynamic Mind Map with Physics -->
+      <div class="mn-stream-card">
+        <div class="mn-stream-hdr">
+          <div class="mn-stream-title">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#EC4899" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            <span>Active Mind Map (${nodesCount} nodes)</span>
+          </div>
+        </div>
+        <div class="mn-mindmap-wrap">
+          <svg class="mn-mindmap-svg" viewBox="0 0 400 300"></svg>
+        </div>
+        <div class="mn-mindmap-legend">
+          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#22C55E;"></span> 🟢 Safe Memory</span>
+          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#EAB308;"></span> 🟡 Consideration</span>
+          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#EF4444;"></span> 🔴 Reconsider</span>
+          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#3B82F6;"></span> 🔵 Active Focus</span>
+          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#64748B;"></span> ⚪ Structure</span>
+        </div>
+        <div class="mn-node-inspector" style="display:none;"></div>
+      </div>
+
+      <!-- Stream 3: General Canvas Visuals & Math Formulas -->
+      <div class="mn-stream-card">
+        <div class="mn-stream-hdr">
+          <div class="mn-stream-title">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A78BFA" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            <span>Canvas Visuals &amp; LaTeX Formulas (${canvasElements.length} items)</span>
+          </div>
+        </div>
+        <div class="mn-canvas-elements-grid">
+          ${formulasHtml || ''}
+          ${vectorBoxesHtml ? `<div class="mn-vector-boxes-row">${vectorBoxesHtml}</div>` : ''}
+          ${vectorArrowsHtml || ''}
+          ${!canvasElements.length ? '<div class="mn-rules-empty">No vector diagrams or formulas yet.</div>' : ''}
+        </div>
+      </div>
+    `;
+
+    // Event listeners
+    const injectBtn = viewEl.querySelector('.mn-btn-inject-proto');
+    if (injectBtn) injectBtn.onclick = syncCanvasProtocolToClaude;
+
+    const demoBtn = viewEl.querySelector('.mn-btn-load-demo');
+    if (demoBtn) demoBtn.onclick = loadPenechoDemo;
+
+    const clearBtn = viewEl.querySelector('.mn-btn-clear-canvas');
+    if (clearBtn) clearBtn.onclick = clearPenechoCanvas;
+
+    const acceptBtn = viewEl.querySelector('.mn-btn-accept-draft');
+    if (acceptBtn) acceptBtn.onclick = acceptPenechoDraft;
+
+    const discardBtn = viewEl.querySelector('.mn-btn-discard-draft');
+    if (discardBtn) discardBtn.onclick = discardPenechoDraft;
+
+    updateMindMapSVG();
+    startMindMapPhysics();
+  }
+
   /* ═══════════════════════════════════════
-     RENDER
+     RENDER ALL
      ═══════════════════════════════════════ */
   function renderAll() {
     renderGlobalMemory();
     renderLocalMemory();
     renderRulesPanel();
+    renderPenechoSpatialView();
     updateBadge();
     updateMessageStatusIndicators();
   }
@@ -3367,6 +4479,52 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
     // Process assistant messages
     assistantContainersSet.forEach((container) => {
+      // ── PenEcho Spatial Canvas Protocol DOM Stream Interceptor ──
+      const fullText = container.textContent || '';
+      if (fullText.includes('penecho-canvas') || fullText.includes('memoneg-canvas') || fullText.includes('{"version":')) {
+        const parsed = parsePenechoJson(fullText);
+        if (parsed) {
+          applyPenechoCanvasPayload(parsed, true);
+
+          // Collapse raw code block from user chat view & inject sleek interactive chip
+          const codeBlocks = container.querySelectorAll('pre, code, div[class*="code"]');
+          codeBlocks.forEach((cb) => {
+            if (cb.textContent.includes('penecho-canvas') || cb.textContent.includes('memoneg-canvas') || (cb.textContent.includes('"timeline"') && cb.textContent.includes('"mindmap"'))) {
+              if (!cb.dataset.mnCollapsed) {
+                cb.dataset.mnCollapsed = 'true';
+                cb.style.display = 'none';
+
+                const badge = document.createElement('div');
+                badge.className = 'mn-penecho-chat-pill';
+                const stepTtl = parsed.timeline?.title || 'Live Spatial Canvas Stream';
+                const nodeCnt = parsed.mindmap?.nodes?.length || 0;
+                badge.innerHTML = `
+                  <div class="mn-penecho-pill-left">
+                    <span class="mn-penecho-pill-icon">🎨</span>
+                    <div class="mn-penecho-pill-info">
+                      <strong>PenEcho Spatial Canvas Synced</strong>
+                      <span>${esc(stepTtl)} • ${nodeCnt} Mind Map Nodes • Draft Layer Active</span>
+                    </div>
+                  </div>
+                  <button class="mn-penecho-pill-btn">View on Board ➔</button>
+                `;
+                badge.querySelector('.mn-penecho-pill-btn').onclick = (e) => {
+                  e.stopPropagation();
+                  state.mainViewTab = 'spatial';
+                  if (!state.drawerOpen) toggleDrawer(true);
+                  if (ui.vaultView) ui.vaultView.style.display = 'none';
+                  if (ui.spatialView) ui.spatialView.style.display = 'flex';
+                  const navTabs = ui.dr.querySelectorAll('.mn-nav-tab');
+                  navTabs.forEach((t) => t.classList.toggle('active', t.dataset.vtab === 'spatial'));
+                  renderPenechoSpatialView();
+                };
+                cb.parentElement.insertBefore(badge, cb);
+              }
+            }
+          });
+        }
+      }
+
       if (container.dataset.mnPrompted === 'true' || container.querySelector('.mn-inline-memory-prompt')) {
         return;
       }

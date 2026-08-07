@@ -211,3 +211,10 @@ Enforces mandatory reflection hold-times (up to 5 seconds) before allowing high-
 ### 34. ✅ Conversational Speech Act Protocol & Acoustic Sonification
 Formal speech act framework (Propose, Accept, Counter-Propose, Confirm) for natural language memory contracting.  
 Web Audio API synthesizer rendering multi-tone spatialized auditory signatures (chords, arpeggios, pulse cues) for visual accessibility.
+
+---
+
+### 35. ✅ PenEcho + MemoNeg Live Spatial Canvas & Dynamic Mind Map Protocol
+Live multimodal spatial thinking protocol integrating a Running Timeline, force-directed Dynamic Mind Map with strict color taxonomy (#22C55E safe memory, #EAB308 consideration, #EF4444 reconsider, #3B82F6 active focus, #64748B structure), Canvas2D vector shapes, and LaTeX mathematical formula rendering.  
+Features live DOM stream interception of ```json:penecho-canvas``` blocks, draft safety commit layer, and 1-click memory integration.
+
