@@ -401,31 +401,76 @@
 }
 @keyframes mnPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
 
-/* ── Overlay ── */
-.mn-ov {
-  position: fixed; inset: 0;
-  background: rgba(2, 6, 23, 0.6);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  opacity: 0; pointer-events: none;
-  transition: opacity .3s;
-  z-index: 99997;
+/* ── Pull Tab (replaces FAB) ── */
+.mn-pull-tab {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 80px;
+  border-radius: 10px 0 0 10px;
+  border: 1px solid var(--mn-border);
+  border-right: none;
+  background: var(--mn-bg-elevated);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  z-index: 99999;
+  transition: all .2s ease;
+  box-shadow: -4px 0 16px rgba(0,0,0,0.3);
+  outline: none;
 }
-.mn-ov.open { opacity: 1; pointer-events: auto; }
+.mn-pull-tab:hover {
+  width: 34px;
+  background: var(--mn-primary);
+  box-shadow: -6px 0 24px rgba(139,92,246,0.25);
+}
+.mn-pull-tab svg {
+  width: 16px; height: 16px;
+  stroke: var(--mn-accent); stroke-width: 2; flex-shrink: 0;
+}
+.mn-pull-tab-arrow {
+  font-size: 12px;
+  color: var(--mn-fg-muted);
+  line-height: 1;
+  transition: transform .2s ease;
+}
+.mn-pull-tab.sidebar-open .mn-pull-tab-arrow { transform: rotate(180deg); }
 
-/* ── Drawer ── */
+.mn-badge {
+  position: absolute; top: 6px; right: 3px;
+  min-width: 16px; height: 16px; border-radius: 8px;
+  background: var(--mn-accent); border: 1.5px solid var(--mn-bg);
+  color: #0F172A; font-size: 9px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 3px;
+  animation: mnPulse 2.5s ease-in-out infinite;
+}
+@keyframes mnPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+
+/* no overlay needed */
+.mn-ov { display: none !important; }
+
+/* ── Sidebar (persistent, slides from right, pushes page) ── */
 .mn-dr {
   position: fixed !important; top: 0 !important; right: 0 !important;
-  width: 480px; max-width: 95vw; height: 100vh; height: 100dvh;
+  width: 420px; max-width: 45vw; height: 100vh; height: 100dvh;
   background: var(--mn-bg);
   border-left: 1px solid var(--mn-border);
   transform: translateX(100%);
-  transition: transform .32s cubic-bezier(.32,.72,0,1);
+  transition: transform .28s cubic-bezier(.32,.72,0,1);
   display: flex; flex-direction: column;
   z-index: 99998;
-  box-shadow: -16px 0 48px rgba(0,0,0,0.5);
+  box-shadow: -12px 0 40px rgba(0,0,0,0.5);
   overflow: hidden;
 }
-.mn-dr.open { transform: translateX(0) !important; }
+.mn-dr.open {
+  transform: translateX(0) !important;
+}
 
 /* ── Drawer Header ── */
 .mn-hdr {
@@ -1360,6 +1405,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     buildDigestCard(root);
 
     loadAll();
+    toggleDrawer(true); // Persistent sidebar alongside chat
 
     // Text selection → "Save to Memory" button
     document.addEventListener('mouseup', onMouseUp);
@@ -1380,28 +1426,28 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
      FAB
      ═══════════════════════════ */
   function buildFAB(root) {
-    const fab = document.createElement('button');
-    fab.className = 'mn-fab';
-    fab.innerHTML = IC.brain + '<span class="mn-badge" style="display:none">0</span>';
-    fab.title = 'MemoNeg — Open drawer (or drag text/cards here to save)';
-    fab.addEventListener('click', toggleDrawer);
+    // Replaced by a slim pull-tab pinned to right edge
+    const tab = document.createElement('button');
+    tab.className = 'mn-pull-tab';
+    tab.title = 'MemoNeg — Toggle Memory Sidebar';
+    tab.setAttribute('aria-label', 'Toggle MemoNeg sidebar');
+    tab.innerHTML =
+      IC.brain +
+      '<span class="mn-pull-tab-arrow">◀</span>' +
+      '<span class="mn-badge" style="display:none">0</span>';
 
-    // ── Drag & Drop Promotion (#4) ──
-    fab.addEventListener('dragover', (e) => {
+    tab.addEventListener('click', toggleDrawer);
+
+    // Keep drag-to-save on the pull tab too
+    tab.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
-      fab.classList.add('mn-fab-dragover');
+      tab.style.width = '40px';
     });
-    fab.addEventListener('dragenter', (e) => {
+    tab.addEventListener('dragleave', () => { tab.style.width = ''; });
+    tab.addEventListener('drop', (e) => {
       e.preventDefault();
-      fab.classList.add('mn-fab-dragover');
-    });
-    fab.addEventListener('dragleave', () => {
-      fab.classList.remove('mn-fab-dragover');
-    });
-    fab.addEventListener('drop', (e) => {
-      e.preventDefault();
-      fab.classList.remove('mn-fab-dragover');
+      tab.style.width = '';
       const jsonRaw = e.dataTransfer.getData('application/json');
       const textRaw = e.dataTransfer.getData('text/plain');
       if (jsonRaw) {
@@ -1409,28 +1455,24 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
           const payload = JSON.parse(jsonRaw);
           if (payload.id && payload.origin === 'noticed') {
             keepNoticed(payload.id);
-            showToast('Promoted to Kept Vault ✓');
+            showToast('Promoted to Global Memory ✓');
             return;
           }
         } catch (_) {}
       }
       if (textRaw && textRaw.trim().length > 3) {
         addKept({
-          id: uid(),
-          text: textRaw.trim(),
-          role: 'user',
-          source: location.hostname,
-          url: location.href,
-          timestamp: Date.now(),
-          keptAt: Date.now(),
+          id: uid(), text: textRaw.trim(), role: 'user',
+          source: location.hostname, url: location.href,
+          timestamp: Date.now(), keptAt: Date.now(),
         });
-        showToast('Dropped text saved to Vault ✓');
+        showToast('Dropped text saved to Memory ✓');
       }
     });
 
-    root.appendChild(fab);
-    ui.fab = fab;
-    ui.badge = fab.querySelector('.mn-badge');
+    root.appendChild(tab);
+    ui.fab = tab;
+    ui.badge = tab.querySelector('.mn-badge');
   }
 
   /* ═══════════════════════════
@@ -1916,6 +1958,9 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
   /* ═══════════════════════════════════════
      INTERACTIONS
      ═══════════════════════════════════════ */
+  const SIDEBAR_WIDTH = '420px';
+  const PAGE_PUSH_MARGIN = '424px'; // sidebar width + border
+
   function toggleDrawer(forceState) {
     if (typeof forceState === 'boolean') {
       state.drawerOpen = forceState;
@@ -1923,8 +1968,22 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       state.drawerOpen = !state.drawerOpen;
     }
     if (ui.dr) ui.dr.classList.toggle('open', state.drawerOpen);
-    if (ui.ov) ui.ov.classList.toggle('open', state.drawerOpen);
-    if (ui.fab) ui.fab.classList.toggle('mn-fab-hidden', state.drawerOpen);
+    // Pull-tab arrow direction
+    if (ui.fab) {
+      ui.fab.classList.toggle('sidebar-open', state.drawerOpen);
+      const arrow = ui.fab.querySelector('.mn-pull-tab-arrow');
+      if (arrow) arrow.textContent = state.drawerOpen ? '▶' : '◀';
+    }
+    // Push page content left so chat stays visible alongside sidebar
+    try {
+      document.body.style.transition = 'margin-right .28s cubic-bezier(.32,.72,0,1)';
+      document.body.style.marginRight = state.drawerOpen ? PAGE_PUSH_MARGIN : '';
+      // Also adjust the pull-tab position
+      if (ui.fab) {
+        ui.fab.style.transition = 'right .28s cubic-bezier(.32,.72,0,1)';
+        ui.fab.style.right = state.drawerOpen ? SIDEBAR_WIDTH : '0';
+      }
+    } catch (_) {}
     if (state.drawerOpen) loadAll();
   }
 
