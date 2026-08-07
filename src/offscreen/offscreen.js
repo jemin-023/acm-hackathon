@@ -24,6 +24,9 @@ if (typeof ort !== 'undefined' && ort.env && ort.env.wasm) {
 if (typeof env !== 'undefined') {
   env.allowLocalModels = true;
   env.allowRemoteModels = false;
+  env.useBrowserCache = false;
+  env.useCustomCache = false;
+  env.useFSCache = false;
 }
 
 let session = null;
@@ -55,7 +58,7 @@ async function initModel() {
       const checkRes = await fetch(modelUrl, { method: 'HEAD' }).catch(() => null);
       if (!checkRes || !checkRes.ok) {
         const warningMsg = 'Model file "memoneg-270m-int4.onnx" is not present in extension directory. Local ONNX standby.';
-        console.warn('[MemoNeg Offscreen]', warningMsg);
+        console.log('[MemoNeg Offscreen]', warningMsg);
         modelStats = { loaded: false, ep: null, loadTimeMs: 0, error: warningMsg };
         return null;
       }
