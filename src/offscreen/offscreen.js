@@ -44,24 +44,32 @@ async function initModel() {
     const t0 = performance.now();
     try {
       const modelUrl = chrome.runtime.getURL('memoneg-270m-int4.onnx');
-      const tokenizerUrl = chrome.runtime.getURL('memoneg-270m-finetuned/');
+      const tokenizerConfigUrl = chrome.runtime.getURL('memoneg-270m-finetuned/tokenizer_config.json');
 
-      console.log('[MemoNeg Offscreen] Loading tokenizer from:', tokenizerUrl);
-      if (typeof AutoTokenizer === 'undefined') {
-        throw new Error('Transformers AutoTokenizer failed to load.');
-      }
-      tokenizer = await AutoTokenizer.from_pretrained(tokenizerUrl, {
-        local_files_only: true
-      });
-
-      console.log('[MemoNeg Offscreen] Checking model binary at:', modelUrl);
-      const checkRes = await fetch(modelUrl, { method: 'HEAD' }).catch(() => null);
-      if (!checkRes || !checkRes.ok) {
-        const warningMsg = 'Model file "memoneg-270m-int4.onnx" is not present in extension directory. Local ONNX standby.';
-        console.log('[MemoNeg Offscreen]', warningMsg);
+      // Pre-check if local ONNX binary is present
+      const checkModel = await fetch(modelUrl, { method: 'HEAD' }).catch(() => null);
+      if (!checkModel || !checkModel.ok) {
+        const warningMsg = 'Local ONNX model ("memoneg-270m-int4.onnx") is not present in bundle. Standby mode active.';
         modelStats = { loaded: false, ep: null, loadTimeMs: 0, error: warningMsg };
         return null;
       }
+
+      // Pre-check if local tokenizer files are present before invoking AutoTokenizer
+      const checkTok = await fetch(tokenizerConfigUrl, { method: 'HEAD' }).catch(() => null);
+      if (!checkTok || !checkTok.ok) {
+        const warningMsg = 'Local tokenizer ("memoneg-270m-finetuned/") is not present in bundle. Standby mode active.';
+        modelStats = { loaded: false, ep: null, loadTimeMs: 0, error: warningMsg };
+        return null;
+      }
+
+      if (typeof AutoTokenizer === 'undefined') {
+        throw new Error('Transformers AutoTokenizer failed to load.');
+      }
+
+      const tokenizerUrl = chrome.runtime.getURL('memoneg-270m-finetuned/');
+      tokenizer = await AutoTokenizer.from_pretrained(tokenizerUrl, {
+        local_files_only: true
+      });
 
       // Try WebGPU first, then WASM
       let epUsed = 'webgpu';
