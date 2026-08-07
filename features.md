@@ -172,19 +172,19 @@ Includes spatial audio positioning and full screen-reader voice control for visi
 
 ## Part III — Radical Physics-Embodied & Metacognitive HCI Paradigms (from Full Radical Spec)
 
-### 28. Semantic Gravity & Particle Force Fields
+### 28. ✅ Semantic Gravity & Particle Force Fields
 Physics-based canvas rendering memories as charged particles orbiting an Identity Nucleus at radius-dependent velocities.  
 Users drag particles to scale mass and change scope, set magnetic barriers, or push particles beyond orbit to purge them.
 
 ---
 
-### 29. Biomimetic Osmotic Membranes
+### 29. ✅ Biomimetic Osmotic Membranes
 Contextual privacy domains enclosed by semi-permeable lipid bilayer membranes with mathematical diffusion rules.  
 Pinch and stretch gestures adjust membrane permeability and surface tension to control cross-domain memory leakage.
 
 ---
 
-### 30. Metacognitive Topological Mirror (Perception Sculpting)
+### 30. ✅ Metacognitive Topological Mirror (Perception Sculpting)
 Continuous 2.5D heightfield surface visualizing the AI's internal perception landscape and confidence peaks across topics.  
 Interactive sculpting tools (Flatten, Raise, Smooth, Erode, Cliff) let users physically reshape how the AI perceives them.
 
@@ -196,7 +196,7 @@ Includes a temporal scrubber, response diff engine, and 1-click branch merging t
 
 ---
 
-### 32. Stigmergic Thermodynamic Decay & Crystallization
+### 32. ✅ Stigmergic Thermodynamic Decay & Crystallization
 Temperature-based state model transitioning memory nodes through Plasma, Liquid, Solid, Glass, and Shattered phases.  
 Features heat brushes for thermal annealing, freeze rays for fast shattering, and luminescent pheromone trails.
 
@@ -208,6 +208,6 @@ Enforces mandatory reflection hold-times (up to 5 seconds) before allowing high-
 
 ---
 
-### 34. Conversational Speech Act Protocol & Acoustic Sonification
+### 34. ✅ Conversational Speech Act Protocol & Acoustic Sonification
 Formal speech act framework (Propose, Accept, Counter-Propose, Confirm) for natural language memory contracting.  
 Web Audio API synthesizer rendering multi-tone spatialized auditory signatures (chords, arpeggios, pulse cues) for visual accessibility.

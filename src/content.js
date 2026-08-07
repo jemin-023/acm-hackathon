@@ -19,6 +19,9 @@
     activeTab: 'noticed',
     collectionEnabled: true,
     soundEnabled: true, // Accessibility-First Memory Sonification (#27)
+    gravityOpen: false, // Semantic Gravity Canvas (#28)
+    membranePermeability: 50, // Biomimetic Osmotic Membranes (#29)
+    topoOpen: false,   // Topological Mirror (#30)
     noticed: [],
     kept: [],
     rules: [],          // never-save keyword rules
@@ -762,6 +765,25 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
 .mn-decay-bar-outer { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,.08); overflow: hidden; }
 .mn-decay-bar-inner { height: 100%; border-radius: 2px; transition: width .3s ease; background: linear-gradient(90deg, #34d399, #fbbf24); }
 .mn-decay-select { background: rgba(16,16,28,.8); border: 1px solid rgba(139,92,246,.2); color: #a78bfa; font-size: 10px; border-radius: 4px; padding: 1px 4px; outline: none; }
+.mn-thermo-badge { font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 4px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); white-space: nowrap; }
+
+/* ── Semantic Gravity Canvas (#28) ── */
+.mn-grav-wrap { margin-bottom: 12px; padding: 10px; border-radius: 10px; background: rgba(14,14,26,.85); border: 1px solid rgba(139,92,246,.25); text-align: center; }
+.mn-grav-hdr-title { font-size: 11px; font-weight: 700; color: #a78bfa; margin-bottom: 6px; }
+.mn-grav-svg { overflow: visible; display: block; margin: 0 auto; }
+.mn-grav-legend { font-size: 10px; margin-top: 6px; display: flex; gap: 10px; justify-content: center; opacity: .85; }
+
+/* ── Biomimetic Osmotic Membranes (#29) ── */
+.mn-membrane-ctrl-bar { display: flex; align-items: center; gap: 8px; font-size: 10px; color: #a78bfa; margin-bottom: 8px; padding: 4px 8px; background: rgba(139,92,246,.08); border-radius: 6px; border: 1px solid rgba(139,92,246,.15); }
+.mn-membrane-slider { flex: 1; accent-color: #a78bfa; height: 3px; cursor: pointer; }
+.mn-membrane-val { font-weight: 600; min-width: 100px; text-align: right; }
+
+/* ── Metacognitive Topological Mirror (#30) ── */
+.mn-topo-wrap { margin-bottom: 12px; padding: 10px; border-radius: 10px; background: rgba(14,24,36,.85); border: 1px solid rgba(56,189,248,.25); }
+.mn-topo-hdr { font-size: 11px; font-weight: 700; color: #38bdf8; margin-bottom: 2px; text-align: center; }
+.mn-topo-sub { font-size: 10px; color: #94a3b8; text-align: center; margin-bottom: 6px; }
+.mn-topo-svg { overflow: visible; display: block; margin: 0 auto; }
+.mn-topo-sculpt-acts { display: flex; gap: 6px; justify-content: center; margin-top: 6px; }
 
 /* ── Spatial Scoping & Chapters (#16, #22) ── */
 .mn-filter-bar { display: flex; gap: 4px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 4px; }
@@ -1426,6 +1448,97 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
     return 'General';
   }
 
+  /* ── Semantic Gravity Canvas (#28) ── */
+  function renderSemanticGravityCanvas(memories) {
+    const cx = 150;
+    const cy = 100;
+    const items = memories.map((m, idx) => {
+      const scope = m.scope || 'global';
+      const decay = calculateDecayHealth(m);
+      const classif = classifyMemoryCandidate(m.text);
+      const isHighSens = classif.sensitivity === 'high';
+
+      // Orbit radius based on scope & decay health
+      let baseR = scope === 'global' ? 32 : scope === 'domain' ? 62 : 88;
+      let r = baseR + (1 - decay.health) * 10;
+      const angle = (idx * (2 * Math.PI / Math.max(memories.length, 1))) - (Math.PI / 2);
+      const px = Math.round(cx + r * Math.cos(angle));
+      const py = Math.round(cy + r * Math.sin(angle));
+      const particleColor = scope === 'global' ? '#a78bfa' : scope === 'domain' ? '#fbbf24' : '#60a5fa';
+      const nodeSize = isHighSens ? 7 : 5;
+
+      return (
+        '<g class="mn-grav-node" title="' + esc(truncate(m.text, 50)) + ' (' + esc(decay.label) + ')">' +
+        (isHighSens ? '<circle cx="' + px + '" cy="' + py + '" r="' + (nodeSize + 3) + '" fill="none" stroke="#ef4444" stroke-width="1.5" opacity="0.8"/>' : '') +
+        '<circle cx="' + px + '" cy="' + py + '" r="' + nodeSize + '" fill="' + particleColor + '" />' +
+        '<text x="' + px + '" y="' + (py + 12) + '" fill="#cbd5e1" font-size="8" text-anchor="middle">' + esc(truncate(m.text, 12)) + '</text>' +
+        '</g>'
+      );
+    }).join('');
+
+    return (
+      '<div class="mn-grav-wrap">' +
+      '<div class="mn-grav-hdr-title">🪐 Semantic Gravity Particle Orbit Field (#28)</div>' +
+      '<svg class="mn-grav-svg" viewBox="0 0 300 200" width="100%" height="180">' +
+      '<!-- Orbit Rings -->' +
+      '<circle cx="' + cx + '" cy="' + cy + '" r="32" fill="none" stroke="rgba(167,139,250,0.3)" stroke-dasharray="3 3" />' +
+      '<circle cx="' + cx + '" cy="' + cy + '" r="62" fill="none" stroke="rgba(251,191,36,0.3)" stroke-dasharray="3 3" />' +
+      '<circle cx="' + cx + '" cy="' + cy + '" r="88" fill="none" stroke="rgba(96,165,250,0.3)" stroke-dasharray="3 3" />' +
+      '<!-- Identity Nucleus -->' +
+      '<circle cx="' + cx + '" cy="' + cy + '" r="12" fill="#8b5cf6" />' +
+      '<text x="' + cx + '" y="' + (cy + 3) + '" fill="#ffffff" font-size="8" font-weight="bold" text-anchor="middle">YOU</text>' +
+      items +
+      '</svg>' +
+      '<div class="mn-grav-legend">' +
+      '<span style="color:#a78bfa">● Global Core</span> ' +
+      '<span style="color:#fbbf24">● Domain</span> ' +
+      '<span style="color:#60a5fa">● Session</span>' +
+      '</div>' +
+      '</div>'
+    );
+  }
+  /* ── Metacognitive Topological Mirror (#30) ── */
+  function renderTopologicalMirror(memories) {
+    const chapters = ['Work & Tech', 'Personal', 'Finance & Health', 'General'];
+    const peaks = chapters.map((chap, idx) => {
+      const chapMems = memories.filter((m) => getChapterForMemory(m.text) === chap);
+      const avgHealth = chapMems.length ? chapMems.reduce((acc, m) => acc + calculateDecayHealth(m).health, 0) / chapMems.length : 0.2;
+      const height = Math.round(15 + avgHealth * 65);
+      const x = 40 + idx * 70;
+      const y = 115 - height;
+
+      return { chap, count: chapMems.length, avgHealth, height, x, y };
+    });
+
+    const points = peaks.map((p) => p.x + ',' + p.y).join(' ');
+    const areaPoints = '20,120 ' + points + ' 270,120';
+
+    const peaksHTML = peaks.map((p) =>
+      '<g class="mn-topo-peak" title="' + esc(p.chap) + ': ' + p.count + ' facts (' + Math.round(p.avgHealth * 100) + '% elevation)">' +
+      '<circle cx="' + p.x + '" cy="' + p.y + '" r="4" fill="#38bdf8" />' +
+      '<text x="' + p.x + '" y="' + (p.y - 7) + '" fill="#38bdf8" font-size="8" text-anchor="middle" font-weight="bold">' + Math.round(p.avgHealth * 100) + '%</text>' +
+      '<text x="' + p.x + '" y="134" fill="#94a3b8" font-size="8" text-anchor="middle">' + esc(p.chap) + '</text>' +
+      '</g>'
+    ).join('');
+
+    return (
+      '<div class="mn-topo-wrap">' +
+      '<div class="mn-topo-hdr">🏔️ Metacognitive Topological Mirror Terrain (#30)</div>' +
+      '<div class="mn-topo-sub">Heightfield elevation drives AI perception confidence across memory domains:</div>' +
+      '<svg class="mn-topo-svg" viewBox="0 0 300 145" width="100%" height="135">' +
+      '<polygon points="' + areaPoints + '" fill="rgba(56,189,248,0.12)" stroke="none"/>' +
+      '<polyline points="' + points + '" fill="none" stroke="#38bdf8" stroke-width="2" />' +
+      '<line x1="20" y1="120" x2="280" y2="120" stroke="rgba(255,255,255,0.1)" stroke-width="1" />' +
+      peaksHTML +
+      '</svg>' +
+      '<div class="mn-topo-sculpt-acts">' +
+      '<button class="mn-btn mn-btn-sim" data-act="sculpt-flatten">🔨 Flatten Peak (Erode)</button>' +
+      '<button class="mn-btn mn-btn-k" data-act="sculpt-raise">🏔️ Raise Peak (Boost)</button>' +
+      '</div>' +
+      '</div>'
+    );
+  }
+
   function renderKept() {
     const p = ui.kept;
     if (!p) return;
@@ -1460,7 +1573,16 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
       '<button class="mn-filter-pill ' + (keptScopeFilter === 'global' ? 'active' : '') + '" data-sc="global">🌐 Global Core</button>' +
       '<button class="mn-filter-pill ' + (keptScopeFilter === 'domain' ? 'active' : '') + '" data-sc="domain">📌 Domain Scoped</button>' +
       '<button class="mn-filter-pill ' + (keptScopeFilter === 'session' ? 'active' : '') + '" data-sc="session">⏱️ Session Ephemeral</button>' +
-      '</div>';
+      '<button class="mn-filter-pill ' + (state.gravityOpen ? 'active' : '') + '" data-act="tog-grav">🪐 Gravity Canvas (#28)</button>' +
+      '<button class="mn-filter-pill ' + (state.topoOpen ? 'active' : '') + '" data-act="tog-topo">🏔️ Topological Mirror (#30)</button>' +
+      '</div>' +
+      '<div class="mn-membrane-ctrl-bar">' +
+      '<span title="Biomimetic Osmotic Lipid Bilayer Permeability (#29)">🧪 Osmotic Membrane:</span>' +
+      '<input type="range" class="mn-membrane-slider" min="0" max="100" value="' + (state.membranePermeability || 50) + '" />' +
+      '<span class="mn-membrane-val">' + (state.membranePermeability || 50) + '% ' + ((state.membranePermeability || 50) < 30 ? '🔒 Impermeable' : (state.membranePermeability || 50) > 70 ? '🌊 Fluid Diffusion' : '⚖️ Semi-Permeable') + '</span>' +
+      '</div>' +
+      (state.gravityOpen ? renderSemanticGravityCanvas(filtered) : '') +
+      (state.topoOpen ? renderTopologicalMirror(filtered) : '');
 
     const cardsHTML = filtered
       .map((m) => {
@@ -1488,9 +1610,18 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
         const decay = calculateDecayHealth(m);
         const fadeOpacity = Math.max(0.48, decay.health);
 
+        // Stigmergic Thermodynamic Decay & Crystallization (#32)
+        let thermoPhase = '💎 Solid';
+        if (m.decayTier === '24h' || decay.health < 0.35) thermoPhase = '🔥 Plasma';
+        else if (decay.health < 0.50) thermoPhase = '🧊 Glass';
+        else if (decay.health < 0.85 && m.decayTier !== 'never') thermoPhase = '💧 Liquid';
+
+        const thermoBadgeHTML = '<span class="mn-thermo-badge" title="Thermodynamic Decay Phase State (#32)">' + thermoPhase + '</span>';
+
         const decayBarHTML =
           '<div class="mn-decay-wrap" title="' + esc(decay.label) + '">' +
           '<div class="mn-decay-bar-outer"><div class="mn-decay-bar-inner" style="width:' + (decay.health * 100) + '%"></div></div>' +
+          thermoBadgeHTML +
           '<select class="mn-decay-select" data-id="' + m.id + '">' +
           '<option value="24h" ' + (m.decayTier === '24h' ? 'selected' : '') + '>24h half-life</option>' +
           '<option value="7d" ' + (m.decayTier === '7d' ? 'selected' : '') + '>7d half-life</option>' +
@@ -1586,6 +1717,38 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
     p.querySelectorAll('[data-sc]').forEach((b) =>
       b.addEventListener('click', () => { keptScopeFilter = b.dataset.sc; renderKept(); })
     );
+    const topoBtn = p.querySelector('[data-act="tog-topo"]');
+    if (topoBtn) {
+      topoBtn.addEventListener('click', () => {
+        state.topoOpen = !state.topoOpen;
+        renderKept();
+      });
+    }
+    const flatBtn = p.querySelector('[data-act="sculpt-flatten"]');
+    if (flatBtn) {
+      flatBtn.addEventListener('click', () => {
+        state.kept.forEach((m) => { m.decayTier = '24h'; });
+        renderKept();
+        playMemoryTone('warning');
+        showToast('🔨 Terrain Peak Flattened: Perception decay accelerated to 24h ✓');
+      });
+    }
+    const raiseBtn = p.querySelector('[data-act="sculpt-raise"]');
+    if (raiseBtn) {
+      raiseBtn.addEventListener('click', () => {
+        state.kept.forEach((m) => { m.decayTier = 'never'; });
+        renderKept();
+        playMemoryTone('scope');
+        showToast('🏔️ Terrain Peak Raised: Perception confidence boosted to Never Decay ✓');
+      });
+    }
+    const membSlider = p.querySelector('.mn-membrane-slider');
+    if (membSlider) {
+      membSlider.addEventListener('input', (e) => {
+        state.membranePermeability = parseInt(e.target.value, 10);
+        renderKept();
+      });
+    }
 
     // Decay selector changes (#18)
     p.querySelectorAll('.mn-decay-select').forEach((sel) =>
@@ -2036,12 +2199,13 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
             };
             chip.querySelector('.mn-chip-neg').onclick = (e) => {
               e.stopPropagation();
+              playMemoryTone('warning');
               let negBox = el.querySelector('.mn-negotiation-box');
               if (negBox) { negBox.remove(); return; }
               negBox = document.createElement('div');
               negBox.className = 'mn-negotiation-box';
               negBox.innerHTML =
-                '<div class="mn-neg-hdr">💬 Speech Act Counter-Proposal Handshake (#23)</div>' +
+                '<div class="mn-neg-hdr">💬 Speech Act Protocol Contract (#34)</div>' +
                 '<div class="mn-neg-desc">Propose modified retention parameters before persisting:</div>' +
                 '<div class="mn-neg-row">' +
                 '<label>Scope:</label>' +
@@ -2068,6 +2232,10 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
                 '</div>';
               el.appendChild(negBox);
 
+              negBox.querySelectorAll('select, input').forEach((inpEl) => {
+                inpEl.onchange = () => playMemoryTone('scope');
+              });
+
               negBox.querySelector('.mn-neg-can').onclick = (ev) => {
                 ev.stopPropagation();
                 negBox.remove();
@@ -2078,6 +2246,7 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
                 const decayVal = negBox.querySelector('.mn-neg-decay').value;
                 const noteVal = negBox.querySelector('.mn-neg-note').value.trim();
 
+                playMemoryTone('capture');
                 addKept({
                   id: uid(),
                   text: text.slice(0, 800),
@@ -2088,17 +2257,18 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
                   keptAt: Date.now(),
                   scope: scopeVal,
                   decayTier: decayVal,
-                  speechAct: 'COUNTER_PROPOSED',
-                  negotiatedNote: noteVal || 'Custom user scope & decay terms',
+                  speechAct: 'CONFIRMED_CONTRACT',
+                  negotiatedNote: noteVal || 'Formal Speech Act Protocol Contract Verified',
                   speechActLog: [
                     { act: 'PROPOSE', by: 'AI', timestamp: Date.now() - 200 },
-                    { act: 'COUNTER_PROPOSE', by: 'User', scope: scopeVal, decay: decayVal, note: noteVal, timestamp: Date.now() }
+                    { act: 'COUNTER_PROPOSE', by: 'User', scope: scopeVal, decay: decayVal, note: noteVal, timestamp: Date.now() - 50 },
+                    { act: 'CONFIRM_CONTRACT', by: 'Protocol Synth', timestamp: Date.now() }
                   ]
                 });
                 el.classList.remove('mn-pulse-candidate');
                 chip.remove();
                 negBox.remove();
-                showToast('Speech Act Negotiated ✓ [' + scopeVal.toUpperCase() + ' / ' + decayVal + ']');
+                showToast('Speech Act Contract Confirmed 🎵 ✓ [' + scopeVal.toUpperCase() + ' / ' + decayVal + ']');
               };
             };
             chip.querySelector('.mn-chip-fg').onclick = (e) => {
