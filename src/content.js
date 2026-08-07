@@ -2282,67 +2282,85 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
   }
 
   /* ═══════════════════════════════════════
-     AUTO-NOTICE (heuristic assistant response detection)
-     Watches for substantial new text appearing in the page.
-     After 3s of DOM quiet, captures new text as a noticed candidate.
+     AUTO-NOTICE & CLAUDE MEMORY DETECTION
+     Scans Claude chat for assistant messages, adds purple boundary box,
+     and displays 2-step prompt banner ("Claude Memory Detected").
      ═══════════════════════════════════════ */
+  function scanAndPromptClaudeMemories() {
+    if (!state.collectionEnabled) return;
+    injectHostCSS();
+
+    // Selectors for Claude assistant messages in claude.ai DOM
+    const selectors = [
+      '[data-message-author-role="assistant"]',
+      '.font-claude-response',
+      '.font-claude-message',
+      '[class*="assistant-message"]',
+      '[class*="assistantMessage"]',
+      'div[class*="Message"]:not([class*="user"])',
+      '.prose',
+      '[data-is-streaming]'
+    ];
+
+    let elements = [];
+    for (const sel of selectors) {
+      const found = document.querySelectorAll(sel);
+      if (found && found.length > 0) {
+        elements = Array.from(found);
+        break;
+      }
+    }
+
+    if (elements.length === 0) {
+      elements = Array.from(document.querySelectorAll('div, article, section')).filter((el) => {
+        const cls = (el.className || '').toString().toLowerCase();
+        return (cls.includes('assistant') || cls.includes('response') || cls.includes('claude-msg')) &&
+               !cls.includes('user') && el.textContent.trim().length > 15;
+      });
+    }
+
+    elements.forEach((el) => {
+      const container = el.closest('[data-message-author-role="assistant"]') ||
+                        el.closest('[class*="Message"]') ||
+                        el.closest('article') ||
+                        el;
+
+      if (container.dataset.mnPrompted === 'true' || container.querySelector('.mn-inline-memory-prompt')) {
+        return;
+      }
+
+      const text = container.textContent.trim();
+      if (text.length < 15) return;
+
+      let snippet = text.slice(0, 400);
+      const lastDot = snippet.lastIndexOf('. ');
+      if (lastDot > 100) snippet = snippet.slice(0, lastDot + 1);
+
+      container.dataset.mnPrompted = 'true';
+      highlightAndPromptClaudeMemory(container, snippet.trim());
+    });
+  }
+
   function setupAutoNotice() {
-    const main = () => document.querySelector('main') || document.querySelector('[role="main"]') || document.body;
-    let baseLen = main().textContent.length;
-    let lastHash = '';
+    scanAndPromptClaudeMemories();
+    setInterval(scanAndPromptClaudeMemories, 1500);
+
+    let scanTimer = null;
     let lastUrl = location.href;
 
     const observer = new MutationObserver(() => {
       if (!state.collectionEnabled) return;
 
-      // SPA navigation reset — show digest card for the previous page's noticed items
       if (location.href !== lastUrl) {
         lastUrl = location.href;
-        // Small delay so the page has painted before we show the digest
         digestDismissed = false;
         setTimeout(() => {
-          baseLen = main().textContent.length;
-          // Show digest if there are unreviewed noticed items from a previous session
           if (state.noticed.length > 0) showDigest();
         }, 1800);
-        return;
       }
 
-      clearTimeout(mutationTimer);
-      mutationTimer = setTimeout(() => {
-        const el = main();
-        const currentText = el.textContent;
-        const delta = currentText.length - baseLen;
-
-        if (delta < 100) return;
-
-        const newText = currentText.slice(baseLen).trim();
-        baseLen = currentText.length;
-
-        if (newText.length < 80) return;
-
-        const hash = hashStr(newText.slice(0, 500));
-        if (hash === lastHash) return;
-        lastHash = hash;
-
-        // Trim to ~800 chars, break at sentence boundary if possible
-        let snippet = newText.slice(0, 800);
-        const lastDot = snippet.lastIndexOf('. ');
-        if (lastDot > 200) snippet = snippet.slice(0, lastDot + 1);
-
-        // Emotional Tone Calibration (#25)
-        if (detectEmotionalTone(newText)) {
-          showToast('💙 Memory capture paused: emotional tone detected');
-          return;
-        }
-
-        const snippetText = snippet.trim();
-        const assistantElements = Array.from(document.querySelectorAll(
-          '.font-claude-message, [class*="assistant"], [class*="Agent"], [data-is-streaming], [class*="Message"]:not([class*="user"])'
-        ));
-        const targetEl = assistantElements.pop() || el;
-        highlightAndPromptClaudeMemory(targetEl, snippetText);
-      }, 3500);
+      clearTimeout(scanTimer);
+      scanTimer = setTimeout(scanAndPromptClaudeMemories, 300);
     });
 
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
