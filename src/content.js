@@ -1411,6 +1411,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   const TAB_TITLES = {
     'global-memory': 'Global Memory',
     'current-session': 'Current Session',
+    'canvas': '🎨 Spatial Canvas & Mind Map',
     'export': 'Export Vault',
     'settings': 'Settings',
   };
@@ -1429,6 +1430,10 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     ui.dr.querySelectorAll('.mn-pane').forEach((p) => {
       p.classList.toggle('active', p.dataset.pane === tabName);
     });
+
+    if (tabName === 'canvas') {
+      renderPenechoSpatialView();
+    }
 
     if (ui.fab) {
       ui.fab.querySelectorAll('.mn-rail-item').forEach((btn) => {
@@ -1449,6 +1454,10 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       '<button class="mn-rail-item" data-tab="current-session" title="Current Session">' +
         '<span class="mn-rail-icon">💬</span>' +
         '<span class="mn-rail-label">Current Session</span>' +
+      '</button>' +
+      '<button class="mn-rail-item" data-tab="canvas" title="Spatial Canvas">' +
+        '<span class="mn-rail-icon">🎨</span>' +
+        '<span class="mn-rail-label">Spatial Canvas</span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="export" title="Export">' +
         '<span class="mn-rail-icon">📥</span>' +
@@ -1703,6 +1712,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       <div class="mn-body">
         <div class="mn-pane active" data-pane="global-memory"></div>
         <div class="mn-pane" data-pane="current-session"></div>
+        <div class="mn-pane" data-pane="canvas" style="padding: 12px; overflow-y: auto;"></div>
         <div class="mn-pane" data-pane="export">
           <div class="mn-export-pane-wrap" style="padding: 16px;">
             <div style="font-size: 15px; font-weight: 700; color: #1A1A2E; margin-bottom: 8px;">📥 Export Memory Vault</div>
@@ -1749,6 +1759,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     `;
     root.appendChild(dr);
     ui.dr = dr;
+    ui.spatialView = dr.querySelector('[data-pane="canvas"]');
 
     // Tab switching handlers
     dr.querySelectorAll('.mn-tab').forEach((tab) => {
