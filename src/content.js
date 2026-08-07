@@ -130,11 +130,11 @@
   }
 
   async function addKept(mem) {
-    const r = await send({ type: 'ADD_KEPT', memory: mem });
+    const memoryToSave = { scope: 'global', ...mem };
+    const r = await send({ type: 'ADD_KEPT', memory: memoryToSave });
     state.kept = r?.kept || [];
     renderAll();
     syncMemoryToClaude(mem.text);
-    playMemoryTone('capture');
     announceScreenReader('Memory saved to vault and synced to Claude');
     showToast('Memory saved & synced to Claude ✓');
   }
@@ -2705,28 +2705,15 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     });
   }
 
-  // Global Memory = memories with no domain scope OR explicitly global
+  // Global Memory = default panel for all kept memories unless explicitly set to 'local'
   function renderGlobalMemory() {
-    const currentDomain = location.hostname;
-    const globalMems = state.kept.filter((m) => {
-      if (m.scope === 'local') return false;
-      if (m.scope === 'global') return true;
-      // No explicit scope: treat as global if source doesn't match current domain
-      // OR if no source domain stored
-      return !m.source || m.source === '' || m.source !== currentDomain;
-    });
+    const globalMems = state.kept.filter((m) => m.scope !== 'local');
     renderMemoryPanel(ui.globalMemory, globalMems, 'global');
   }
 
-  // Current Session Memory = memories scoped to the current domain
+  // Current Session Memory = memories explicitly moved/scoped to 'local'
   function renderLocalMemory() {
-    const currentDomain = location.hostname;
-    const localMems = state.kept.filter((m) => {
-      if (m.scope === 'global') return false;
-      if (m.scope === 'local') return true;
-      // No explicit scope: show if source matches current domain
-      return m.source && m.source === currentDomain;
-    });
+    const localMems = state.kept.filter((m) => m.scope === 'local');
     renderMemoryPanel(ui.currentSession || ui.localMemory, localMems, 'local');
   }
 
