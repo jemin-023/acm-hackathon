@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "lint": "echo 'No linter configured yet'",
-    "copy-libs": "mkdir -p src/lib && cp node_modules/onnxruntime-web/dist/ort.all.min.js src/lib/ && cp node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded*.wasm src/lib/ && cp node_modules/@huggingface/transformers/dist/transformers.min.js src/lib/",
+    "copy-libs": "node scripts/copy-libs.js",
     "postinstall": "npm run copy-libs"
   },
   "dependencies": {

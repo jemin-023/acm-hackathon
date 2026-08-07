@@ -11,6 +11,13 @@
   if (window.__memoneg_injected) return;
   window.__memoneg_injected = true;
 
+  // Suppress uncaught extension context invalidation errors when extension reloads
+  window.addEventListener('unhandledrejection', (event) => {
+    if (event.reason?.message?.includes('Extension context invalidated')) {
+      event.preventDefault();
+    }
+  });
+
   /* ═══════════════════════════
      STATE
      ═══════════════════════════ */

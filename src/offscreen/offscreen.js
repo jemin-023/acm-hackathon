@@ -4,9 +4,24 @@
     Session initialized ONCE and reused.
     ═══════════════════════════════════════════════════════ */
 
+import ort from '../lib/ort.all.min.js';
+import { AutoTokenizer, env } from '../lib/transformers.min.js';
+
+// Suppress uncaught extension context errors
+self.addEventListener('unhandledrejection', (event) => {
+  if (event.reason?.message?.includes('Extension context invalidated')) {
+    event.preventDefault();
+  }
+});
+
 // Configure WASM path to local extension lib folder
 if (typeof ort !== 'undefined' && ort.env && ort.env.wasm) {
-  ort.env.wasm.wasmPaths = '../lib/';
+  ort.env.wasm.wasmPaths = chrome.runtime.getURL('src/lib/');
+}
+
+if (typeof env !== 'undefined') {
+  env.allowLocalModels = true;
+  env.allowRemoteModels = false;
 }
 
 let session = null;
@@ -27,14 +42,22 @@ async function initModel() {
       const tokenizerUrl = chrome.runtime.getURL('memoneg-270m-finetuned/');
 
       console.log('[MemoNeg Offscreen] Loading tokenizer from:', tokenizerUrl);
-      const { AutoTokenizer } = globalThis.transformers || {};
-      if (!AutoTokenizer) {
-        throw new Error('Transformers tokenizer library failed to load.');
+      if (typeof AutoTokenizer === 'undefined') {
+        throw new Error('Transformers AutoTokenizer failed to load.');
       }
-      tokenizer = await AutoTokenizer.from_pretrained(tokenizerUrl);
+      tokenizer = await AutoTokenizer.from_pretrained(tokenizerUrl, {
+        local_files_only: true
+      });
 
-      console.log('[MemoNeg Offscreen] Loading INT4 ONNX model from:', modelUrl);
-      
+      console.log('[MemoNeg Offscreen] Checking model binary at:', modelUrl);
+      const checkRes = await fetch(modelUrl, { method: 'HEAD' }).catch(() => null);
+      if (!checkRes || !checkRes.ok) {
+        const warningMsg = 'Model file "memoneg-270m-int4.onnx" is not present in extension directory. Local ONNX standby.';
+        console.warn('[MemoNeg Offscreen]', warningMsg);
+        modelStats = { loaded: false, ep: null, loadTimeMs: 0, error: warningMsg };
+        return null;
+      }
+
       // Try WebGPU first, then WASM
       let epUsed = 'webgpu';
       try {
@@ -42,7 +65,7 @@ async function initModel() {
           executionProviders: ['webgpu', 'wasm'],
         });
       } catch (gpuErr) {
-        console.warn('[MemoNeg Offscreen] WebGPU failed/unsupported, falling back to WASM:', gpuErr);
+        console.warn('[MemoNeg Offscreen] WebGPU fallback to WASM:', gpuErr);
         epUsed = 'wasm';
         session = await ort.InferenceSession.create(modelUrl, {
           executionProviders: ['wasm'],
@@ -71,11 +94,11 @@ async function initModel() {
 
       return { session, tokenizer };
     } catch (err) {
-      console.error('[MemoNeg Offscreen] Model load failed:', err);
+      console.warn('[MemoNeg Offscreen] Model init note:', err.message);
       modelStats = { loaded: false, ep: null, loadTimeMs: 0, error: err.message };
       session = null;
       tokenizer = null;
-      throw err;
+      return null;
     } finally {
       isInitializing = false;
     }
@@ -84,8 +107,8 @@ async function initModel() {
   return initPromise;
 }
 
-// Pre-trigger model loading on offscreen startup
-initModel().catch((e) => console.error('[MemoNeg Offscreen] Auto-init error:', e));
+// Pre-trigger model loading on offscreen startup silently
+initModel().catch((e) => console.warn('[MemoNeg Offscreen] Auto-init note:', e?.message || e));
 
 // Handle long-lived port connections for streaming inference
 chrome.runtime.onConnect.addListener((port) => {
@@ -102,8 +125,16 @@ chrome.runtime.onConnect.addListener((port) => {
       const maxNewTokens = msg.maxNewTokens || 64;
 
       try {
-        const { session: sess, tokenizer: tok } = await initModel();
+        const res = await initModel();
+        if (!res || !res.session || !res.tokenizer) {
+          port.postMessage({
+            type: 'ERROR',
+            error: modelStats.error || 'Local LLM model session unavailable.'
+          });
+          return;
+        }
 
+        const { session: sess, tokenizer: tok } = res;
         const tStartInference = performance.now();
         const inputs = tok(prompt);
         let currentIds = Array.from(inputs.input_ids.data).map(Number);
