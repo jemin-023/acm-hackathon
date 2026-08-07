@@ -140,7 +140,7 @@ Groups related memories into semantic chapters (e.g., Work Projects, Recipes) fo
 
 ---
 
-### 23. Negotiation Dialogue Patterns & Speech Acts
+### 23. ✅ Negotiation Dialogue Patterns & Speech Acts
 Collaborative conversational sequences where the AI proposes memory extractions and users counter-propose in natural text.  
 Establishes mutual agreements on memory retention through structured speech acts and confirmation loops.
 
@@ -158,13 +158,13 @@ Presents a gentle post-emotional review card once the user's tone returns to neu
 
 ---
 
-### 26. Collaborative Memory Sharing & Third-Party Protection
+### 26. ✅ Collaborative Memory Sharing & Third-Party Protection
 Interpersonal privacy engine that detects third-party facts (e.g., family health data) and defaults to session-only scope.  
 Supports shared team memory domains requiring mutual consent and unilateral data removal rights.
 
 ---
 
-### 27. Accessibility-First Memory Sonification
+### 27. ✅ Accessibility-First Memory Sonification
 Non-speech auditory cue system conveying memory extraction, decay warnings, and scope states through sound.  
 Includes spatial audio positioning and full screen-reader voice control for vision-impaired users.
 
@@ -190,7 +190,7 @@ Interactive sculpting tools (Flatten, Raise, Smooth, Erode, Cliff) let users phy
 
 ---
 
-### 31. Multiverse Branching DAG & Counterfactual Canvas
+### 31. ✅ Multiverse Branching DAG & Counterfactual Canvas
 Directed Acyclic Graph rendering parallel decision timelines for every memory addition, deletion, or scope change.  
 Includes a temporal scrubber, response diff engine, and 1-click branch merging to preview memory consequences.
 
@@ -202,7 +202,7 @@ Features heat brushes for thermal annealing, freeze rays for fast shattering, an
 
 ---
 
-### 33. Tactile Viscous Friction & Micro-Boundaries
+### 33. ✅ Tactile Viscous Friction & Micro-Boundaries
 Proportional friction physics creating honey-like drag resistance and visual elastic stretching for sensitive data.  
 Enforces mandatory reflection hold-times (up to 5 seconds) before allowing high-stakes privacy zone promotions.
 

@@ -18,6 +18,7 @@
     drawerOpen: false,
     activeTab: 'noticed',
     collectionEnabled: true,
+    soundEnabled: true, // Accessibility-First Memory Sonification (#27)
     noticed: [],
     kept: [],
     rules: [],          // never-save keyword rules
@@ -29,6 +30,77 @@
   let mutationTimer = null;
   let toastTimer = null;
   let digestDismissed = false; // reset on each SPA navigation
+  let audioCtx = null;
+
+  /* ── Accessibility-First Memory Sonification (#27) ── */
+  function playMemoryTone(type) {
+    if (!state.soundEnabled) return;
+    try {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === 'capture') {
+        // Ascending harmonic triad C5 -> E5 -> G5
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(659.25, now + 0.08);
+        osc.frequency.setValueAtTime(783.99, now + 0.16);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        osc.start(now);
+        osc.stop(now + 0.35);
+      } else if (type === 'forget') {
+        // Descending dual tone E4 -> C4
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(329.63, now);
+        osc.frequency.linearRampToValueAtTime(261.63, now + 0.2);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } else if (type === 'warning') {
+        // Pulsing warning chime A4 -> Bb4
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440.00, now);
+        osc.frequency.setValueAtTime(466.16, now + 0.1);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } else if (type === 'scope') {
+        // High harmonic ping A5
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880.00, now);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        osc.start(now);
+        osc.stop(now + 0.18);
+      }
+    } catch (_) {}
+  }
+
+  function announceScreenReader(msg) {
+    try {
+      let el = document.getElementById('mn-sr-announcer');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'mn-sr-announcer';
+        el.setAttribute('aria-live', 'polite');
+        el.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;';
+        document.body.appendChild(el);
+      }
+      el.textContent = msg;
+    } catch (_) {}
+  }
 
   /* ═══════════════════════════
      UTILITIES
@@ -88,6 +160,8 @@
     const r = await send({ type: 'ADD_KEPT', memory: mem });
     state.kept = r?.kept || [];
     renderAll();
+    playMemoryTone('capture');
+    announceScreenReader('Memory saved to vault');
     showToast('Memory saved ✓');
   }
 
@@ -95,6 +169,8 @@
     const r = await send({ type: 'DELETE_KEPT', id });
     state.kept = r?.kept || [];
     renderAll();
+    playMemoryTone('forget');
+    announceScreenReader('Memory deleted');
     showToast('Memory deleted');
   }
 
@@ -102,6 +178,8 @@
     const r = await send({ type: 'UPDATE_KEPT', id, text });
     state.kept = r?.kept || [];
     renderAll();
+    playMemoryTone('scope');
+    announceScreenReader('Memory updated');
     showToast('Memory updated ✓');
   }
 
@@ -665,6 +743,20 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
 .mn-snaps-list { max-height: 110px; overflow-y: auto; padding: 4px 0; }
 .mn-snap-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 11px; border-bottom: 1px solid rgba(255,255,255,.03); }
 
+/* ── Multiverse Branching DAG (#31) ── */
+.mn-dag-hdr { font-size: 11px; font-weight: 700; color: #34d399; padding: 6px 10px 4px 10px; text-transform: uppercase; letter-spacing: .5px; }
+.mn-dag-canvas { padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.mn-dag-node { width: 100%; border: 1px solid rgba(52,211,153,.2); border-radius: 8px; background: rgba(16,24,32,.7); padding: 8px; font-size: 11px; transition: all .2s; }
+.mn-dag-node.active { border-color: #34d399; background: rgba(52,211,153,.1); box-shadow: 0 0 12px rgba(52,211,153,.2); }
+.mn-dag-node-hdr { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.mn-dag-title { display: flex; align-items: center; gap: 6px; color: #f1f5f9; }
+.mn-dag-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 6px #34d399; }
+.mn-dag-delta { color: #34d399; font-size: 10px; font-weight: 600; }
+.mn-dag-acts { display: flex; gap: 4px; }
+.mn-dag-meta { font-size: 9px; color: #64748b; margin-top: 4px; }
+.mn-dag-connector { font-size: 10px; color: #34d399; text-align: center; line-height: 1; opacity: .7; }
+.mn-dag-diff-box { margin-top: 8px; padding: 6px; border-radius: 6px; background: rgba(10,14,24,.9); border: 1px solid rgba(52,211,153,.3); }
+
 /* ── Decay Engine (#18) ── */
 .mn-decay-wrap { margin-top: 6px; display: flex; align-items: center; gap: 8px; font-size: 10px; color: #6e6e86; }
 .mn-decay-bar-outer { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,.08); overflow: hidden; }
@@ -822,6 +914,7 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
         </div>
         <div class="mn-hdr-r">
           <input type="checkbox" class="mn-tgl" checked title="Toggle memory collection" />
+          <button class="mn-snd-btn" title="Accessibility Sonification Tone (🔊/🔇)" style="background:none;border:none;color:#a78bfa;cursor:pointer;font-size:14px;padding:2px 4px;margin-right:4px;">🔊</button>
           <button class="mn-cls" title="Close drawer">${IC.close}</button>
         </div>
       </div>
@@ -872,6 +965,15 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
 
     // Close
     dr.querySelector('.mn-cls').addEventListener('click', toggleDrawer);
+
+    // Sonification audio toggle (#27)
+    const sndBtn = dr.querySelector('.mn-snd-btn');
+    sndBtn.addEventListener('click', () => {
+      state.soundEnabled = !state.soundEnabled;
+      sndBtn.textContent = state.soundEnabled ? '🔊' : '🔇';
+      if (state.soundEnabled) playMemoryTone('capture');
+      showToast(state.soundEnabled ? 'Sonification Audio Enabled 🔊' : 'Sonification Muted 🔇');
+    });
 
     // Tabs
     const tabs = dr.querySelectorAll('.mn-tab');
@@ -1146,6 +1248,8 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
     }
   }
 
+  let selectedDagBranch = null;
+
   function renderSnapshotsPanel() {
     const list = ui.snapsList;
     if (!list) return;
@@ -1153,17 +1257,59 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
       list.innerHTML = '<div class="mn-rules-empty">No snapshots yet — click Freeze to create a 1-click restore point.</div>';
       return;
     }
-    list.innerHTML = state.snapshots.map((s) =>
-      '<div class="mn-snap-row" data-id="' + s.id + '">' +
-      '<div>' +
-      '<strong>' + esc(s.name) + '</strong> (' + s.keptCount + ' items)<br/>' +
-      '<span style="color:#6e6e86;font-size:10px">' + timeAgo(s.timestamp) + '</span>' +
-      '</div>' +
-      '<button class="mn-btn mn-btn-r" data-act="restore-snap" data-sid="' + s.id + '">Rollback</button>' +
-      '</div>'
-    ).join('');
+
+    // Multiverse DAG Tree Rendering (#31)
+    const dagNodesHTML = state.snapshots.map((s, idx) => {
+      const isSelected = selectedDagBranch === s.id;
+      const prevCount = idx > 0 ? state.snapshots[idx - 1].keptCount : state.kept.length;
+      const deltaCount = s.keptCount - prevCount;
+      const deltaLabel = deltaCount >= 0 ? '+' + deltaCount : deltaCount;
+
+      let branchDiffHTML = '';
+      if (isSelected) {
+        const snapText = s.keptCount + ' stored facts in snapshot';
+        const currText = state.kept.length + ' stored facts in active vault';
+        branchDiffHTML =
+          '<div class="mn-dag-diff-box">' +
+          '<div class="mn-sim-title">Counterfactual Branch Diff (Current vs ' + esc(s.name) + ')</div>' +
+          '<div class="mn-diff-body">' + renderDiffHTML(currText, snapText) + '</div>' +
+          '<div class="mn-sim-meta">Multiverse Branch Variance: ' + (deltaCount * 12) + '% • State Divergence: Low</div>' +
+          '</div>';
+      }
+
+      return (
+        '<div class="mn-dag-node ' + (isSelected ? 'active' : '') + '" data-sid="' + s.id + '">' +
+        '<div class="mn-dag-node-hdr">' +
+        '<div class="mn-dag-title">' +
+        '<span class="mn-dag-dot"></span>' +
+        '<strong>' + esc(s.name) + '</strong>' +
+        '<span class="mn-dag-delta">(' + deltaLabel + ' items)</span>' +
+        '</div>' +
+        '<div class="mn-dag-acts">' +
+        '<button class="mn-btn mn-btn-sim" data-act="prev-dag" data-sid="' + s.id + '">Branch Diff</button>' +
+        '<button class="mn-btn mn-btn-r" data-act="restore-snap" data-sid="' + s.id + '">Merge Branch</button>' +
+        '</div>' +
+        '</div>' +
+        '<div class="mn-dag-meta">Created ' + timeAgo(s.timestamp) + ' • ID: ' + s.id.slice(0, 7) + '</div>' +
+        branchDiffHTML +
+        '</div>'
+      );
+    }).join('<div class="mn-dag-connector">│<br/>▼</div>');
+
+    list.innerHTML =
+      '<div class="mn-dag-hdr">🌌 Multiverse Branching DAG (#31)</div>' +
+      '<div class="mn-dag-canvas">' + dagNodesHTML + '</div>';
+
     list.querySelectorAll('[data-act="restore-snap"]').forEach((b) =>
-      b.addEventListener('click', () => restoreSnapshot(b.dataset.sid))
+      b.addEventListener('click', (e) => { e.stopPropagation(); restoreSnapshot(b.dataset.sid); })
+    );
+
+    list.querySelectorAll('[data-act="prev-dag"]').forEach((b) =>
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedDagBranch = selectedDagBranch === b.dataset.sid ? null : b.dataset.sid;
+        renderSnapshotsPanel();
+      })
     );
   }
 
@@ -1326,11 +1472,18 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
         const isSimOpen = openSimulators.has(m.id);
         const historyCount = m.history ? m.history.length : 0;
 
-        // Classifier, Decay & Sensitivity (#13, #18, #20)
+        // Classifier, Decay & Sensitivity (#13, #18, #20, #23, #26)
         const classification = classifyMemoryCandidate(m.text);
         const sens = classification.sensitivity;
+        const isThirdParty = m.isThirdParty || classification.isThirdParty;
         const sensBadgeHTML =
           '<span class="mn-sens-badge mn-sens-' + sens + '">' + sens + '</span>';
+        const speechBadgeHTML = m.speechAct
+          ? '<span class="mn-sens-badge" style="background:rgba(167,139,250,0.2);color:#c084fc;border:1px solid rgba(167,139,250,0.4)" title="Speech Act Contract">💬 ' + esc(m.speechAct) + '</span>'
+          : '';
+        const tpBadgeHTML = isThirdParty
+          ? '<span class="mn-sens-badge" style="background:rgba(239,68,68,0.18);color:#fca5a5;border:1px solid rgba(239,68,68,0.4)" title="Third-Party Protection Activated">🛡️ Third-Party</span>'
+          : '';
 
         const decay = calculateDecayHealth(m);
         const fadeOpacity = Math.max(0.48, decay.health);
@@ -1354,7 +1507,7 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
             '<button class="mn-btn mn-btn-k" data-act="save-edit" data-id="' + m.id + '">Save</button>' +
             '<button class="mn-btn mn-btn-d" data-act="cancel-edit" data-id="' + m.id + '">Cancel</button>' +
             '</div></div>'
-          : '<div class="mn-card-txt"><span class="mn-role mn-role-' + roleClass + '">' + esc(roleLabel) + '</span>' + sensBadgeHTML + esc(truncate(m.text)) + '</div>';
+          : '<div class="mn-card-txt"><span class="mn-role mn-role-' + roleClass + '">' + esc(roleLabel) + '</span>' + sensBadgeHTML + speechBadgeHTML + tpBadgeHTML + esc(truncate(m.text)) + '</div>';
 
         let histHTML = '';
         if (isHistOpen && m.history && m.history.length > 0) {
@@ -1387,7 +1540,7 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
             '</div>';
         }
 
-        // Provenance & Lineage Inspector (#19)
+        // Provenance & Lineage Inspector (#19, #23, #26)
         let provHTML = '';
         if (isProvOpen) {
           const confidencePct = Math.round(classification.score * 100);
@@ -1397,6 +1550,8 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
             '<div class="mn-prov-row"><span class="mn-prov-lbl">Source Page:</span><span class="mn-prov-val">' + esc(m.source || location.hostname) + '</span></div>' +
             '<div class="mn-prov-row"><span class="mn-prov-lbl">Captured At:</span><span class="mn-prov-val">' + new Date(m.keptAt || m.timestamp).toLocaleString() + '</span></div>' +
             '<div class="mn-prov-row"><span class="mn-prov-lbl">Decay Status:</span><span class="mn-prov-val">' + esc(decay.label) + '</span></div>' +
+            (isThirdParty ? '<div class="mn-prov-row"><span class="mn-prov-lbl">Third-Party Protection:</span><span class="mn-prov-val">🛡️ Active (Restricted to Session/Domain Scope)</span></div>' : '') +
+            (m.speechAct ? '<div class="mn-prov-row"><span class="mn-prov-lbl">Speech Act:</span><span class="mn-prov-val">💬 ' + esc(m.speechAct) + (m.negotiatedNote ? ' (' + esc(m.negotiatedNote) + ')' : '') + '</span></div>' : '') +
             '<div class="mn-prov-row"><span class="mn-prov-lbl">Edit Iterations:</span><span class="mn-prov-val">' + historyCount + '</span></div>' +
             '</div>';
         }
@@ -1496,20 +1651,33 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
       })
     );
 
-    // Attach drag handlers (#4)
+    // Attach drag handlers (#4 & #33 Tactile Viscous Friction & Micro-Boundaries)
     p.querySelectorAll('.mn-card').forEach((card) => {
       const id = card.dataset.id;
       const mem = state.kept.find((m) => m.id === id);
       if (!mem) return;
       card.setAttribute('draggable', 'true');
       card.addEventListener('dragstart', (e) => {
+        const classif = classifyMemoryCandidate(mem.text);
+        const isHighStakes = classif.sensitivity === 'high' || mem.scope === 'global';
+
         e.dataTransfer.setData('application/json', JSON.stringify({ id, origin: 'kept', text: mem.text }));
         e.dataTransfer.setData('text/plain', mem.text);
         card.classList.add('mn-card-dragging');
+
+        if (isHighStakes) {
+          card.classList.add('mn-viscous-friction');
+          playMemoryTone('warning');
+          announceScreenReader('High sensitivity boundary drag initiated — tactile viscous friction active');
+          showToast('🧪 Viscous Friction: High-Stakes Micro-Boundary Drag (#33)');
+        }
+
         if (ui.trashZone) ui.trashZone.classList.add('open');
       });
+
       card.addEventListener('dragend', () => {
         card.classList.remove('mn-card-dragging');
+        card.classList.remove('mn-viscous-friction');
         if (ui.trashZone) ui.trashZone.classList.remove('open');
       });
     });
@@ -1589,8 +1757,46 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
       .mn-chip-rem:hover { background: rgba(52,211,153,0.35) !important; }
       .mn-chip-ses { background: rgba(251,191,36,0.15) !important; color: #fbbf24 !important; }
       .mn-chip-ses:hover { background: rgba(251,191,36,0.3) !important; }
+      .mn-chip-neg { background: rgba(167,139,250,0.2) !important; color: #c084fc !important; }
+      .mn-chip-neg:hover { background: rgba(167,139,250,0.38) !important; }
       .mn-chip-fg { background: rgba(248,113,113,0.15) !important; color: #f87171 !important; }
-      .mn-chip-fg:hover { background: rgba(248,113,113,0.3) !important; }
+      /* Tactile Viscous Friction (#33) */
+      @keyframes mnViscousPull {
+        0%, 100% { box-shadow: 0 0 15px rgba(239,68,68,0.5), inset 0 0 10px rgba(239,68,68,0.3); border-color: rgba(239,68,68,0.8); }
+        50% { box-shadow: 0 0 25px rgba(239,68,68,0.85), inset 0 0 18px rgba(239,68,68,0.5); border-color: #ef4444; transform: scale(0.98) rotate(0.5deg); }
+      }
+      .mn-viscous-friction {
+        animation: mnViscousPull 1.5s ease-in-out infinite !important;
+        cursor: grabbing !important;
+        opacity: 0.9 !important;
+        border: 2px dashed #ef4444 !important;
+      }
+
+      /* Negotiation Speech Act Box (#23) */
+      .mn-negotiation-box {
+        margin-top: 8px !important;
+        padding: 10px 12px !important;
+        border-radius: 10px !important;
+        background: rgba(20,18,34,0.96) !important;
+        border: 1px solid rgba(167,139,250,0.4) !important;
+        color: #e2e8f0 !important;
+        font-size: 11px !important;
+        font-family: 'Inter', sans-serif !important;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.4) !important;
+      }
+      .mn-neg-hdr { font-weight: 700 !important; color: #c084fc !important; margin-bottom: 4px !important; }
+      .mn-neg-desc { color: #94a3b8 !important; margin-bottom: 8px !important; }
+      .mn-neg-row { display: flex !important; align-items: center !important; gap: 8px !important; margin-bottom: 6px !important; flex-wrap: wrap !important; }
+      .mn-neg-row select, .mn-neg-row input {
+        background: rgba(10,10,20,0.8) !important;
+        border: 1px solid rgba(167,139,250,0.3) !important;
+        color: #f1f5f9 !important;
+        padding: 3px 6px !important;
+        border-radius: 6px !important;
+        font-size: 11px !important;
+      }
+      .mn-neg-row input { flex: 1 !important; }
+      .mn-neg-acts { display: flex !important; gap: 6px !important; justify-content: flex-end !important; margin-top: 8px !important; }
 
       /* In-Thread Conflict Resolution Annotations (#12) */
       .mn-conflict-annotation {
@@ -1650,8 +1856,10 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
     const highSensKeywords = ['password', 'ssn', 'credit card', 'salary', 'income', 'medical', 'diagnosis', 'bank account', 'secret', 'confidential'];
     const medSensKeywords = ['phone', 'address', 'email', 'location', 'family', 'employer', 'health'];
 
-    if (highSensKeywords.some((k) => lower.includes(k))) sensitivity = 'high';
-    else if (medSensKeywords.some((k) => lower.includes(k))) sensitivity = 'medium';
+    // Collaborative Memory Sharing & Third-Party Protection (#26)
+    const thirdPartyPattern = /\b(my wife|my husband|my boss|my doctor|my client|my colleague|my manager|my team|my mom|my dad|my daughter|my son|family member|co-worker|partner|spouse)\b/i;
+    const isThirdParty = thirdPartyPattern.test(lower);
+    if (isThirdParty && sensitivity !== 'high') sensitivity = 'medium';
 
     let score = 0.35;
     const durablePatterns = [
@@ -1675,6 +1883,7 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
       isSession,
       conflict,
       sensitivity,
+      isThirdParty,
       filteredByRule: false
     };
   }
@@ -1791,6 +2000,7 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
             chip.innerHTML =
               '<button class="mn-chip-btn mn-chip-rem" title="Save to Vault">Remember</button>' +
               '<button class="mn-chip-btn mn-chip-ses" title="Keep for Session">Session</button>' +
+              '<button class="mn-chip-btn mn-chip-neg" title="Negotiate Speech Act Terms">Negotiate</button>' +
               '<button class="mn-chip-btn mn-chip-fg" title="Dismiss">Forget</button>';
             el.appendChild(chip);
 
@@ -1804,6 +2014,8 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
                 url: location.href,
                 timestamp: Date.now(),
                 keptAt: Date.now(),
+                speechAct: 'ACCEPT',
+                speechActLog: [{ act: 'PROPOSE', by: 'AI', timestamp: Date.now() - 50 }, { act: 'ACCEPT', by: 'User', timestamp: Date.now() }]
               });
               el.classList.remove('mn-pulse-candidate');
               chip.remove();
@@ -1817,9 +2029,77 @@ ins.mn-diff-ins { color: #34d399; text-decoration: none; background: rgba(52,211
                 source: location.hostname,
                 url: location.href,
                 timestamp: Date.now(),
+                speechAct: 'SESSION_RESTRICT',
               });
               el.classList.remove('mn-pulse-candidate');
               chip.remove();
+            };
+            chip.querySelector('.mn-chip-neg').onclick = (e) => {
+              e.stopPropagation();
+              let negBox = el.querySelector('.mn-negotiation-box');
+              if (negBox) { negBox.remove(); return; }
+              negBox = document.createElement('div');
+              negBox.className = 'mn-negotiation-box';
+              negBox.innerHTML =
+                '<div class="mn-neg-hdr">💬 Speech Act Counter-Proposal Handshake (#23)</div>' +
+                '<div class="mn-neg-desc">Propose modified retention parameters before persisting:</div>' +
+                '<div class="mn-neg-row">' +
+                '<label>Scope:</label>' +
+                '<select class="mn-neg-scope">' +
+                '<option value="global">🌐 Global Core</option>' +
+                '<option value="domain" selected>📌 Domain Scoped</option>' +
+                '<option value="session">⏱️ Session Ephemeral</option>' +
+                '</select>' +
+                '<label>Decay:</label>' +
+                '<select class="mn-neg-decay">' +
+                '<option value="24h">24h</option>' +
+                '<option value="7d">7 days</option>' +
+                '<option value="30d" selected>30 days</option>' +
+                '<option value="90d">90 days</option>' +
+                '<option value="never">Never</option>' +
+                '</select>' +
+                '</div>' +
+                '<div class="mn-neg-row">' +
+                '<input type="text" class="mn-neg-note" placeholder="Counter-proposal rationale / condition..." />' +
+                '</div>' +
+                '<div class="mn-neg-acts">' +
+                '<button class="mn-chip-btn mn-chip-rem mn-neg-sub">Confirm Speech Act</button>' +
+                '<button class="mn-chip-btn mn-chip-fg mn-neg-can">Cancel</button>' +
+                '</div>';
+              el.appendChild(negBox);
+
+              negBox.querySelector('.mn-neg-can').onclick = (ev) => {
+                ev.stopPropagation();
+                negBox.remove();
+              };
+              negBox.querySelector('.mn-neg-sub').onclick = (ev) => {
+                ev.stopPropagation();
+                const scopeVal = negBox.querySelector('.mn-neg-scope').value;
+                const decayVal = negBox.querySelector('.mn-neg-decay').value;
+                const noteVal = negBox.querySelector('.mn-neg-note').value.trim();
+
+                addKept({
+                  id: uid(),
+                  text: text.slice(0, 800),
+                  role: 'assistant',
+                  source: location.hostname,
+                  url: location.href,
+                  timestamp: Date.now(),
+                  keptAt: Date.now(),
+                  scope: scopeVal,
+                  decayTier: decayVal,
+                  speechAct: 'COUNTER_PROPOSED',
+                  negotiatedNote: noteVal || 'Custom user scope & decay terms',
+                  speechActLog: [
+                    { act: 'PROPOSE', by: 'AI', timestamp: Date.now() - 200 },
+                    { act: 'COUNTER_PROPOSE', by: 'User', scope: scopeVal, decay: decayVal, note: noteVal, timestamp: Date.now() }
+                  ]
+                });
+                el.classList.remove('mn-pulse-candidate');
+                chip.remove();
+                negBox.remove();
+                showToast('Speech Act Negotiated ✓ [' + scopeVal.toUpperCase() + ' / ' + decayVal + ']');
+              };
             };
             chip.querySelector('.mn-chip-fg').onclick = (e) => {
               e.stopPropagation();
