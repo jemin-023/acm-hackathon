@@ -1694,13 +1694,13 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
           <div class="mn-pane active" data-pane="global-memory"></div>
         </div>
 
-        <!-- Section 2: Local Memory -->
+        <!-- Section 2: Current Session -->
         <div class="mn-memory-section mn-section-local" data-scope="local">
           <div class="mn-section-hdr">
-            <span>📍 Local Memory</span>
+            <span>📍 Current Session</span>
             <span class="mn-section-sub">Scoped to site</span>
           </div>
-          <div class="mn-pane active" data-pane="local-memory"></div>
+          <div class="mn-pane active" data-pane="current-session"></div>
         </div>
       </div>
       <div class="mn-foot">
@@ -1746,7 +1746,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       });
     }
 
-    // Setup Section Drop Zones for Drag & Drop between Global & Local Memory
+    // Setup Section Drop Zones for Drag & Drop between Global Memory & Current Session
     const setupSectionDropZone = (secEl, targetScope) => {
       if (!secEl) return;
       secEl.addEventListener('dragover', (e) => {
@@ -1767,7 +1767,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
           if (payload.id) {
             if (targetScope === 'local') {
               await updateKept(payload.id, { scope: 'local', source: location.hostname });
-              showToast('📍 Moved memory to Local Memory (' + location.hostname + ')');
+              showToast('📍 Moved memory to Current Session (' + location.hostname + ')');
             } else {
               await updateKept(payload.id, { scope: 'global', source: '' });
               showToast('🌐 Moved memory to Global Memory (Everywhere)');
@@ -1818,7 +1818,8 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     });
 
     ui.globalMemory = dr.querySelector('[data-pane="global-memory"]');
-    ui.localMemory = dr.querySelector('[data-pane="local-memory"]');
+    ui.currentSession = dr.querySelector('[data-pane="current-session"]');
+    ui.localMemory = ui.currentSession;
     ui.kept = ui.globalMemory;
     ui.rulesList = dr.querySelector('.mn-rules-list');
     ui.snapsList = dr.querySelector('.mn-snaps-list');
@@ -2447,22 +2448,22 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     );
   }
 
-  // Separate state for Global and Local memory panels
+  // Separate state for Global and Current Session memory panels
   let selectedGlobalCategoryCard = null;
   let selectedLocalCategoryCard = null;
 
-  // Shared helper: render Memory panel (Global or Local)
+  // Shared helper: render Memory panel (Global or Current Session)
   function renderMemoryPanel(p, memories, panelType) {
     if (!p) return;
     if (memories.length === 0) {
       p.innerHTML =
         '<div class="mn-empty">' +
         IC.vault +
-        '<div class="mn-empty-t">No ' + (panelType === 'global' ? 'Global' : 'Local') + ' memories yet</div>' +
+        '<div class="mn-empty-t">No ' + (panelType === 'global' ? 'Global' : 'Current Session') + ' memories yet</div>' +
         '<div class="mn-empty-s">' +
         (panelType === 'global'
           ? 'Memories stored without a domain restriction appear here. They apply across all sites.'
-          : 'Memories scoped to <strong>' + location.hostname + '</strong> appear here.') +
+          : 'Memories scoped to <strong>' + location.hostname + '</strong> for this session appear here.') +
         '</div></div>';
       return;
     }
@@ -2502,7 +2503,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       p.innerHTML =
         '<div class="mn-scrapbook-container">' +
         '<div class="mn-mem-scope-badge mn-mem-scope-' + panelType + '">' +
-        (panelType === 'global' ? '🌐 Global Memory — Applies everywhere' : '📍 Local Memory — <strong>' + location.hostname + '</strong> only') +
+        (panelType === 'global' ? '🌐 Global Memory — Applies everywhere' : '📍 Current Session — <strong>' + location.hostname + '</strong>') +
         '</div>' +
         '<div class="mn-square-categories-grid">' + squareCardsHTML + '</div>' +
         '</div>';
@@ -2536,7 +2537,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     p.innerHTML =
       '<div class="mn-scrapbook-container">' +
       '<div class="mn-mem-scope-badge mn-mem-scope-' + panelType + '" style="margin-bottom:8px">' +
-      (panelType === 'global' ? '🌐 Global Memory' : '📍 Local — ' + location.hostname) +
+      (panelType === 'global' ? '🌐 Global Memory' : '📍 Current Session — ' + location.hostname) +
       '</div>' +
       '<button class="mn-sq-back-btn" data-act="back-to-categories">← Back to Categories</button>' +
       '<div class="mn-bucket-hdr">' +
@@ -2717,7 +2718,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     renderMemoryPanel(ui.globalMemory, globalMems, 'global');
   }
 
-  // Local Memory = memories scoped to the current domain
+  // Current Session Memory = memories scoped to the current domain
   function renderLocalMemory() {
     const currentDomain = location.hostname;
     const localMems = state.kept.filter((m) => {
@@ -2726,7 +2727,11 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       // No explicit scope: show if source matches current domain
       return m.source && m.source === currentDomain;
     });
-    renderMemoryPanel(ui.localMemory, localMems, 'local');
+    renderMemoryPanel(ui.currentSession || ui.localMemory, localMems, 'local');
+  }
+
+  function renderCurrentSession() {
+    renderLocalMemory();
   }
 
   // Keep renderKept as an alias for backward compatibility
