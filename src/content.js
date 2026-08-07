@@ -1873,13 +1873,13 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
             '<span>' + confidencePct + '%</span>' +
             '</div>' +
             '<div class="mn-details-item" style="grid-column: span 2">' +
-            '<span class="mn-details-sublbl">Decay Half-Life:</span>' +
-            '<select class="mn-decay-select" data-id="' + m.id + '">' +
-            '<option value="24h" ' + (m.decayTier === '24h' ? 'selected' : '') + '>24h half-life</option>' +
-            '<option value="7d" ' + (m.decayTier === '7d' ? 'selected' : '') + '>7d half-life</option>' +
-            '<option value="30d" ' + (!m.decayTier || m.decayTier === '30d' ? 'selected' : '') + '>30d half-life</option>' +
-            '<option value="90d" ' + (m.decayTier === '90d' ? 'selected' : '') + '>90d half-life</option>' +
-            '<option value="never" ' + (m.decayTier === 'never' ? 'selected' : '') + '>Never decay</option>' +
+            '<span class="mn-details-sublbl">Memory Duration:</span>' +
+            '<select class="mn-decay-select" data-id="' + m.id + '" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">' +
+            '<option value="24h" ' + (m.decayTier === '24h' ? 'selected' : '') + '>24 Hours</option>' +
+            '<option value="7d" ' + (m.decayTier === '7d' ? 'selected' : '') + '>7 Days</option>' +
+            '<option value="30d" ' + (!m.decayTier || m.decayTier === '30d' ? 'selected' : '') + '>30 Days</option>' +
+            '<option value="90d" ' + (m.decayTier === '90d' ? 'selected' : '') + '>90 Days</option>' +
+            '<option value="never" ' + (m.decayTier === 'never' ? 'selected' : '') + '>Keep Forever</option>' +
             '</select>' +
             '</div>' +
             '</div>' +
@@ -1921,7 +1921,9 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     });
 
     // Decay selector changes
-    p.querySelectorAll('.mn-decay-select').forEach((sel) =>
+    p.querySelectorAll('.mn-decay-select').forEach((sel) => {
+      sel.addEventListener('click', (e) => e.stopPropagation());
+      sel.addEventListener('mousedown', (e) => e.stopPropagation());
       sel.addEventListener('change', (e) => {
         e.stopPropagation();
         const id = sel.dataset.id;
@@ -1930,8 +1932,8 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           item.decayTier = sel.value;
           updateKept(id, item.text);
         }
-      })
-    );
+      });
+    });
 
     // Edit and Delete actions
     p.querySelectorAll('[data-act="del"]').forEach((b) =>
