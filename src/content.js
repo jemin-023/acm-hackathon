@@ -924,6 +924,372 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
   color: #93C5FD; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
 
+/* ── The Snippet Scrapbook (Magazine / Masonry Grid Layout) ── */
+/* Square Category Cards Grid */
+.mn-square-categories-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  padding: 8px 0 16px 0;
+}
+
+.mn-category-square-card {
+  aspect-ratio: 1 / 1;
+  border-radius: 20px;
+  border: 1px solid var(--mn-border);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.mn-category-square-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  z-index: 2;
+}
+
+.mn-category-square-card.mn-sq-coding {
+  border-color: rgba(6, 182, 212, 0.4);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(8, 47, 73, 0.7));
+}
+.mn-category-square-card.mn-sq-coding:hover {
+  box-shadow: 0 14px 36px rgba(6, 182, 212, 0.3), inset 0 0 16px rgba(6, 182, 212, 0.15);
+  border-color: #06B6D4 !important;
+}
+
+.mn-category-square-card.mn-sq-personal {
+  border-color: rgba(236, 72, 153, 0.4);
+  background: linear-gradient(135deg, rgba(30, 27, 75, 0.9), rgba(88, 28, 135, 0.6));
+}
+.mn-category-square-card.mn-sq-personal:hover {
+  box-shadow: 0 14px 36px rgba(236, 72, 153, 0.3), inset 0 0 16px rgba(236, 72, 153, 0.15);
+  border-color: #EC4899 !important;
+}
+
+.mn-category-square-card.mn-sq-research {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(69, 26, 3, 0.6));
+}
+.mn-category-square-card.mn-sq-research:hover {
+  box-shadow: 0 14px 36px rgba(245, 158, 11, 0.3), inset 0 0 16px rgba(245, 158, 11, 0.15);
+  border-color: #F59E0B !important;
+}
+
+.mn-category-square-card.mn-sq-general {
+  border-color: rgba(99, 102, 241, 0.35);
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(49, 46, 129, 0.6));
+}
+.mn-category-square-card.mn-sq-general:hover {
+  box-shadow: 0 14px 32px rgba(99, 102, 241, 0.3);
+  border-color: #6366F1 !important;
+}
+
+.mn-sq-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+  line-height: 1;
+}
+
+.mn-sq-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--mn-fg);
+  margin-bottom: 4px;
+}
+
+.mn-sq-count {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #F8FAFC;
+}
+
+.mn-sq-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--mn-border);
+  background: var(--mn-bg-card);
+  color: #A78BFA;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .18s ease;
+  margin-bottom: 12px;
+}
+.mn-sq-back-btn:hover {
+  background: var(--mn-bg-elevated);
+  border-color: rgba(139, 92, 246, 0.4);
+  transform: translateX(-2px);
+}
+
+.mn-scrapbook-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0 20px 0;
+}
+
+/* Category Bucket Cards */
+.mn-bucket-card {
+  border-radius: 16px;
+  border: 1px solid var(--mn-border);
+  background: var(--mn-bg-card);
+  padding: 16px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.mn-bucket-card.mn-bucket-coding {
+  border-color: rgba(6, 182, 212, 0.4);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(8, 47, 73, 0.5));
+}
+.mn-bucket-card.mn-bucket-coding:hover {
+  box-shadow: 0 8px 32px rgba(6, 182, 212, 0.2);
+}
+
+.mn-bucket-card.mn-bucket-personal {
+  border-color: rgba(236, 72, 153, 0.4);
+  background: linear-gradient(135deg, rgba(30, 27, 75, 0.9), rgba(88, 28, 135, 0.4));
+}
+.mn-bucket-card.mn-bucket-personal:hover {
+  box-shadow: 0 8px 32px rgba(236, 72, 153, 0.2);
+}
+
+.mn-bucket-card.mn-bucket-research {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(69, 26, 3, 0.4));
+}
+.mn-bucket-card.mn-bucket-research:hover {
+  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.2);
+}
+
+.mn-bucket-card.mn-bucket-general {
+  border-color: rgba(99, 102, 241, 0.3);
+  background: var(--mn-bg-card);
+}
+.mn-bucket-card.mn-bucket-general:hover {
+  box-shadow: 0 8px 28px rgba(99, 102, 241, 0.18);
+}
+
+.mn-bucket-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--mn-border);
+}
+
+.mn-bucket-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--mn-fg);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mn-bucket-count-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--mn-fg);
+}
+
+.mn-scrapbook-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+/* Category Base Card & Context Glow */
+.mn-scrapbook-card {
+  position: relative;
+  border-radius: 12px;
+  border: 1px solid var(--mn-border);
+  background: var(--mn-bg-card);
+  padding: 12px 14px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 120px;
+  cursor: pointer;
+}
+
+.mn-scrapbook-card:hover {
+  transform: translateY(-3px);
+  z-index: 2;
+}
+
+/* 💻 Coding Card Styling */
+.mn-scrapbook-card.mn-cat-coding {
+  grid-column: span 2;
+  border-color: rgba(6, 182, 212, 0.35);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(8, 47, 73, 0.7));
+  font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace !important;
+}
+.mn-scrapbook-card.mn-cat-coding:hover {
+  box-shadow: 0 12px 32px rgba(6, 182, 212, 0.25), inset 0 0 12px rgba(6, 182, 212, 0.1);
+  border-color: #06B6D4 !important;
+}
+
+/* 💬 Personal Card Styling */
+.mn-scrapbook-card.mn-cat-personal {
+  border-radius: 18px;
+  border-color: rgba(236, 72, 153, 0.35);
+  background: linear-gradient(135deg, rgba(30, 27, 75, 0.9), rgba(88, 28, 135, 0.5));
+  font-style: italic;
+}
+.mn-scrapbook-card.mn-cat-personal:hover {
+  box-shadow: 0 12px 32px rgba(236, 72, 153, 0.25), inset 0 0 12px rgba(236, 72, 153, 0.1);
+  border-color: #EC4899 !important;
+}
+
+/* 📚 Research Card Styling */
+.mn-scrapbook-card.mn-cat-research {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(69, 26, 3, 0.4));
+}
+.mn-scrapbook-card.mn-cat-research:hover {
+  box-shadow: 0 12px 32px rgba(245, 158, 11, 0.25), inset 0 0 12px rgba(245, 158, 11, 0.1);
+  border-color: #F59E0B !important;
+}
+
+/* 📌 General Card Styling */
+.mn-scrapbook-card.mn-cat-general {
+  border-color: rgba(99, 102, 241, 0.25);
+  background: var(--mn-bg-card);
+}
+.mn-scrapbook-card.mn-cat-general:hover {
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.2);
+  border-color: #6366F1 !important;
+}
+
+/* Card Elements */
+.mn-card-hdr-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.mn-card-cb-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mn-card-select-cb {
+  width: 15px;
+  height: 15px;
+  accent-color: #8B5CF6;
+  cursor: pointer;
+}
+
+.mn-cat-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.mn-cat-badge-coding { background: rgba(6, 182, 212, 0.15); color: #22D3EE; border: 1px solid rgba(6, 182, 212, 0.3); }
+.mn-cat-badge-personal { background: rgba(236, 72, 153, 0.15); color: #F472B6; border: 1px solid rgba(236, 72, 153, 0.3); }
+.mn-cat-badge-research { background: rgba(245, 158, 11, 0.15); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3); }
+.mn-cat-badge-general { background: rgba(99, 102, 241, 0.15); color: #818CF8; border: 1px solid rgba(99, 102, 241, 0.3); }
+
+.mn-copy-snippet-btn {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(6, 182, 212, 0.2);
+  color: #22D3EE;
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.mn-copy-snippet-btn:hover {
+  background: rgba(6, 182, 212, 0.35);
+  transform: scale(1.03);
+}
+
+.mn-citation-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: #FBBF24;
+  background: rgba(245, 158, 11, 0.12);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 4px;
+  word-break: break-all;
+}
+
+.mn-card-snippet-text {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--mn-fg);
+  word-break: break-word;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+}
+
+/* Floating Synthesis Action Bar */
+.mn-synthesize-bar {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 20px rgba(139, 92, 246, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  backdrop-filter: blur(10px);
+  z-index: 10;
+  animation: mnUp 0.25s ease-out;
+}
+
+.mn-synth-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  background: linear-gradient(135deg, #8B5CF6, #EC4899);
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
+  transition: all .18s ease;
+}
+.mn-synth-btn:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(236, 72, 153, 0.5);
+}
+
     `;
   }
 
@@ -1621,6 +1987,164 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
   const openDetails = new Set();
 
+  let scrapbookCategoryFilter = 'all';
+  const selectedKeptIds = new Set();
+
+  function getMemoryCategory(text) {
+    if (!text) return 'general';
+    const lower = text.toLowerCase();
+
+    // 💻 Coding check: code blocks, keywords, functions, programming syntax
+    if (
+      text.includes('```') ||
+      /\b(?:function|const|let|var|import|export|class|def|return|async|await|select-string|powershell|bash|npm|git|html|css|javascript|python|java|c\+\+|sql|json|api|endpoint)\b/i.test(text) ||
+      /[{}<>;=]\s*[{}<>;=]/.test(text) ||
+      /\b(?:if|else|for|while|try|catch)\s*\(/.test(text)
+    ) {
+      return 'coding';
+    }
+
+    // 📚 Research check: URLs, citations, documentation, references
+    if (
+      /https?:\/\/\S+/i.test(text) ||
+      /\b(?:http|www|github\.com|wikipedia|doi|paper|research|documentation|reference|source|study|citation|according to)\b/i.test(lower)
+    ) {
+      return 'research';
+    }
+
+    // 💬 Personal check: preferences, location, feelings, identity
+    if (
+      /\b(?:my\s+(?:name|birthday|age|location|city|address|job|hobbies|hobby|favorite|wife|husband|pet|dog|cat|phone|email)\b)/i.test(lower) ||
+      /\b(?:i\s+(?:live|work|love|hate|prefer|enjoy|dislike|am\s+feeling|am\s+a|feel|want\s+to\s+shift))\b/i.test(lower) ||
+      /\b[1-9][0-9]{5}\b/.test(text) ||
+      /\b(?:bhopal|mumbai|delhi|bangalore|pune|indore)\b/i.test(lower)
+    ) {
+      return 'personal';
+    }
+
+    return 'general';
+  }
+
+  function renderSingleScrapbookCardHTML(m, cat) {
+    const isEditing = activeEdits.has(m.id);
+    const isDetailsOpen = openDetails.has(m.id);
+    const isSelected = selectedKeptIds.has(m.id);
+    const chatUrl = m.url || location.href;
+
+    const classification = classifyMemoryCandidate(m.text);
+    const confidencePct = Math.round(classification.score * 100);
+
+    // Domain extraction for research citation tag
+    let domainTag = '';
+    if (cat === 'research') {
+      try {
+        const urlObj = new URL(chatUrl);
+        domainTag = urlObj.hostname;
+      } catch (_) {
+        domainTag = 'source link';
+      }
+    }
+
+    // Snippet text preview
+    const firstLine = m.text.split('\n')[0].trim();
+    const snippetPreview = firstLine.slice(0, 90) + (m.text.length > 90 ? '...' : '');
+
+    let contentHTML = isEditing
+      ? '<div class="mn-edit-area" onclick="event.stopPropagation()">' +
+        '<textarea class="mn-edit-box" data-id="' + m.id + '">' + esc(m.text) + '</textarea>' +
+        '<div class="mn-edit-acts">' +
+        '<button class="mn-btn mn-btn-k" data-act="save-edit" data-id="' + m.id + '">Save</button>' +
+        '<button class="mn-btn mn-btn-d" data-act="cancel-edit" data-id="' + m.id + '">Cancel</button>' +
+        '</div></div>'
+      : '<div class="mn-card-snippet-text">' + esc(snippetPreview) + '</div>';
+
+    let detailsHTML = '';
+    if (isDetailsOpen && !isEditing) {
+      let histHTML = '';
+      if (m.history && m.history.length > 0) {
+        histHTML =
+          '<div class="mn-hist-panel">' +
+          m.history
+            .map(
+              (h, idx) =>
+                '<div class="mn-hist-item">' +
+                '<div class="mn-hist-hdr">' +
+                '<span>v' + (m.history.length - idx) + ' • ' + timeAgo(h.timestamp) + '</span>' +
+                '<button class="mn-btn mn-btn-r" data-act="revert" data-id="' + m.id + '" data-ver="' + idx + '">Revert</button>' +
+                '</div>' +
+                '<div class="mn-diff-body">' + renderDiffHTML(h.text, m.text) + '</div>' +
+                '</div>'
+            )
+            .join('') +
+          '</div>';
+      }
+
+      detailsHTML =
+        '<div class="mn-card-details-panel" onclick="event.stopPropagation()">' +
+        '<div class="mn-details-sec">' +
+        '<span class="mn-details-lbl">📝 Full Memory Content:</span>' +
+        '<div class="mn-details-txt">' + esc(m.text) + '</div>' +
+        '</div>' +
+
+        '<div class="mn-details-sec">' +
+        '<span class="mn-details-lbl">🔗 Source Chat Link:</span>' +
+        '<a href="' + esc(chatUrl) + '" target="_blank" rel="noopener noreferrer" class="mn-chat-link">' + esc(chatUrl) + '</a>' +
+        '</div>' +
+
+        '<div class="mn-details-grid">' +
+        '<div class="mn-details-item">' +
+        '<span class="mn-details-sublbl">Captured At:</span>' +
+        '<span>' + new Date(m.keptAt || m.timestamp).toLocaleString() + '</span>' +
+        '</div>' +
+        '<div class="mn-details-item">' +
+        '<span class="mn-details-sublbl">Perception Confidence:</span>' +
+        '<span>' + confidencePct + '%</span>' +
+        '</div>' +
+        '<div class="mn-details-item" style="grid-column: span 2">' +
+        '<span class="mn-details-sublbl">Memory Duration:</span>' +
+        '<select class="mn-decay-select" data-id="' + m.id + '" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">' +
+        '<option value="24h" ' + (m.decayTier === '24h' ? 'selected' : '') + '>24 Hours</option>' +
+        '<option value="7d" ' + (m.decayTier === '7d' ? 'selected' : '') + '>7 Days</option>' +
+        '<option value="30d" ' + (!m.decayTier || m.decayTier === '30d' ? 'selected' : '') + '>30 Days</option>' +
+        '<option value="90d" ' + (m.decayTier === '90d' ? 'selected' : '') + '>90 Days</option>' +
+        '<option value="never" ' + (m.decayTier === 'never' ? 'selected' : '') + '>Keep Forever</option>' +
+        '</select>' +
+        '</div>' +
+        '</div>' +
+
+        '<div class="mn-sim-panel">' +
+        '<div class="mn-sim-title">Counterfactual Audit Simulation ("What If I Forget?")</div>' +
+        '<div class="mn-sim-row"><span class="mn-sim-lbl">Without Memory:</span><div class="mn-sim-box">' + renderDiffHTML(m.text, '') + '</div></div>' +
+        '<div class="mn-sim-meta">Context Alignment Delta: -38% • Personalization Loss: Moderate</div>' +
+        '</div>' +
+        histHTML +
+        '</div>';
+    }
+
+    return (
+      '<div class="mn-scrapbook-card mn-cat-' + cat + ' ' + (isDetailsOpen ? 'open' : '') + '" data-id="' + m.id + '" data-act="toggle-card">' +
+      '<div class="mn-card-hdr-row" onclick="event.stopPropagation()">' +
+      '<div class="mn-card-cb-wrap">' +
+      '<input type="checkbox" class="mn-card-select-cb" data-id="' + m.id + '" ' + (isSelected ? 'checked' : '') + ' title="Select for Merge &amp; Synthesize" />' +
+      '<span class="mn-cat-badge mn-cat-badge-' + cat + '">' + cat + '</span>' +
+      '</div>' +
+      (cat === 'coding' ? '<button class="mn-copy-snippet-btn" data-id="' + m.id + '" data-act="copy-snippet" title="Copy code snippet">📋 Copy Snippet</button>' : '') +
+      '</div>' +
+      contentHTML +
+      (cat === 'research' && domainTag ? '<div class="mn-citation-tag">🌐 Citation: ' + esc(domainTag) + '</div>' : '') +
+      '<div class="mn-card-meta-bar" style="margin-top:8px">' +
+      '<span class="mn-card-time">' + timeAgo(m.keptAt || m.timestamp) + (isDetailsOpen ? ' ▲ Hide' : ' ▼ Details') + '</span>' +
+      '<div class="mn-card-acts" onclick="event.stopPropagation()">' +
+      (!isEditing ? '<button class="mn-btn mn-btn-e" data-act="edit" data-id="' + m.id + '">Edit</button>' : '') +
+      '<button class="mn-btn mn-btn-d" data-act="del" data-id="' + m.id + '">Delete</button>' +
+      '</div></div>' +
+      detailsHTML +
+      '</div>'
+    );
+  }
+
+  let selectedCategoryCard = null; // null or 'coding' | 'personal' | 'research' | 'general'
+
   function renderKept() {
     const p = ui.kept;
     if (!p) return;
@@ -1634,112 +2158,170 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       return;
     }
 
-    const cardsHTML = state.kept
-      .map((m) => {
-        const roleClass = m.role === 'assistant' ? 'a' : m.role === 'user' ? 'u' : 's';
-        const roleLabel = (m.role || 'saved').toUpperCase();
-        const isEditing = activeEdits.has(m.id);
-        const isDetailsOpen = openDetails.has(m.id);
+    // Group memories by classification category
+    const categoriesMap = {
+      coding: { title: 'Coding Snippets', icon: '💻', items: [], class: 'mn-sq-coding' },
+      personal: { title: 'Personal Info', icon: '💬', items: [], class: 'mn-sq-personal' },
+      research: { title: 'Research & Links', icon: '📚', items: [], class: 'mn-sq-research' },
+      general: { title: 'General Vault', icon: '📌', items: [], class: 'mn-sq-general' }
+    };
 
-        const classification = classifyMemoryCandidate(m.text);
-        const confidencePct = Math.round(classification.score * 100);
-        const chatUrl = m.url || location.href;
+    state.kept.forEach((m) => {
+      const cat = getMemoryCategory(m.text);
+      if (categoriesMap[cat]) {
+        categoriesMap[cat].items.push(m);
+      } else {
+        categoriesMap.general.items.push(m);
+      }
+    });
 
-        // Clean main title summary (first line or first 85 chars)
-        const firstLine = m.text.split('\n')[0].trim();
-        const titleText = firstLine.slice(0, 85) + (m.text.length > 85 ? '...' : '');
+    // ── VIEW 1: 4 Square Category Cards Overview Grid ──
+    if (!selectedCategoryCard) {
+      const squareCardsHTML = Object.keys(categoriesMap)
+        .map((catKey) => {
+          const bucket = categoriesMap[catKey];
+          const count = bucket.items.length;
 
-        let contentHTML = isEditing
-          ? '<div class="mn-edit-area" onclick="event.stopPropagation()">' +
-            '<textarea class="mn-edit-box" data-id="' + m.id + '">' + esc(m.text) + '</textarea>' +
-            '<div class="mn-edit-acts">' +
-            '<button class="mn-btn mn-btn-k" data-act="save-edit" data-id="' + m.id + '">Save</button>' +
-            '<button class="mn-btn mn-btn-d" data-act="cancel-edit" data-id="' + m.id + '">Cancel</button>' +
-            '</div></div>'
-          : '<div class="mn-card-title-row">' +
-            '<span class="mn-role mn-role-' + roleClass + '">' + esc(roleLabel) + '</span>' +
-            '<span class="mn-card-main-title">' + esc(titleText) + '</span>' +
-            '</div>';
+          return (
+            '<div class="mn-category-square-card ' + bucket.class + '" data-cat="' + catKey + '">' +
+            '<div class="mn-sq-icon">' + bucket.icon + '</div>' +
+            '<div class="mn-sq-title">' + bucket.title + '</div>' +
+            '<div class="mn-sq-count">' + count + ' item' + (count === 1 ? '' : 's') + '</div>' +
+            '</div>'
+          );
+        })
+        .join('');
 
-        let detailsHTML = '';
-        if (isDetailsOpen && !isEditing) {
-          let histHTML = '';
-          if (m.history && m.history.length > 0) {
-            histHTML =
-              '<div class="mn-hist-panel">' +
-              m.history
-                .map(
-                  (h, idx) =>
-                    '<div class="mn-hist-item">' +
-                    '<div class="mn-hist-hdr">' +
-                    '<span>v' + (m.history.length - idx) + ' • ' + timeAgo(h.timestamp) + '</span>' +
-                    '<button class="mn-btn mn-btn-r" data-act="revert" data-id="' + m.id + '" data-ver="' + idx + '">Revert</button>' +
-                    '</div>' +
-                    '<div class="mn-diff-body">' + renderDiffHTML(h.text, m.text) + '</div>' +
-                    '</div>'
-                )
-                .join('') +
-              '</div>';
-          }
+      p.innerHTML =
+        '<div class="mn-scrapbook-container">' +
+        '<div style="font-size:12px;font-weight:700;color:var(--mn-fg-muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">📁 Memory Classifications</div>' +
+        '<div class="mn-square-categories-grid">' +
+        squareCardsHTML +
+        '</div>' +
+        '</div>';
 
-          detailsHTML =
-            '<div class="mn-card-details-panel" onclick="event.stopPropagation()">' +
-            '<div class="mn-details-sec">' +
-            '<span class="mn-details-lbl">📝 Full Memory Content:</span>' +
-            '<div class="mn-details-txt">' + esc(m.text) + '</div>' +
-            '</div>' +
+      // Attach click events on 4 Square Cards to drill down
+      p.querySelectorAll('.mn-category-square-card').forEach((sqCard) => {
+        sqCard.addEventListener('click', () => {
+          selectedCategoryCard = sqCard.dataset.cat;
+          renderKept();
+        });
+      });
+      return;
+    }
 
-            '<div class="mn-details-sec">' +
-            '<span class="mn-details-lbl">🔗 Source Chat Link:</span>' +
-            '<a href="' + esc(chatUrl) + '" target="_blank" rel="noopener noreferrer" class="mn-chat-link">' + esc(chatUrl) + '</a>' +
-            '</div>' +
+    // ── VIEW 2: Detailed Memories inside Selected Category Card ──
+    const activeCategory = categoriesMap[selectedCategoryCard] || categoriesMap.general;
+    const activeItems = activeCategory.items;
+    const count = activeItems.length;
+    const cardsInBucket = activeItems.map((m) => renderSingleScrapbookCardHTML(m, selectedCategoryCard)).join('');
 
-            '<div class="mn-details-grid">' +
-            '<div class="mn-details-item">' +
-            '<span class="mn-details-sublbl">Captured At:</span>' +
-            '<span>' + new Date(m.keptAt || m.timestamp).toLocaleString() + '</span>' +
-            '</div>' +
-            '<div class="mn-details-item">' +
-            '<span class="mn-details-sublbl">Perception Confidence:</span>' +
-            '<span>' + confidencePct + '%</span>' +
-            '</div>' +
-            '<div class="mn-details-item" style="grid-column: span 2">' +
-            '<span class="mn-details-sublbl">Memory Duration:</span>' +
-            '<select class="mn-decay-select" data-id="' + m.id + '" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">' +
-            '<option value="24h" ' + (m.decayTier === '24h' ? 'selected' : '') + '>24 Hours</option>' +
-            '<option value="7d" ' + (m.decayTier === '7d' ? 'selected' : '') + '>7 Days</option>' +
-            '<option value="30d" ' + (!m.decayTier || m.decayTier === '30d' ? 'selected' : '') + '>30 Days</option>' +
-            '<option value="90d" ' + (m.decayTier === '90d' ? 'selected' : '') + '>90 Days</option>' +
-            '<option value="never" ' + (m.decayTier === 'never' ? 'selected' : '') + '>Keep Forever</option>' +
-            '</select>' +
-            '</div>' +
-            '</div>' +
+    // Floating Action Bar for Merge & Synthesize
+    let synthBarHTML = '';
+    if (selectedKeptIds.size >= 2) {
+      synthBarHTML =
+        '<div class="mn-synthesize-bar">' +
+        '<div style="font-size:12px;font-weight:600;color:#F8FAFC">' +
+        '<span>✨ ' + selectedKeptIds.size + ' memories selected</span>' +
+        '</div>' +
+        '<div style="display:flex;gap:6px">' +
+        '<button class="mn-synth-btn" data-act="merge-synthesize">Merge & Synthesize ✨</button>' +
+        '<button class="mn-btn mn-btn-d" data-act="clear-selected">Clear</button>' +
+        '</div>' +
+        '</div>';
+    }
 
-            '<div class="mn-sim-panel">' +
-            '<div class="mn-sim-title">Counterfactual Audit Simulation ("What If I Forget?")</div>' +
-            '<div class="mn-sim-row"><span class="mn-sim-lbl">Without Memory:</span><div class="mn-sim-box">' + renderDiffHTML(m.text, '') + '</div></div>' +
-            '<div class="mn-sim-meta">Context Alignment Delta: -38% • Personalization Loss: Moderate</div>' +
-            '</div>' +
-            histHTML +
-            '</div>';
+    p.innerHTML =
+      '<div class="mn-scrapbook-container">' +
+      '<button class="mn-sq-back-btn" data-act="back-to-categories">← Back to Category Folders</button>' +
+      '<div class="mn-bucket-hdr">' +
+      '<div class="mn-bucket-title">' +
+      '<span>' + activeCategory.icon + ' ' + activeCategory.title + '</span>' +
+      '<span class="mn-bucket-count-badge">' + count + ' item' + (count === 1 ? '' : 's') + '</span>' +
+      '</div>' +
+      (selectedCategoryCard === 'coding' && count > 0 ? '<button class="mn-copy-snippet-btn" data-act="copy-all-coding" title="Copy all coding snippets">📋 Copy All Code</button>' : '') +
+      '</div>' +
+      (count === 0
+        ? '<div class="mn-empty" style="padding:30px 0"><div class="mn-empty-t">No memories in this category yet</div><div class="mn-empty-s">Save new memories to auto-populate this category folder.</div></div>'
+        : '<div class="mn-scrapbook-grid">' + cardsInBucket + '</div>') +
+      synthBarHTML +
+      '</div>';
+
+    // Back to Category Folders button
+    const backBtn = p.querySelector('[data-act="back-to-categories"]');
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        selectedCategoryCard = null;
+        renderKept();
+      });
+    }
+
+    // Multi-select checkboxes
+    p.querySelectorAll('.mn-card-select-cb').forEach((cb) => {
+      cb.addEventListener('click', (e) => e.stopPropagation());
+      cb.addEventListener('change', (e) => {
+        e.stopPropagation();
+        const id = cb.dataset.id;
+        if (cb.checked) selectedKeptIds.add(id);
+        else selectedKeptIds.delete(id);
+        renderKept();
+      });
+    });
+
+    // Copy snippet button
+    p.querySelectorAll('[data-act="copy-snippet"]').forEach((b) => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const mem = state.kept.find((m) => m.id === b.dataset.id);
+        if (mem) {
+          navigator.clipboard.writeText(mem.text);
+          showToast('Code snippet copied to clipboard 📋');
+          playMemoryTone('capture');
         }
+      });
+    });
 
-        return (
-          '<div class="mn-card ' + (isDetailsOpen ? 'open' : '') + '" data-id="' + m.id + '" data-act="toggle-card">' +
-          contentHTML +
-          '<div class="mn-card-meta-bar">' +
-          '<span class="mn-card-time">' + timeAgo(m.keptAt || m.timestamp) + (m.updatedAt ? ' (edited)' : '') + (isDetailsOpen ? ' ▲ Hide details' : ' ▼ Click for details') + '</span>' +
-          '<div class="mn-card-acts" onclick="event.stopPropagation()">' +
-          (!isEditing ? '<button class="mn-btn mn-btn-e" data-act="edit" data-id="' + m.id + '">Edit</button>' : '') +
-          '<button class="mn-btn mn-btn-d" data-act="del" data-id="' + m.id + '">Delete</button>' +
-          '</div></div>' +
-          detailsHTML +
-          '</div>'
-        );
-      })
-      .join('');
+    // Merge & Synthesize action
+    const synthBtn = p.querySelector('[data-act="merge-synthesize"]');
+    if (synthBtn) {
+      synthBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const selectedMems = state.kept.filter((m) => selectedKeptIds.has(m.id));
+        if (selectedMems.length < 2) return;
 
-    p.innerHTML = cardsHTML;
+        const synthText =
+          "Synthesized Context:\n" +
+          selectedMems.map((m, idx) => `[Item ${idx + 1} - ${getMemoryCategory(m.text).toUpperCase()}]: ${m.text.trim()}`).join("\n\n");
+
+        await addKept({
+          id: uid(),
+          text: synthText,
+          role: 'assistant',
+          source: location.hostname,
+          url: location.href,
+          timestamp: Date.now(),
+          keptAt: Date.now(),
+        });
+
+        // Sync to Claude chat input
+        syncMemoryToClaude(synthText);
+
+        selectedKeptIds.clear();
+        showToast('✨ Memories Merged & Synthesized into Kept Vault!');
+        announceScreenReader('Memories merged and synthesized successfully');
+        renderKept();
+      });
+    }
+
+    // Clear selection
+    const clearBtn = p.querySelector('[data-act="clear-selected"]');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedKeptIds.clear();
+        renderKept();
+      });
+    }
 
     // Card click toggle details event
     p.querySelectorAll('[data-act="toggle-card"]').forEach((card) => {
@@ -1771,6 +2353,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     p.querySelectorAll('[data-act="del"]').forEach((b) =>
       b.addEventListener('click', (e) => {
         e.stopPropagation();
+        selectedKeptIds.delete(b.dataset.id);
         deleteKept(b.dataset.id);
       })
     );
@@ -1812,7 +2395,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     );
 
     // Attach drag handlers (#4 & #33 Tactile Viscous Friction & Micro-Boundaries)
-    p.querySelectorAll('.mn-card').forEach((card) => {
+    p.querySelectorAll('.mn-scrapbook-card').forEach((card) => {
       const id = card.dataset.id;
       const mem = state.kept.find((m) => m.id === id);
       if (!mem) return;
