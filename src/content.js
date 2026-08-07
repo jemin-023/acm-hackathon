@@ -46,6 +46,9 @@
     canvasPan: { x: 0, y: 0 },
   };
 
+  let shadow = null;
+  const ui = {};
+
   /* ═══════════════════════════════════════════════════════════════
      PENECHO + MEMONEG SPATIAL CANVAS PROTOCOL SPECIFICATION
      ═══════════════════════════════════════════════════════════════ */
@@ -1364,43 +1367,50 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
      SHADOW DOM + UI CREATION
      ═══════════════════════════════════════ */
   function init() {
-    const host = document.createElement('div');
-    host.id = 'memoneg-root';
-    host.style.cssText =
-      'all:initial!important;position:fixed!important;top:0!important;left:0!important;' +
-      'width:0!important;height:0!important;z-index:2147483647!important;pointer-events:none!important;';
-    document.documentElement.appendChild(host);
-    shadow = host.attachShadow({ mode: 'closed' });
+    try {
+      const existing = document.getElementById('memoneg-root');
+      if (existing) existing.remove();
 
-    const style = document.createElement('style');
-    style.textContent = getCSS();
-    shadow.appendChild(style);
+      const host = document.createElement('div');
+      host.id = 'memoneg-root';
+      host.style.cssText =
+        'all:initial!important;position:fixed!important;top:0!important;left:0!important;' +
+        'width:0!important;height:0!important;z-index:2147483647!important;pointer-events:none!important;';
+      document.documentElement.appendChild(host);
+      shadow = host.attachShadow({ mode: 'closed' });
 
-    const root = document.createElement('div');
-    root.className = 'mn';
-    shadow.appendChild(root);
+      const style = document.createElement('style');
+      style.textContent = getCSS();
+      shadow.appendChild(style);
 
-    buildFAB(root);
-    buildOverlay(root);
-    buildDrawer(root);
-    buildSelectionPopup(root);
-    buildToast(root);
-    buildDigestCard(root);
+      const root = document.createElement('div');
+      root.className = 'mn';
+      shadow.appendChild(root);
 
-    loadAll();
-    toggleDrawer(true); // Persistent sidebar alongside chat
+      buildFAB(root);
+      buildOverlay(root);
+      buildDrawer(root);
+      buildSelectionPopup(root);
+      buildToast(root);
+      buildDigestCard(root);
 
-    // Text selection → "Save to Memory" button
-    document.addEventListener('mouseup', onMouseUp);
-    document.addEventListener('selectionchange', () => {
-      const s = window.getSelection();
-      if (!s || s.isCollapsed) hideSelPopup();
-    });
+      loadAll();
+      toggleDrawer(true); // Persistent sidebar alongside chat
 
-    // Auto-notice for assistant responses
-    setupAutoNotice();
+      // Text selection → "Save to Memory" button
+      document.addEventListener('mouseup', onMouseUp);
+      document.addEventListener('selectionchange', () => {
+        const s = window.getSelection();
+        if (!s || s.isCollapsed) hideSelPopup();
+      });
 
-    console.log('[MemoNeg] Extension loaded on', location.hostname);
+      // Auto-notice for assistant responses
+      setupAutoNotice();
+
+      console.log('[MemoNeg] Extension loaded on', location.hostname);
+    } catch (err) {
+      console.error('[MemoNeg Initialization Error]:', err);
+    }
   }
 
 
@@ -1454,6 +1464,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       '<button class="mn-rail-item" data-tab="current-session" title="Current Session">' +
         '<span class="mn-rail-icon">💬</span>' +
         '<span class="mn-rail-label">Current Session</span>' +
+        '<span class="mn-rail-badge" style="display:none"></span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="canvas" title="Spatial Canvas">' +
         '<span class="mn-rail-icon">🎨</span>' +
@@ -1478,6 +1489,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     root.appendChild(rail);
     ui.fab = rail;
+    ui.badge = rail.querySelector('.mn-rail-badge');
   }
 
   /* ═══════════════════════════
@@ -2026,20 +2038,24 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   }
 
   function updateBadge() {
-    const c = state.noticed.length;
+    if (!ui.badge) return;
+    const c = state.noticed ? state.noticed.length : 0;
     if (c > 0) {
       ui.badge.textContent = c > 99 ? '99+' : c;
-      ui.badge.style.display = 'flex';
+      ui.badge.style.display = 'inline-flex';
     } else {
       ui.badge.style.display = 'none';
     }
   }
 
   function showToast(text) {
+    if (!ui.toast) return;
     ui.toast.textContent = text;
     ui.toast.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => ui.toast.classList.remove('show'), 2200);
+    toastTimer = setTimeout(() => {
+      if (ui.toast) ui.toast.classList.remove('show');
+    }, 2200);
   }
 
   /* ═══════════════════════════════════════════════════════════════
