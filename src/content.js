@@ -495,25 +495,82 @@
 .mn-card {
   background: #FFFFFF;
   border: 3px solid #000000;
-  border-radius: 14px; padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: 5px 5px 0px #000000;
-  transition: all .2s;
+  border-radius: 14px; padding: 18px 20px;
+  margin-bottom: 18px;
+  box-shadow: 4px 4px 0px #000000;
+  transition: all .2s cubic-bezier(.4,0,.2,1);
+  cursor: pointer;
 }
 .mn-card:hover {
-  transform: translate(-3px, -3px);
-  box-shadow: 8px 8px 0px #000000;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px #000000;
 }
-.mn-card-txt {
-  font-size: 13.5px; color: #111827; line-height: 1.65;
-  font-weight: 600;
-  margin-bottom: 14px; word-break: break-word; white-space: pre-wrap;
+.mn-card-title-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin-bottom: 12px;
 }
-.mn-card-meta {
+.mn-card-main-title {
+  font-size: 14px; font-weight: 800; color: #000000;
+  line-height: 1.45; font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+  flex: 1; word-break: break-word;
+}
+.mn-card-meta-bar {
   display: flex; align-items: center; justify-content: space-between;
-  font-size: 11px; color: #1F2937; font-weight: 800;
+  gap: 12px; margin-top: 4px;
 }
-.mn-card-acts { display: flex; gap: 8px; }
+.mn-card-time {
+  font-size: 11px; font-weight: 700; color: #374151;
+  display: flex; align-items: center; gap: 6px;
+}
+.mn-card-acts { display: flex; align-items: center; gap: 8px; }
+
+/* Expanded Details View */
+.mn-card-details-panel {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 2.5px dashed #000000;
+  animation: mnSlideIn .2s ease-out;
+}
+.mn-details-sec {
+  margin-bottom: 12px;
+}
+.mn-details-lbl {
+  display: block;
+  font-size: 11px; font-weight: 800;
+  color: #000000; text-transform: uppercase;
+  letter-spacing: 0.5px; margin-bottom: 4px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+.mn-details-txt {
+  font-size: 13px; font-weight: 600;
+  color: #1F2937; line-height: 1.55;
+  background: #F9FAFB; padding: 10px 12px;
+  border-radius: 8px; border: 1.5px solid #000000;
+  white-space: pre-wrap; word-break: break-word;
+}
+.mn-chat-link {
+  display: inline-block;
+  color: #2563EB; font-weight: 700;
+  font-size: 12px; word-break: break-all;
+  text-decoration: underline;
+}
+.mn-chat-link:hover {
+  color: #1D4ED8;
+}
+.mn-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px; margin-bottom: 12px;
+  background: #EFF6FF; padding: 10px 12px;
+  border-radius: 8px; border: 1.5px solid #000000;
+  font-size: 11px; font-weight: 700; color: #000000;
+}
+.mn-details-item {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.mn-details-sublbl {
+  color: #4B5563; font-size: 10px; text-transform: uppercase; font-weight: 800;
+}
 
 /* Buttons */
 .mn-btn {
@@ -1731,6 +1788,8 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     );
   }
 
+  const openDetails = new Set();
+
   function renderKept() {
     const p = ui.kept;
     if (!p) return;
@@ -1744,128 +1803,106 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       return;
     }
 
-    // All kept memories
-    let filtered = state.kept;
-
-    const cardsHTML = filtered
+    const cardsHTML = state.kept
       .map((m) => {
         const roleClass = m.role === 'assistant' ? 'a' : m.role === 'user' ? 'u' : 's';
-        const roleLabel = m.role || 'saved';
+        const roleLabel = (m.role || 'saved').toUpperCase();
         const isEditing = activeEdits.has(m.id);
-        const isHistOpen = openHistories.has(m.id);
-        const isProvOpen = openProvenances.has(m.id);
-        const isSimOpen = openSimulators.has(m.id);
-        const historyCount = m.history ? m.history.length : 0;
+        const isDetailsOpen = openDetails.has(m.id);
 
-        // Classifier, Decay & Sensitivity (#13, #18, #20, #23, #26)
         const classification = classifyMemoryCandidate(m.text);
-        const sens = classification.sensitivity;
-        const isThirdParty = m.isThirdParty || classification.isThirdParty;
-        const sensBadgeHTML =
-          '<span class="mn-sens-badge mn-sens-' + sens + '">' + sens + '</span>';
-        const speechBadgeHTML = m.speechAct
-          ? '<span class="mn-sens-badge" style="background:rgba(167,139,250,0.2);color:#c084fc;border:1px solid rgba(167,139,250,0.4)" title="Speech Act Contract">💬 ' + esc(m.speechAct) + '</span>'
-          : '';
-        const tpBadgeHTML = isThirdParty
-          ? '<span class="mn-sens-badge" style="background:rgba(239,68,68,0.18);color:#fca5a5;border:1px solid rgba(239,68,68,0.4)" title="Third-Party Protection Activated">🛡️ Third-Party</span>'
-          : '';
+        const confidencePct = Math.round(classification.score * 100);
+        const chatUrl = m.url || location.href;
 
-        const decay = calculateDecayHealth(m);
-        const fadeOpacity = Math.max(0.48, decay.health);
-
-        // Stigmergic Thermodynamic Decay & Crystallization (#32)
-        let thermoPhase = '💎 Solid';
-        if (m.decayTier === '24h' || decay.health < 0.35) thermoPhase = '🔥 Plasma';
-        else if (decay.health < 0.50) thermoPhase = '🧊 Glass';
-        else if (decay.health < 0.85 && m.decayTier !== 'never') thermoPhase = '💧 Liquid';
-
-        const thermoBadgeHTML = '<span class="mn-thermo-badge" title="Thermodynamic Decay Phase State (#32)">' + thermoPhase + '</span>';
-
-        const decayBarHTML =
-          '<div class="mn-decay-wrap" title="' + esc(decay.label) + '">' +
-          '<div class="mn-decay-bar-outer"><div class="mn-decay-bar-inner" style="width:' + (decay.health * 100) + '%"></div></div>' +
-          thermoBadgeHTML +
-          '<select class="mn-decay-select" data-id="' + m.id + '">' +
-          '<option value="24h" ' + (m.decayTier === '24h' ? 'selected' : '') + '>24h half-life</option>' +
-          '<option value="7d" ' + (m.decayTier === '7d' ? 'selected' : '') + '>7d half-life</option>' +
-          '<option value="30d" ' + (!m.decayTier || m.decayTier === '30d' ? 'selected' : '') + '>30d half-life</option>' +
-          '<option value="90d" ' + (m.decayTier === '90d' ? 'selected' : '') + '>90d half-life</option>' +
-          '<option value="never" ' + (m.decayTier === 'never' ? 'selected' : '') + '>Never decay</option>' +
-          '</select>' +
-          '</div>';
+        // Clean main title summary (first line or first 85 chars)
+        const firstLine = m.text.split('\n')[0].trim();
+        const titleText = firstLine.slice(0, 85) + (m.text.length > 85 ? '...' : '');
 
         let contentHTML = isEditing
-          ? '<div class="mn-edit-area">' +
+          ? '<div class="mn-edit-area" onclick="event.stopPropagation()">' +
             '<textarea class="mn-edit-box" data-id="' + m.id + '">' + esc(m.text) + '</textarea>' +
             '<div class="mn-edit-acts">' +
             '<button class="mn-btn mn-btn-k" data-act="save-edit" data-id="' + m.id + '">Save</button>' +
             '<button class="mn-btn mn-btn-d" data-act="cancel-edit" data-id="' + m.id + '">Cancel</button>' +
             '</div></div>'
-          : '<div class="mn-card-txt"><span class="mn-role mn-role-' + roleClass + '">' + esc(roleLabel) + '</span>' + sensBadgeHTML + speechBadgeHTML + tpBadgeHTML + esc(truncate(m.text)) + '</div>';
-
-        let histHTML = '';
-        if (isHistOpen && m.history && m.history.length > 0) {
-          histHTML =
-            '<div class="mn-hist-panel">' +
-            m.history
-              .map(
-                (h, idx) =>
-                  '<div class="mn-hist-item">' +
-                  '<div class="mn-hist-hdr">' +
-                  '<span>v' + (m.history.length - idx) + ' • ' + timeAgo(h.timestamp) + '</span>' +
-                  '<button class="mn-btn mn-btn-r" data-act="revert" data-id="' + m.id + '" data-ver="' + idx + '">Revert</button>' +
-                  '</div>' +
-                  '<div class="mn-diff-body">' + renderDiffHTML(h.text, m.text) + '</div>' +
-                  '</div>'
-              )
-              .join('') +
+          : '<div class="mn-card-title-row">' +
+            '<span class="mn-role mn-role-' + roleClass + '">' + esc(roleLabel) + '</span>' +
+            '<span class="mn-card-main-title">' + esc(titleText) + '</span>' +
             '</div>';
-        }
 
-        // Counterfactual Simulator (#17)
-        let simHTML = '';
-        if (isSimOpen) {
-          simHTML =
+        let detailsHTML = '';
+        if (isDetailsOpen && !isEditing) {
+          let histHTML = '';
+          if (m.history && m.history.length > 0) {
+            histHTML =
+              '<div class="mn-hist-panel">' +
+              m.history
+                .map(
+                  (h, idx) =>
+                    '<div class="mn-hist-item">' +
+                    '<div class="mn-hist-hdr">' +
+                    '<span>v' + (m.history.length - idx) + ' • ' + timeAgo(h.timestamp) + '</span>' +
+                    '<button class="mn-btn mn-btn-r" data-act="revert" data-id="' + m.id + '" data-ver="' + idx + '">Revert</button>' +
+                    '</div>' +
+                    '<div class="mn-diff-body">' + renderDiffHTML(h.text, m.text) + '</div>' +
+                    '</div>'
+                )
+                .join('') +
+              '</div>';
+          }
+
+          detailsHTML =
+            '<div class="mn-card-details-panel" onclick="event.stopPropagation()">' +
+            '<div class="mn-details-sec">' +
+            '<span class="mn-details-lbl">📝 Full Memory Content:</span>' +
+            '<div class="mn-details-txt">' + esc(m.text) + '</div>' +
+            '</div>' +
+
+            '<div class="mn-details-sec">' +
+            '<span class="mn-details-lbl">🔗 Source Chat Link:</span>' +
+            '<a href="' + esc(chatUrl) + '" target="_blank" rel="noopener noreferrer" class="mn-chat-link">' + esc(chatUrl) + '</a>' +
+            '</div>' +
+
+            '<div class="mn-details-grid">' +
+            '<div class="mn-details-item">' +
+            '<span class="mn-details-sublbl">Captured At:</span>' +
+            '<span>' + new Date(m.keptAt || m.timestamp).toLocaleString() + '</span>' +
+            '</div>' +
+            '<div class="mn-details-item">' +
+            '<span class="mn-details-sublbl">Perception Confidence:</span>' +
+            '<span>' + confidencePct + '%</span>' +
+            '</div>' +
+            '<div class="mn-details-item" style="grid-column: span 2">' +
+            '<span class="mn-details-sublbl">Decay Half-Life:</span>' +
+            '<select class="mn-decay-select" data-id="' + m.id + '">' +
+            '<option value="24h" ' + (m.decayTier === '24h' ? 'selected' : '') + '>24h half-life</option>' +
+            '<option value="7d" ' + (m.decayTier === '7d' ? 'selected' : '') + '>7d half-life</option>' +
+            '<option value="30d" ' + (!m.decayTier || m.decayTier === '30d' ? 'selected' : '') + '>30d half-life</option>' +
+            '<option value="90d" ' + (m.decayTier === '90d' ? 'selected' : '') + '>90d half-life</option>' +
+            '<option value="never" ' + (m.decayTier === 'never' ? 'selected' : '') + '>Never decay</option>' +
+            '</select>' +
+            '</div>' +
+            '</div>' +
+
             '<div class="mn-sim-panel">' +
-            '<div class="mn-sim-title">Counterfactual Simulator ("What If I Forget?")</div>' +
-            '<div class="mn-sim-row"><span class="mn-sim-lbl">With Memory:</span><div class="mn-sim-box">' + esc(m.text) + '</div></div>' +
-            '<div class="mn-sim-row"><span class="mn-sim-lbl">Without Memory (Simulated Diff):</span><div class="mn-sim-box">' + renderDiffHTML(m.text, '') + '</div></div>' +
+            '<div class="mn-sim-title">Counterfactual Audit Simulation ("What If I Forget?")</div>' +
+            '<div class="mn-sim-row"><span class="mn-sim-lbl">Without Memory:</span><div class="mn-sim-box">' + renderDiffHTML(m.text, '') + '</div></div>' +
             '<div class="mn-sim-meta">Context Alignment Delta: -38% • Personalization Loss: Moderate</div>' +
-            '</div>';
-        }
-
-        // Provenance & Lineage Inspector (#19, #23, #26)
-        let provHTML = '';
-        if (isProvOpen) {
-          const confidencePct = Math.round(classification.score * 100);
-          provHTML =
-            '<div class="mn-prov-panel">' +
-            '<div class="mn-prov-ttl"><span>Audit Lineage & Provenance</span><span>' + confidencePct + '% score</span></div>' +
-            '<div class="mn-prov-row"><span class="mn-prov-lbl">Source Page:</span><span class="mn-prov-val">' + esc(m.source || location.hostname) + '</span></div>' +
-            '<div class="mn-prov-row"><span class="mn-prov-lbl">Captured At:</span><span class="mn-prov-val">' + new Date(m.keptAt || m.timestamp).toLocaleString() + '</span></div>' +
-            '<div class="mn-prov-row"><span class="mn-prov-lbl">Decay Status:</span><span class="mn-prov-val">' + esc(decay.label) + '</span></div>' +
-            (isThirdParty ? '<div class="mn-prov-row"><span class="mn-prov-lbl">Third-Party Protection:</span><span class="mn-prov-val">🛡️ Active (Restricted to Session/Domain Scope)</span></div>' : '') +
-            (m.speechAct ? '<div class="mn-prov-row"><span class="mn-prov-lbl">Speech Act:</span><span class="mn-prov-val">💬 ' + esc(m.speechAct) + (m.negotiatedNote ? ' (' + esc(m.negotiatedNote) + ')' : '') + '</span></div>' : '') +
-            '<div class="mn-prov-row"><span class="mn-prov-lbl">Edit Iterations:</span><span class="mn-prov-val">' + historyCount + '</span></div>' +
+            '</div>' +
+            histHTML +
             '</div>';
         }
 
         return (
-          '<div class="mn-card" data-id="' + m.id + '" style="opacity:' + fadeOpacity + '">' +
+          '<div class="mn-card ' + (isDetailsOpen ? 'open' : '') + '" data-id="' + m.id + '" data-act="toggle-card">' +
           contentHTML +
-          decayBarHTML +
-          '<div class="mn-card-meta">' +
-          '<span>' + timeAgo(m.keptAt || m.timestamp) + (m.updatedAt ? ' (edited)' : '') + '</span>' +
-          '<div class="mn-card-acts">' +
+          '<div class="mn-card-meta-bar">' +
+          '<span class="mn-card-time">' + timeAgo(m.keptAt || m.timestamp) + (m.updatedAt ? ' (edited)' : '') + (isDetailsOpen ? ' ▲ Hide details' : ' ▼ Click for details') + '</span>' +
+          '<div class="mn-card-acts" onclick="event.stopPropagation()">' +
           (!isEditing ? '<button class="mn-btn mn-btn-e" data-act="edit" data-id="' + m.id + '">Edit</button>' : '') +
-          '<button class="mn-btn mn-btn-sim" data-act="tog-sim" data-id="' + m.id + '">Simulate</button>' +
-          '<button class="mn-btn mn-btn-p" data-act="tog-prov" data-id="' + m.id + '">Audit</button>' +
-          (historyCount > 0 ? '<button class="mn-btn mn-btn-h" data-act="tog-hist" data-id="' + m.id + '">Diff (' + historyCount + ')</button>' : '') +
           '<button class="mn-btn mn-btn-d" data-act="del" data-id="' + m.id + '">Delete</button>' +
           '</div></div>' +
-          histHTML +
-          simHTML +
-          provHTML +
+          detailsHTML +
           '</div>'
         );
       })
@@ -1873,9 +1910,20 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     p.innerHTML = cardsHTML;
 
-    // Decay selector changes (#18)
+    // Card click toggle details event
+    p.querySelectorAll('[data-act="toggle-card"]').forEach((card) => {
+      card.addEventListener('click', () => {
+        const id = card.dataset.id;
+        if (openDetails.has(id)) openDetails.delete(id);
+        else openDetails.add(id);
+        renderKept();
+      });
+    });
+
+    // Decay selector changes
     p.querySelectorAll('.mn-decay-select').forEach((sel) =>
-      sel.addEventListener('change', () => {
+      sel.addEventListener('change', (e) => {
+        e.stopPropagation();
         const id = sel.dataset.id;
         const item = state.kept.find((m) => m.id === id);
         if (item) {
@@ -1885,18 +1933,30 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       })
     );
 
-    // Actions
+    // Edit and Delete actions
     p.querySelectorAll('[data-act="del"]').forEach((b) =>
-      b.addEventListener('click', () => deleteKept(b.dataset.id))
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteKept(b.dataset.id);
+      })
     );
     p.querySelectorAll('[data-act="edit"]').forEach((b) =>
-      b.addEventListener('click', () => { activeEdits.add(b.dataset.id); renderKept(); })
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        activeEdits.add(b.dataset.id);
+        renderKept();
+      })
     );
     p.querySelectorAll('[data-act="cancel-edit"]').forEach((b) =>
-      b.addEventListener('click', () => { activeEdits.delete(b.dataset.id); renderKept(); })
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        activeEdits.delete(b.dataset.id);
+        renderKept();
+      })
     );
     p.querySelectorAll('[data-act="save-edit"]').forEach((b) =>
-      b.addEventListener('click', () => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
         const area = p.querySelector('textarea[data-id="' + b.dataset.id + '"]');
         if (area && area.value.trim()) {
           activeEdits.delete(b.dataset.id);
@@ -1904,29 +1964,9 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         }
       })
     );
-    p.querySelectorAll('[data-act="tog-sim"]').forEach((b) =>
-      b.addEventListener('click', () => {
-        if (openSimulators.has(b.dataset.id)) openSimulators.delete(b.dataset.id);
-        else openSimulators.add(b.dataset.id);
-        renderKept();
-      })
-    );
-    p.querySelectorAll('[data-act="tog-prov"]').forEach((b) =>
-      b.addEventListener('click', () => {
-        if (openProvenances.has(b.dataset.id)) openProvenances.delete(b.dataset.id);
-        else openProvenances.add(b.dataset.id);
-        renderKept();
-      })
-    );
-    p.querySelectorAll('[data-act="tog-hist"]').forEach((b) =>
-      b.addEventListener('click', () => {
-        if (openHistories.has(b.dataset.id)) openHistories.delete(b.dataset.id);
-        else openHistories.add(b.dataset.id);
-        renderKept();
-      })
-    );
     p.querySelectorAll('[data-act="revert"]').forEach((b) =>
-      b.addEventListener('click', () => {
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
         const item = state.kept.find((m) => m.id === b.dataset.id);
         const verIdx = parseInt(b.dataset.ver, 10);
         if (item && item.history && item.history[verIdx]) {
