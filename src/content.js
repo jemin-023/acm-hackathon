@@ -2343,6 +2343,8 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     /(?:i(?:'m| am)\s+(?:a|an)\s+(?:student|teacher|doctor|engineer|developer|designer|artist|musician|nurse|lawyer|therapist|manager|ceo|founder|parent|veteran))\b/i,
     /(?:i\s+recently\s+(?:lost|found|bought|sold|started|quit|joined|left|broke|got))\b/i,
     /(?:my\s+(?:salary|income|budget|savings|debt|rent|mortgage|medical|health|condition|diagnosis|medication|therapy|religion|faith|political)\b)/i,
+    /(?:since|as|because)?\s*you\s+(?:live|work|study|are|prefer|enjoy|like|shared|mentioned|said)\s+(?:in|at|a|an|that|you)?/i,
+    /(?:your\s+(?:location|city|hometown|job|profession|occupation|preference|hobby|family|address))/i,
   ];
 
   // ── Tier 3: Private Information Leak detection (for USER messages) ──
