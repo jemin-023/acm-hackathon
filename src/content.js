@@ -335,9 +335,9 @@
 
 .mn {
   /* ═══ Detached Glassmorphism — Sage & Silver ═══ */
-  --mn-bg: rgba(12, 14, 18, 0.55);
-  --mn-bg-card: rgba(255, 255, 255, 0.04);
-  --mn-bg-elevated: rgba(255, 255, 255, 0.07);
+  --mn-bg: rgba(10, 12, 16, 0.62);
+  --mn-bg-card: rgba(255, 255, 255, 0.045);
+  --mn-bg-elevated: rgba(255, 255, 255, 0.08);
   --mn-fg: #E8ECF1;
   --mn-fg-muted: #7B8794;
   --mn-primary: rgba(120, 150, 130, 0.12);
@@ -347,18 +347,18 @@
   --mn-danger: #D97373;
   --mn-danger-hover: #C45858;
   --mn-warn: #D4A056;
-  --mn-border: rgba(255,255,255,0.06);
-  --mn-border-focus: rgba(255,255,255,0.14);
+  --mn-border: rgba(255,255,255,0.05);
+  --mn-border-focus: rgba(255,255,255,0.12);
   --mn-ring: rgba(143, 173, 160, 0.35);
   --mn-shadow: 0 8px 32px rgba(0,0,0,0.45);
   --mn-radius: 14px;
   --mn-radius-sm: 10px;
   --mn-radius-xs: 7px;
   --mn-transition: 200ms cubic-bezier(.4,0,.2,1);
-  --mn-glass: blur(28px) saturate(160%);
-  --mn-glass-light: blur(14px) saturate(130%);
-  --mn-inset-border: inset 0 0 0 1px rgba(255,255,255,0.08);
-  --mn-inset-border-hover: inset 0 0 0 1px rgba(255,255,255,0.14);
+  --mn-glass: blur(40px) saturate(180%);
+  --mn-glass-light: blur(20px) saturate(150%);
+  --mn-inset-border: inset 0 0 0 1px rgba(255,255,255,0.07);
+  --mn-inset-border-hover: inset 0 0 0 1px rgba(255,255,255,0.13);
   --mn-sage: #8FADA0;
   --mn-sage-glow: rgba(143, 173, 160, 0.15);
   --mn-lavender: #A093C7;
@@ -439,14 +439,15 @@
   -webkit-backdrop-filter: var(--mn-glass);
   border: none;
   border-radius: 24px;
-  transform: translateX(calc(100% + 32px));
-  transition: transform .36s cubic-bezier(.32,.72,0,1);
+  transform: translateX(calc(100% + 32px)) scale(0.97);
+  transition: transform .42s cubic-bezier(.22,.68,0,1.01), opacity .35s ease;
   display: flex; flex-direction: column;
   z-index: 99998;
-  box-shadow: 0 24px 48px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.08), var(--mn-inset-border);
+  box-shadow: 0 28px 56px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,255,255,0.06), var(--mn-inset-border);
   overflow: hidden;
+  opacity: 0.6;
 }
-.mn-dr.open { transform: translateX(0) !important; }
+.mn-dr.open { transform: translateX(0) scale(1) !important; opacity: 1 !important; }
 
 /* ── Drawer Header ── */
 .mn-hdr {
@@ -467,15 +468,59 @@
 .mn-title svg { width: 22px; height: 22px; stroke: var(--mn-sage); stroke-width: 2; flex-shrink: 0; }
 .mn-hdr-r { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px; }
 
-/* Lock tag */
+/* Lock icon — replaces ON-DEVICE tag */
 .mn-lock {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 10px; font-weight: 600; letter-spacing: .5px;
-  text-transform: uppercase; color: var(--mn-fg);
-  background: var(--mn-sage-glow);
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  background: rgba(255,255,255,0.04);
   border: none;
   box-shadow: var(--mn-inset-border);
-  padding: 3px 9px; border-radius: var(--mn-radius-xs);
+  border-radius: var(--mn-radius-xs);
+  cursor: default;
+  margin-left: 2px;
+}
+.mn-lock svg { width: 14px; height: 14px; stroke: var(--mn-sage); stroke-width: 1.8; }
+.mn-lock-tip {
+  position: absolute;
+  top: calc(100% + 8px); left: 50%; transform: translateX(-50%) scale(0.92);
+  padding: 5px 10px; border-radius: var(--mn-radius-xs);
+  background: var(--mn-bg); backdrop-filter: var(--mn-glass);
+  -webkit-backdrop-filter: var(--mn-glass);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5), var(--mn-inset-border);
+  color: var(--mn-fg); font-size: 10px; font-weight: 600;
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: all .2s cubic-bezier(.4,0,.2,1);
+  z-index: 20;
+  letter-spacing: 0.3px;
+}
+.mn-lock:hover .mn-lock-tip { opacity: 1; transform: translateX(-50%) scale(1); }
+
+/* Toggle + label wrapper */
+.mn-tgl-wrap {
+  position: relative;
+  display: flex; align-items: center; gap: 0;
+}
+.mn-tgl-label {
+  position: absolute;
+  top: calc(100% + 8px); left: 50%; transform: translateX(-50%) scale(0.92);
+  padding: 5px 10px; border-radius: var(--mn-radius-xs);
+  background: var(--mn-bg); backdrop-filter: var(--mn-glass);
+  -webkit-backdrop-filter: var(--mn-glass);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5), var(--mn-inset-border);
+  color: var(--mn-fg); font-size: 10px; font-weight: 600;
+  white-space: nowrap; pointer-events: none;
+  opacity: 0; transition: all .2s cubic-bezier(.4,0,.2,1);
+  z-index: 20;
+  letter-spacing: 0.3px;
+}
+.mn-tgl-wrap:hover .mn-tgl-label { opacity: 1; transform: translateX(-50%) scale(1); }
+
+/* Tab SVG icons */
+.mn-tab svg {
+  width: 14px; height: 14px; vertical-align: -2px; margin-right: 5px;
+  stroke: currentColor; stroke-width: 1.8; fill: none;
+  stroke-linecap: round; stroke-linejoin: round;
 }
 
 /* ── Toggle ── */
@@ -1708,18 +1753,24 @@ ins.mn-diff-ins { color: var(--mn-sage); text-decoration: none; background: var(
         <div class="mn-title">
           ${IC.brain}
           MemoNeg
-          <span class="mn-lock">${IC.lock} on-device</span>
+          <span class="mn-lock">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span class="mn-lock-tip">All data stored on-device only</span>
+          </span>
         </div>
         <div class="mn-hdr-r">
-          <input type="checkbox" class="mn-tgl" checked title="Toggle memory collection" />
-          <button class="mn-snd-btn" title="Accessibility Sonification Tone (🔊/🔇)" style="background:none;border:none;color:#a78bfa;cursor:pointer;font-size:14px;padding:2px 4px;margin-right:4px;">🔊</button>
+          <div class="mn-tgl-wrap">
+            <input type="checkbox" class="mn-tgl" checked title="Toggle memory collection" />
+            <span class="mn-tgl-label">Auto-Capture</span>
+          </div>
+          <button class="mn-snd-btn" title="Accessibility Sonification Tone (🔊/🔇)" style="background:none;border:none;color:var(--mn-lavender);cursor:pointer;font-size:14px;padding:2px 4px;margin-right:4px;">🔊</button>
           <button class="mn-cls" title="Close drawer">${IC.close}</button>
         </div>
       </div>
       <div class="mn-tabs">
-        <button class="mn-tab active" data-tab="noticed">🔍 Noticed</button>
-        <button class="mn-tab" data-tab="global-memory">🌐 Global</button>
-        <button class="mn-tab" data-tab="local-memory">📍 Local</button>
+        <button class="mn-tab active" data-tab="noticed"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7z"/></svg>Noticed</button>
+        <button class="mn-tab" data-tab="global-memory"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Global</button>
+        <button class="mn-tab" data-tab="local-memory"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Local</button>
         <div class="mn-tab-bar" style="left:0;width:33.33%"></div>
       </div>
       <div class="mn-body">
