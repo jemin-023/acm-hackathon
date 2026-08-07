@@ -1003,89 +1003,50 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
 
 .mn-category-square-card {
   aspect-ratio: 1 / 1;
-  border-radius: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  padding: 18px;
+  min-height: 110px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: rgba(14, 14, 18, 0.88) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+  justify-content: space-between;
+  align-items: flex-start;
+  text-align: left;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .mn-category-square-card:hover {
   transform: translateY(-4px) scale(1.02);
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  background: rgba(26, 26, 34, 0.95) !important;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
   z-index: 2;
 }
 
-.mn-category-square-card.mn-sq-work {
-  border-color: rgba(59, 130, 246, 0.4);
-  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(30, 58, 138, 0.35));
-}
-.mn-category-square-card.mn-sq-work:hover {
-  box-shadow: 0 16px 40px rgba(59, 130, 246, 0.35), inset 0 0 20px rgba(59, 130, 246, 0.2);
-  border-color: #3B82F6 !important;
-}
-
-.mn-category-square-card.mn-sq-coding {
-  border-color: rgba(6, 182, 212, 0.4);
-  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(8, 47, 73, 0.35));
-}
-.mn-category-square-card.mn-sq-coding:hover {
-  box-shadow: 0 16px 40px rgba(6, 182, 212, 0.35), inset 0 0 20px rgba(6, 182, 212, 0.2);
-  border-color: #06B6D4 !important;
+.mn-sq-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--mn-fg);
+  line-height: 1.35;
+  word-break: break-word;
 }
 
-.mn-category-square-card.mn-sq-personal {
-  border-color: rgba(236, 72, 153, 0.4);
-  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(88, 28, 135, 0.35));
-}
-.mn-category-square-card.mn-sq-personal:hover {
-  box-shadow: 0 16px 40px rgba(236, 72, 153, 0.35), inset 0 0 20px rgba(236, 72, 153, 0.2);
-  border-color: #EC4899 !important;
-}
-
-.mn-category-square-card.mn-sq-health {
-  border-color: rgba(16, 185, 129, 0.4);
-  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(4, 120, 87, 0.35));
-}
-.mn-category-square-card.mn-sq-health:hover {
-  box-shadow: 0 16px 40px rgba(16, 185, 129, 0.35), inset 0 0 20px rgba(16, 185, 129, 0.2);
-  border-color: #10B981 !important;
-}
-
-.mn-category-square-card.mn-sq-relationships {
-  border-color: rgba(244, 63, 94, 0.4);
-  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(159, 18, 57, 0.35));
-}
-.mn-category-square-card.mn-sq-relationships:hover {
-  box-shadow: 0 16px 40px rgba(244, 63, 94, 0.35), inset 0 0 20px rgba(244, 63, 94, 0.2);
-  border-color: #F43F5E !important;
-}
-
-.mn-category-square-card.mn-sq-research {
-  border-color: rgba(245, 158, 11, 0.4);
-  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(69, 26, 3, 0.35));
-}
-.mn-category-square-card.mn-sq-research:hover {
-  box-shadow: 0 16px 40px rgba(245, 158, 11, 0.35), inset 0 0 20px rgba(245, 158, 11, 0.2);
-  border-color: #F59E0B !important;
-}
-
-.mn-category-square-card.mn-sq-general {
-  border-color: rgba(99, 102, 241, 0.4);
-  background: linear-gradient(135deg, rgba(6, 6, 10, 0.92), rgba(49, 46, 129, 0.35));
-}
-.mn-category-square-card.mn-sq-general:hover {
-  box-shadow: 0 16px 40px rgba(99, 102, 241, 0.35), inset 0 0 20px rgba(99, 102, 241, 0.2);
-  border-color: #6366F1 !important;
+.mn-sq-count {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #F8FAFC;
+  align-self: flex-start;
 }
 
 .mn-sq-icon {
@@ -2439,12 +2400,12 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       detailsHTML =
         '<div class="mn-card-details-panel" onclick="event.stopPropagation()">' +
         '<div class="mn-details-sec">' +
-        '<span class="mn-details-lbl">📝 Full Memory Content:</span>' +
+        '<span class="mn-details-lbl">Full Memory Content:</span>' +
         '<div class="mn-details-txt">' + esc(m.text) + '</div>' +
         '</div>' +
 
         '<div class="mn-details-sec">' +
-        '<span class="mn-details-lbl">🔗 Source Chat Link:</span>' +
+        '<span class="mn-details-lbl">Source Chat Link:</span>' +
         '<a href="' + esc(chatUrl) + '" target="_blank" rel="noopener noreferrer" class="mn-chat-link">' + esc(chatUrl) + '</a>' +
         '</div>' +
 
@@ -2485,10 +2446,10 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       '<input type="checkbox" class="mn-card-select-cb" data-id="' + m.id + '" ' + (isSelected ? 'checked' : '') + ' title="Select for Merge &amp; Synthesize" />' +
       '<span class="mn-cat-badge mn-cat-badge-' + cat + '">' + cat + '</span>' +
       '</div>' +
-      (cat === 'coding' ? '<button class="mn-copy-snippet-btn" data-id="' + m.id + '" data-act="copy-snippet" title="Copy code snippet">📋 Copy Snippet</button>' : '') +
+      (cat === 'coding' ? '<button class="mn-copy-snippet-btn" data-id="' + m.id + '" data-act="copy-snippet" title="Copy code snippet">Copy Snippet</button>' : '') +
       '</div>' +
       contentHTML +
-      (cat === 'research' && domainTag ? '<div class="mn-citation-tag">🌐 Citation: ' + esc(domainTag) + '</div>' : '') +
+      (cat === 'research' && domainTag ? '<div class="mn-citation-tag">Citation: ' + esc(domainTag) + '</div>' : '') +
       '<div class="mn-card-meta-bar" style="margin-top:8px">' +
       '<span class="mn-card-time">' + timeAgo(m.keptAt || m.timestamp) + (isDetailsOpen ? ' ▲ Hide' : ' ▼ Details') + '</span>' +
       '<div class="mn-card-acts" onclick="event.stopPropagation()">' +
@@ -2521,13 +2482,13 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     }
 
     const categoriesMap = {
-      work:          { title: 'Work & Projects',       icon: '💼', items: [], class: 'mn-sq-work' },
-      coding:        { title: 'Coding & Tech',          icon: '💻', items: [], class: 'mn-sq-coding' },
-      personal:      { title: 'Personal & Profile',     icon: '💬', items: [], class: 'mn-sq-personal' },
-      health:        { title: 'Health & Wellbeing',     icon: '🩺', items: [], class: 'mn-sq-health' },
-      relationships: { title: 'Relationships & Family', icon: '❤️', items: [], class: 'mn-sq-relationships' },
-      research:      { title: 'Research & Knowledge',   icon: '📚', items: [], class: 'mn-sq-research' },
-      general:       { title: 'General Vault',          icon: '📌', items: [], class: 'mn-sq-general' }
+      work:          { title: 'Work & Projects',       items: [], class: 'mn-sq-work' },
+      coding:        { title: 'Coding & Tech',          items: [], class: 'mn-sq-coding' },
+      personal:      { title: 'Personal & Profile',     items: [], class: 'mn-sq-personal' },
+      health:        { title: 'Health & Wellbeing',     items: [], class: 'mn-sq-health' },
+      relationships: { title: 'Relationships & Family', items: [], class: 'mn-sq-relationships' },
+      research:      { title: 'Research & Knowledge',   items: [], class: 'mn-sq-research' },
+      general:       { title: 'General Vault',          items: [], class: 'mn-sq-general' }
     };
 
     memories.forEach((m) => {
@@ -2548,7 +2509,6 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
         const count = bucket.items.length;
         return (
           '<div class="mn-category-square-card ' + bucket.class + '" data-cat="' + catKey + '">' +
-          '<div class="mn-sq-icon">' + bucket.icon + '</div>' +
           '<div class="mn-sq-title">' + bucket.title + '</div>' +
           '<div class="mn-sq-count">' + count + ' item' + (count === 1 ? '' : 's') + '</div>' +
           '</div>'
@@ -2558,7 +2518,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       p.innerHTML =
         '<div class="mn-scrapbook-container">' +
         '<div class="mn-mem-scope-badge mn-mem-scope-' + panelType + '">' +
-        (panelType === 'global' ? '🌐 Global Memory — Applies everywhere' : '📍 Current Session — <strong>' + location.hostname + '</strong>') +
+        (panelType === 'global' ? 'Global Memory — Applies everywhere' : 'Current Session — <strong>' + location.hostname + '</strong>') +
         '</div>' +
         '<div class="mn-square-categories-grid">' + squareCardsHTML + '</div>' +
         '</div>';
