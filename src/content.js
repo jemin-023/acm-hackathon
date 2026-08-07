@@ -23,7 +23,7 @@
      ═══════════════════════════ */
   const state = {
     drawerOpen: false,
-    activeTab: 'noticed',
+    activeTab: 'noticed', // 'noticed' | 'global-memory' | 'local-memory'
     collectionEnabled: true,
     soundEnabled: true, // Accessibility-First Memory Sonification (#27)
     gravityOpen: false, // Semantic Gravity Canvas (#28)
@@ -414,7 +414,7 @@
 
 /* ── Drawer ── */
 .mn-dr {
-  position: fixed; top: 0; right: 0;
+  position: fixed !important; top: 0 !important; right: 0 !important;
   width: 480px; max-width: 95vw; height: 100vh; height: 100dvh;
   background: var(--mn-bg);
   border-left: 1px solid var(--mn-border);
@@ -422,26 +422,30 @@
   transition: transform .32s cubic-bezier(.32,.72,0,1);
   display: flex; flex-direction: column;
   z-index: 99998;
-  box-shadow: -16px 0 48px rgba(0,0,0,0.4);
+  box-shadow: -16px 0 48px rgba(0,0,0,0.5);
+  overflow: hidden;
 }
-.mn-dr.open { transform: translateX(0); }
+.mn-dr.open { transform: translateX(0) !important; }
 
 /* ── Drawer Header ── */
 .mn-hdr {
+  position: relative; z-index: 2;
   padding: 18px 22px;
-  background: var(--mn-bg-elevated);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--mn-border);
   display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
 }
 .mn-title {
+  position: relative; z-index: 2;
   font-size: 18px; font-weight: 700;
   color: var(--mn-fg);
   letter-spacing: -0.3px;
   display: flex; align-items: center; gap: 10px;
 }
 .mn-title svg { width: 24px; height: 24px; stroke: var(--mn-accent); stroke-width: 2; flex-shrink: 0; }
-.mn-hdr-r { display: flex; align-items: center; gap: 10px; }
+.mn-hdr-r { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px; }
 
 /* Lock tag */
 .mn-lock {
@@ -473,20 +477,23 @@
 
 /* ── Close ── */
 .mn-cls {
+  position: relative; z-index: 100; pointer-events: auto;
   width: 32px; height: 32px; border-radius: var(--mn-radius-sm);
   border: 1px solid var(--mn-border); background: transparent;
   color: var(--mn-fg-muted); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: all var(--mn-transition); outline: none; flex-shrink: 0;
 }
-.mn-cls svg { width: 18px; height: 18px; stroke-width: 2; stroke: var(--mn-fg-muted); }
+.mn-cls svg { width: 18px; height: 18px; stroke-width: 2; stroke: var(--mn-fg-muted); pointer-events: none; }
 .mn-cls:hover { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); }
 .mn-cls:hover svg { stroke: var(--mn-danger); }
 
 /* ── Tabs ── */
 .mn-tabs {
+  position: relative; z-index: 2;
   display: flex; padding: 0 22px;
-  background: var(--mn-bg-elevated);
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--mn-border);
   flex-shrink: 0; gap: 2px;
 }
@@ -504,8 +511,37 @@
 }
 .mn-tab-bar { display: none; }
 
+/* ── 3-Tab layout adjustments ── */
+.mn-tab { font-size: 12px; padding: 11px 4px; }
+
+/* ── Memory Scope Badges ── */
+.mn-mem-scope-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin-bottom: 10px;
+}
+.mn-mem-scope-global {
+  background: rgba(139, 92, 246, 0.15);
+  color: #A78BFA;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+.mn-mem-scope-local {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60A5FA;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
 /* ── Scrollable body ── */
-.mn-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
+.mn-body {
+  position: relative; z-index: 2;
+  flex: 1; overflow-y: auto; padding: 18px 20px;
+}
 .mn-body::-webkit-scrollbar { width: 6px; }
 .mn-body::-webkit-scrollbar-track { background: transparent; }
 .mn-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
@@ -631,8 +667,10 @@
 
 /* ── Footer ── */
 .mn-foot {
+  position: relative; z-index: 2;
   padding: 14px 18px;
-  background: var(--mn-bg-elevated);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--mn-border);
   flex-shrink: 0;
 }
@@ -1406,6 +1444,204 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     ui.ov = ov;
   }
 
+  /* ═══════════════════════════════════════
+     MOLTEN METAL WEBGL SHADER (#ReactBits)
+     ═══════════════════════════════════════ */
+  function createMoltenMetalCanvas(container, options = {}) {
+    if (!container) return null;
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:' + (options.opacity || 0.45) + ';z-index:0;display:block;';
+    container.insertBefore(canvas, container.firstChild);
+
+    let gl;
+    try {
+      gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false });
+    } catch (_) {}
+    if (!gl) return null;
+
+    const vsSource = `#version 300 es
+    in vec2 position;
+    void main() {
+      gl_Position = vec4(position, 0.0, 1.0);
+    }`;
+
+    const fsSource = `#version 300 es
+    precision highp float;
+    uniform vec2 iResolution;
+    uniform float iTime;
+    uniform float uSpeed;
+    uniform float uScale;
+    uniform float uDetail;
+    uniform float uGlow;
+    uniform float uCoreSize;
+    uniform float uSwirl;
+    uniform float uFold;
+    uniform float uBlackPoint;
+    uniform float uBrightness;
+    uniform float uColorMode;
+    uniform float uGrain;
+    uniform float uGrainIntensity;
+    uniform float uOpacity;
+    uniform vec2 uMouse;
+    uniform float uMouseStrength;
+    uniform bool uEnableMouse;
+    uniform vec3 uColor1;
+    uniform vec3 uColor2;
+    uniform vec3 uColor3;
+    out vec4 fragColor;
+
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+
+    void main() {
+      float time = iTime * uSpeed;
+      vec2 p = uScale * ((gl_FragCoord.xy - 0.5 * iResolution.xy) / iResolution.y) - 0.5;
+
+      vec2 drift = vec2(0.0);
+      if (uEnableMouse) {
+        drift = (uMouse - 0.5) * uMouseStrength * 2.0;
+      }
+      p += drift;
+
+      vec2 i = p;
+      float c = 0.0;
+      float r = length(p + vec2(sin(time), sin(time * 0.3 + 5.0)) * 0.5);
+      float d = length(p);
+      float rot = d + time + p.x * uSwirl;
+
+      float cosRot = cos(rot);
+      mat2 warp = mat2(cos(rot - sin(time / 5.0)), sin(rot), -sin(cosRot - time), cosRot) * uFold;
+      float glowCore = uGlow * uCoreSize;
+
+      for (float n = 0.0; n < 8.0; n++) {
+        if (n >= uDetail) break;
+        p *= warp;
+        float t = r - time / (n + 3.0);
+        i -= p + vec2(cos(t - i.x - r) + sin(t + i.y), sin(t - i.y) + cos(t + i.x) + r);
+        c += glowCore / length(vec2(sin(i.x + t), cos(i.y + t)));
+      }
+
+      c /= 6.0;
+
+      float intensity = max(c - uBlackPoint, 0.0) * uBrightness;
+
+      float g = clamp(intensity, 0.0, 1.0);
+
+      float mid = 0.5;
+      if (uColorMode > 1.5) {
+        mid = 0.65;
+      } else if (uColorMode > 0.5) {
+        mid = 0.35;
+      }
+
+      vec3 col = mix(uColor1, uColor2, smoothstep(0.0, mid, g));
+      col = mix(col, uColor3, smoothstep(mid, 1.0, g));
+
+      float a = g;
+      if (uGrain > 0.5) {
+        float gr = hash(gl_FragCoord.xy + iTime);
+        a += (gr - 0.5) * uGrainIntensity;
+      }
+      a = clamp(a, 0.0, 1.0) * uOpacity;
+      fragColor = vec4(col * a, a);
+    }`;
+
+    // Compile shaders & program
+    const vs = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vs, vsSource);
+    gl.compileShader(vs);
+
+    const fs = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fs, fsSource);
+    gl.compileShader(fs);
+
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    gl.useProgram(prog);
+
+    // Full-screen triangle buffer
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+
+    const posLoc = gl.getAttribLocation(prog, 'position');
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+    // Uniform locations
+    const uRes = gl.getUniformLocation(prog, 'iResolution');
+    const uTime = gl.getUniformLocation(prog, 'iTime');
+    const uSpeed = gl.getUniformLocation(prog, 'uSpeed');
+    const uScale = gl.getUniformLocation(prog, 'uScale');
+    const uDetail = gl.getUniformLocation(prog, 'uDetail');
+    const uGlow = gl.getUniformLocation(prog, 'uGlow');
+    const uCoreSize = gl.getUniformLocation(prog, 'uCoreSize');
+    const uSwirl = gl.getUniformLocation(prog, 'uSwirl');
+    const uFold = gl.getUniformLocation(prog, 'uFold');
+    const uBlackPoint = gl.getUniformLocation(prog, 'uBlackPoint');
+    const uBrightness = gl.getUniformLocation(prog, 'uBrightness');
+    const uColorMode = gl.getUniformLocation(prog, 'uColorMode');
+    const uGrain = gl.getUniformLocation(prog, 'uGrain');
+    const uGrainIntensity = gl.getUniformLocation(prog, 'uGrainIntensity');
+    const uOpacity = gl.getUniformLocation(prog, 'uOpacity');
+    const uColor1 = gl.getUniformLocation(prog, 'uColor1');
+    const uColor2 = gl.getUniformLocation(prog, 'uColor2');
+    const uColor3 = gl.getUniformLocation(prog, 'uColor3');
+
+    // Set uniform values
+    gl.uniform1f(uSpeed, options.speed || 0.35);
+    gl.uniform1f(uScale, options.scale || 4.0);
+    gl.uniform1f(uDetail, options.detail || 3.0);
+    gl.uniform1f(uGlow, options.glow || 1.6);
+    gl.uniform1f(uCoreSize, options.coreSize || 0.1);
+    gl.uniform1f(uSwirl, options.swirl || 1.0);
+    gl.uniform1f(uFold, options.fold || -0.2);
+    gl.uniform1f(uBlackPoint, options.blackPoint || 0.05);
+    gl.uniform1f(uBrightness, options.brightness || 1.3);
+    gl.uniform1f(uColorMode, 0.0);
+    gl.uniform1f(uGrain, 1.0);
+    gl.uniform1f(uGrainIntensity, 0.05);
+    gl.uniform1f(uOpacity, 1.0);
+
+    // Purple (#8B5CF6), Pink (#EC4899), Cyan (#06B6D4)
+    gl.uniform3f(uColor1, 0.54, 0.36, 0.96);
+    gl.uniform3f(uColor2, 0.92, 0.28, 0.60);
+    gl.uniform3f(uColor3, 0.02, 0.71, 0.83);
+
+    const resize = () => {
+      const w = container.clientWidth || 300;
+      const h = container.clientHeight || 80;
+      canvas.width = w;
+      canvas.height = h;
+      gl.viewport(0, 0, w, h);
+      gl.uniform2f(uRes, w, h);
+    };
+    window.addEventListener('resize', resize);
+    resize();
+
+    let raf = 0;
+    const startTime = performance.now();
+
+    const renderLoop = (t) => {
+      gl.uniform1f(uTime, (t - startTime) * 0.001);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      raf = requestAnimationFrame(renderLoop);
+    };
+    raf = requestAnimationFrame(renderLoop);
+
+    return {
+      canvas,
+      destroy() {
+        cancelAnimationFrame(raf);
+        window.removeEventListener('resize', resize);
+        try { canvas.remove(); } catch (_) {}
+      }
+    };
+  }
+
   /* ═══════════════════════════
      DRAWER
      ═══════════════════════════ */
@@ -1426,13 +1662,15 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
         </div>
       </div>
       <div class="mn-tabs">
-        <button class="mn-tab active" data-tab="noticed">Noticed</button>
-        <button class="mn-tab" data-tab="kept">Kept</button>
-        <div class="mn-tab-bar" style="left:0;width:50%"></div>
+        <button class="mn-tab active" data-tab="noticed">🔍 Noticed</button>
+        <button class="mn-tab" data-tab="global-memory">🌐 Global</button>
+        <button class="mn-tab" data-tab="local-memory">📍 Local</button>
+        <div class="mn-tab-bar" style="left:0;width:33.33%"></div>
       </div>
       <div class="mn-body">
         <div class="mn-pane active" data-pane="noticed"></div>
-        <div class="mn-pane" data-pane="kept"></div>
+        <div class="mn-pane" data-pane="global-memory"></div>
+        <div class="mn-pane" data-pane="local-memory"></div>
       </div>
       <div class="mn-foot">
         <div class="mn-trash-zone">${IC.close} Drag memory here to purge</div>
@@ -1464,14 +1702,24 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     root.appendChild(dr);
     ui.dr = dr;
 
+    // Attach MoltenMetal WebGL Shader Backdrop to Cover ENTIRE Extension Drawer
+    createMoltenMetalCanvas(dr, { opacity: 0.35, speed: 0.35, scale: 4.0 });
+
     // Toggle switch
     const tgl = dr.querySelector('.mn-tgl');
     tgl.addEventListener('change', () => {
       state.collectionEnabled = tgl.checked;
     });
 
-    // Close
-    dr.querySelector('.mn-cls').addEventListener('click', toggleDrawer);
+    // Close button
+    const closeBtn = dr.querySelector('.mn-cls');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleDrawer(false);
+      });
+    }
 
     // Sonification audio toggle (#27)
     const sndBtn = dr.querySelector('.mn-snd-btn');
@@ -1482,19 +1730,23 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       showToast(state.soundEnabled ? 'Sonification Audio Enabled 🔊' : 'Sonification Muted 🔇');
     });
 
-    // Tabs
+    // Tabs (3-panel: Noticed, Global Memory, Local Memory)
     const tabs = dr.querySelectorAll('.mn-tab');
     const bar = dr.querySelector('.mn-tab-bar');
+    const tabOrder = ['noticed', 'global-memory', 'local-memory'];
     tabs.forEach((tab) => {
       tab.addEventListener('click', () => {
         state.activeTab = tab.dataset.tab;
         tabs.forEach((t) => t.classList.remove('active'));
         tab.classList.add('active');
-        const idx = tab.dataset.tab === 'noticed' ? 0 : 1;
-        bar.style.left = idx * 50 + '%';
-        bar.style.width = '50%';
+        const idx = tabOrder.indexOf(tab.dataset.tab);
+        bar.style.left = (idx * 33.33) + '%';
+        bar.style.width = '33.33%';
         dr.querySelectorAll('.mn-pane').forEach((p) => p.classList.remove('active'));
         dr.querySelector('[data-pane="' + state.activeTab + '"]').classList.add('active');
+        if (state.activeTab === 'global-memory') renderGlobalMemory();
+        else if (state.activeTab === 'local-memory') renderLocalMemory();
+        else renderNoticed();
       });
     });
 
@@ -1536,7 +1788,9 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     });
 
     ui.noticed = dr.querySelector('[data-pane="noticed"]');
-    ui.kept = dr.querySelector('[data-pane="kept"]');
+    ui.kept = dr.querySelector('[data-pane="global-memory"]');  // kept pane is now global-memory
+    ui.globalMemory = dr.querySelector('[data-pane="global-memory"]');
+    ui.localMemory = dr.querySelector('[data-pane="local-memory"]');
     ui.rulesList = dr.querySelector('.mn-rules-list');
     ui.snapsList = dr.querySelector('.mn-snaps-list');
 
@@ -1662,10 +1916,14 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
   /* ═══════════════════════════════════════
      INTERACTIONS
      ═══════════════════════════════════════ */
-  function toggleDrawer() {
-    state.drawerOpen = !state.drawerOpen;
-    ui.dr.classList.toggle('open', state.drawerOpen);
-    ui.ov.classList.toggle('open', state.drawerOpen);
+  function toggleDrawer(forceState) {
+    if (typeof forceState === 'boolean') {
+      state.drawerOpen = forceState;
+    } else {
+      state.drawerOpen = !state.drawerOpen;
+    }
+    if (ui.dr) ui.dr.classList.toggle('open', state.drawerOpen);
+    if (ui.ov) ui.ov.classList.toggle('open', state.drawerOpen);
     if (ui.fab) ui.fab.classList.toggle('mn-fab-hidden', state.drawerOpen);
     if (state.drawerOpen) loadAll();
   }
@@ -1692,7 +1950,8 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
      ═══════════════════════════════════════ */
   function renderAll() {
     renderNoticed();
-    renderKept();
+    renderGlobalMemory();
+    renderLocalMemory();
     renderRulesPanel();
     updateBadge();
     updateMessageStatusIndicators();
@@ -2143,116 +2402,131 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     );
   }
 
-  let selectedCategoryCard = null; // null or 'coding' | 'personal' | 'research' | 'general'
+  // Separate state for Global and Local memory panels
+  let selectedGlobalCategoryCard = null;
+  let selectedLocalCategoryCard = null;
 
-  function renderKept() {
-    const p = ui.kept;
+  // Shared helper: render Memory panel (Global or Local)
+  function renderMemoryPanel(p, memories, panelType) {
     if (!p) return;
-    if (state.kept.length === 0) {
+    if (memories.length === 0) {
       p.innerHTML =
         '<div class="mn-empty">' +
         IC.vault +
-        '<div class="mn-empty-t">No kept memories</div>' +
-        '<div class="mn-empty-s">Select text on the page and click "Save to Memory", or keep noticed items from the other tab.</div>' +
-        '</div>';
+        '<div class="mn-empty-t">No ' + (panelType === 'global' ? 'Global' : 'Local') + ' memories yet</div>' +
+        '<div class="mn-empty-s">' +
+        (panelType === 'global'
+          ? 'Memories stored without a domain restriction appear here. They apply across all sites.'
+          : 'Memories scoped to <strong>' + location.hostname + '</strong> appear here.') +
+        '</div></div>';
       return;
     }
 
-    // Group memories by classification category
     const categoriesMap = {
-      coding: { title: 'Coding Snippets', icon: '💻', items: [], class: 'mn-sq-coding' },
-      personal: { title: 'Personal Info', icon: '💬', items: [], class: 'mn-sq-personal' },
-      research: { title: 'Research & Links', icon: '📚', items: [], class: 'mn-sq-research' },
-      general: { title: 'General Vault', icon: '📌', items: [], class: 'mn-sq-general' }
+      coding:   { title: 'Coding Snippets', icon: '💻', items: [], class: 'mn-sq-coding' },
+      personal: { title: 'Personal Info',   icon: '💬', items: [], class: 'mn-sq-personal' },
+      research: { title: 'Research & Links',icon: '📚', items: [], class: 'mn-sq-research' },
+      general:  { title: 'General Vault',   icon: '📌', items: [], class: 'mn-sq-general' }
     };
 
-    state.kept.forEach((m) => {
+    memories.forEach((m) => {
       const cat = getMemoryCategory(m.text);
-      if (categoriesMap[cat]) {
-        categoriesMap[cat].items.push(m);
-      } else {
-        categoriesMap.general.items.push(m);
-      }
+      (categoriesMap[cat] || categoriesMap.general).items.push(m);
     });
 
-    // ── VIEW 1: 4 Square Category Cards Overview Grid ──
-    if (!selectedCategoryCard) {
-      const squareCardsHTML = Object.keys(categoriesMap)
-        .map((catKey) => {
-          const bucket = categoriesMap[catKey];
-          const count = bucket.items.length;
+    const selectedCard = panelType === 'global' ? selectedGlobalCategoryCard : selectedLocalCategoryCard;
+    const setSelectedCard = (v) => {
+      if (panelType === 'global') selectedGlobalCategoryCard = v;
+      else selectedLocalCategoryCard = v;
+    };
 
-          return (
-            '<div class="mn-category-square-card ' + bucket.class + '" data-cat="' + catKey + '">' +
-            '<div class="mn-sq-icon">' + bucket.icon + '</div>' +
-            '<div class="mn-sq-title">' + bucket.title + '</div>' +
-            '<div class="mn-sq-count">' + count + ' item' + (count === 1 ? '' : 's') + '</div>' +
-            '</div>'
-          );
-        })
-        .join('');
+    // ── VIEW 1: Square Category Cards Grid ──
+    if (!selectedCard) {
+      const squareCardsHTML = Object.keys(categoriesMap).map((catKey) => {
+        const bucket = categoriesMap[catKey];
+        const count = bucket.items.length;
+        return (
+          '<div class="mn-category-square-card ' + bucket.class + '" data-cat="' + catKey + '">' +
+          '<div class="mn-sq-icon">' + bucket.icon + '</div>' +
+          '<div class="mn-sq-title">' + bucket.title + '</div>' +
+          '<div class="mn-sq-count">' + count + ' item' + (count === 1 ? '' : 's') + '</div>' +
+          '</div>'
+        );
+      }).join('');
 
       p.innerHTML =
         '<div class="mn-scrapbook-container">' +
-        '<div style="font-size:12px;font-weight:700;color:var(--mn-fg-muted);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">📁 Memory Classifications</div>' +
-        '<div class="mn-square-categories-grid">' +
-        squareCardsHTML +
+        '<div class="mn-mem-scope-badge mn-mem-scope-' + panelType + '">' +
+        (panelType === 'global' ? '🌐 Global Memory — Applies everywhere' : '📍 Local Memory — <strong>' + location.hostname + '</strong> only') +
         '</div>' +
+        '<div class="mn-square-categories-grid">' + squareCardsHTML + '</div>' +
         '</div>';
 
-      // Attach click events on 4 Square Cards to drill down
       p.querySelectorAll('.mn-category-square-card').forEach((sqCard) => {
         sqCard.addEventListener('click', () => {
-          selectedCategoryCard = sqCard.dataset.cat;
-          renderKept();
+          setSelectedCard(sqCard.dataset.cat);
+          renderMemoryPanel(p, memories, panelType);
         });
       });
       return;
     }
 
-    // ── VIEW 2: Detailed Memories inside Selected Category Card ──
-    const activeCategory = categoriesMap[selectedCategoryCard] || categoriesMap.general;
+    // ── VIEW 2: Drill-down into selected category ──
+    const activeCategory = categoriesMap[selectedCard] || categoriesMap.general;
     const activeItems = activeCategory.items;
     const count = activeItems.length;
-    const cardsInBucket = activeItems.map((m) => renderSingleScrapbookCardHTML(m, selectedCategoryCard)).join('');
+    const cardsInBucket = activeItems.map((m) => renderSingleScrapbookCardHTML(m, selectedCard)).join('');
 
-    // Floating Action Bar for Merge & Synthesize
     let synthBarHTML = '';
     if (selectedKeptIds.size >= 2) {
       synthBarHTML =
         '<div class="mn-synthesize-bar">' +
-        '<div style="font-size:12px;font-weight:600;color:#F8FAFC">' +
-        '<span>✨ ' + selectedKeptIds.size + ' memories selected</span>' +
-        '</div>' +
+        '<div style="font-size:12px;font-weight:600;color:#F8FAFC">✨ ' + selectedKeptIds.size + ' memories selected</div>' +
         '<div style="display:flex;gap:6px">' +
         '<button class="mn-synth-btn" data-act="merge-synthesize">Merge & Synthesize ✨</button>' +
         '<button class="mn-btn mn-btn-d" data-act="clear-selected">Clear</button>' +
-        '</div>' +
-        '</div>';
+        '</div></div>';
     }
 
     p.innerHTML =
       '<div class="mn-scrapbook-container">' +
-      '<button class="mn-sq-back-btn" data-act="back-to-categories">← Back to Category Folders</button>' +
+      '<div class="mn-mem-scope-badge mn-mem-scope-' + panelType + '" style="margin-bottom:8px">' +
+      (panelType === 'global' ? '🌐 Global Memory' : '📍 Local — ' + location.hostname) +
+      '</div>' +
+      '<button class="mn-sq-back-btn" data-act="back-to-categories">← Back to Categories</button>' +
       '<div class="mn-bucket-hdr">' +
       '<div class="mn-bucket-title">' +
       '<span>' + activeCategory.icon + ' ' + activeCategory.title + '</span>' +
       '<span class="mn-bucket-count-badge">' + count + ' item' + (count === 1 ? '' : 's') + '</span>' +
       '</div>' +
-      (selectedCategoryCard === 'coding' && count > 0 ? '<button class="mn-copy-snippet-btn" data-act="copy-all-coding" title="Copy all coding snippets">📋 Copy All Code</button>' : '') +
+      (selectedCard === 'coding' && count > 0 ? '<button class="mn-copy-snippet-btn" data-act="copy-all-coding">📋 Copy All Code</button>' : '') +
       '</div>' +
       (count === 0
-        ? '<div class="mn-empty" style="padding:30px 0"><div class="mn-empty-t">No memories in this category yet</div><div class="mn-empty-s">Save new memories to auto-populate this category folder.</div></div>'
+        ? '<div class="mn-empty" style="padding:30px 0"><div class="mn-empty-t">No memories in this category yet</div></div>'
         : '<div class="mn-scrapbook-grid">' + cardsInBucket + '</div>') +
       synthBarHTML +
       '</div>';
 
-    // Back to Category Folders button
+    // Back button
     const backBtn = p.querySelector('[data-act="back-to-categories"]');
     if (backBtn) {
       backBtn.addEventListener('click', () => {
-        selectedCategoryCard = null;
-        renderKept();
+        setSelectedCard(null);
+        renderMemoryPanel(p, memories, panelType);
+      });
+    }
+
+    // Copy all coding snippets
+    const copyAllBtn = p.querySelector('[data-act="copy-all-coding"]');
+    if (copyAllBtn) {
+      copyAllBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const codingTexts = activeCategory.items.map((m) => m.text).join('\n\n// ─── Snippet ───\n');
+        if (codingTexts) {
+          navigator.clipboard.writeText(codingTexts);
+          showToast('All coding snippets copied to clipboard 📋');
+          playMemoryTone('capture');
+        }
       });
     }
 
@@ -2264,7 +2538,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
         const id = cb.dataset.id;
         if (cb.checked) selectedKeptIds.add(id);
         else selectedKeptIds.delete(id);
-        renderKept();
+        renderMemoryPanel(p, memories, panelType);
       });
     });
 
@@ -2281,35 +2555,21 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       });
     });
 
-    // Merge & Synthesize action
+    // Merge & Synthesize
     const synthBtn = p.querySelector('[data-act="merge-synthesize"]');
     if (synthBtn) {
       synthBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const selectedMems = state.kept.filter((m) => selectedKeptIds.has(m.id));
         if (selectedMems.length < 2) return;
-
-        const synthText =
-          "Synthesized Context:\n" +
-          selectedMems.map((m, idx) => `[Item ${idx + 1} - ${getMemoryCategory(m.text).toUpperCase()}]: ${m.text.trim()}`).join("\n\n");
-
-        await addKept({
-          id: uid(),
-          text: synthText,
-          role: 'assistant',
-          source: location.hostname,
-          url: location.href,
-          timestamp: Date.now(),
-          keptAt: Date.now(),
-        });
-
-        // Sync to Claude chat input
+        const synthText = 'Synthesized Context:\n' +
+          selectedMems.map((m, idx) => '[Item ' + (idx + 1) + ' - ' + getMemoryCategory(m.text).toUpperCase() + ']: ' + m.text.trim()).join('\n\n');
+        await addKept({ id: uid(), text: synthText, role: 'assistant', source: location.hostname, url: location.href, timestamp: Date.now(), keptAt: Date.now() });
         syncMemoryToClaude(synthText);
-
         selectedKeptIds.clear();
-        showToast('✨ Memories Merged & Synthesized into Kept Vault!');
+        showToast('✨ Memories Merged & Synthesized!');
         announceScreenReader('Memories merged and synthesized successfully');
-        renderKept();
+        renderAll();
       });
     }
 
@@ -2319,66 +2579,47 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       clearBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         selectedKeptIds.clear();
-        renderKept();
+        renderMemoryPanel(p, memories, panelType);
       });
     }
 
-    // Card click toggle details event
+    // Card click toggle details
     p.querySelectorAll('[data-act="toggle-card"]').forEach((card) => {
       card.addEventListener('click', () => {
         const id = card.dataset.id;
         if (openDetails.has(id)) openDetails.delete(id);
         else openDetails.add(id);
-        renderKept();
+        renderMemoryPanel(p, memories, panelType);
       });
     });
 
-    // Decay selector changes
+    // Decay selector
     p.querySelectorAll('.mn-decay-select').forEach((sel) => {
       sel.addEventListener('click', (e) => e.stopPropagation());
       sel.addEventListener('mousedown', (e) => e.stopPropagation());
       sel.addEventListener('change', (e) => {
         e.stopPropagation();
         const id = sel.dataset.id;
-        const newTier = sel.value;
         const item = state.kept.find((m) => m.id === id);
-        if (item) {
-          item.decayTier = newTier;
-          updateKept(id, { decayTier: newTier });
-        }
+        if (item) { item.decayTier = sel.value; updateKept(id, { decayTier: sel.value }); }
       });
     });
 
-    // Edit and Delete actions
+    // Edit / Delete / Save / Cancel / Revert actions
     p.querySelectorAll('[data-act="del"]').forEach((b) =>
-      b.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectedKeptIds.delete(b.dataset.id);
-        deleteKept(b.dataset.id);
-      })
+      b.addEventListener('click', (e) => { e.stopPropagation(); selectedKeptIds.delete(b.dataset.id); deleteKept(b.dataset.id); })
     );
     p.querySelectorAll('[data-act="edit"]').forEach((b) =>
-      b.addEventListener('click', (e) => {
-        e.stopPropagation();
-        activeEdits.add(b.dataset.id);
-        renderKept();
-      })
+      b.addEventListener('click', (e) => { e.stopPropagation(); activeEdits.add(b.dataset.id); renderMemoryPanel(p, memories, panelType); })
     );
     p.querySelectorAll('[data-act="cancel-edit"]').forEach((b) =>
-      b.addEventListener('click', (e) => {
-        e.stopPropagation();
-        activeEdits.delete(b.dataset.id);
-        renderKept();
-      })
+      b.addEventListener('click', (e) => { e.stopPropagation(); activeEdits.delete(b.dataset.id); renderMemoryPanel(p, memories, panelType); })
     );
     p.querySelectorAll('[data-act="save-edit"]').forEach((b) =>
       b.addEventListener('click', (e) => {
         e.stopPropagation();
         const area = p.querySelector('textarea[data-id="' + b.dataset.id + '"]');
-        if (area && area.value.trim()) {
-          activeEdits.delete(b.dataset.id);
-          updateKept(b.dataset.id, area.value.trim());
-        }
+        if (area && area.value.trim()) { activeEdits.delete(b.dataset.id); updateKept(b.dataset.id, area.value.trim()); }
       })
     );
     p.querySelectorAll('[data-act="revert"]').forEach((b) =>
@@ -2394,7 +2635,7 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       })
     );
 
-    // Attach drag handlers (#4 & #33 Tactile Viscous Friction & Micro-Boundaries)
+    // Drag handlers
     p.querySelectorAll('.mn-scrapbook-card').forEach((card) => {
       const id = card.dataset.id;
       const mem = state.kept.find((m) => m.id === id);
@@ -2403,28 +2644,54 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       card.addEventListener('dragstart', (e) => {
         const classif = classifyMemoryCandidate(mem.text);
         const isHighStakes = classif.sensitivity === 'high' || mem.scope === 'global';
-
         e.dataTransfer.setData('application/json', JSON.stringify({ id, origin: 'kept', text: mem.text }));
         e.dataTransfer.setData('text/plain', mem.text);
         card.classList.add('mn-card-dragging');
-
         if (isHighStakes) {
           card.classList.add('mn-viscous-friction');
           playMemoryTone('warning');
-          announceScreenReader('High sensitivity boundary drag initiated — tactile viscous friction active');
-          showToast('🧪 Viscous Friction: High-Stakes Micro-Boundary Drag (#33)');
+          showToast('🧪 Viscous Friction: High-Stakes Drag Active');
         }
-
-        if (ui.trashZone) ui.trashZone.classList.add('open');
       });
-
       card.addEventListener('dragend', () => {
-        card.classList.remove('mn-card-dragging');
-        card.classList.remove('mn-viscous-friction');
-        if (ui.trashZone) ui.trashZone.classList.remove('open');
+        card.classList.remove('mn-card-dragging', 'mn-viscous-friction');
       });
     });
   }
+
+  // Global Memory = memories with no domain scope OR explicitly global
+  function renderGlobalMemory() {
+    const currentDomain = location.hostname;
+    const globalMems = state.kept.filter((m) => {
+      if (m.scope === 'local') return false;
+      if (m.scope === 'global') return true;
+      // No explicit scope: treat as global if source doesn't match current domain
+      // OR if no source domain stored
+      return !m.source || m.source === '' || m.source !== currentDomain;
+    });
+    renderMemoryPanel(ui.globalMemory, globalMems, 'global');
+  }
+
+  // Local Memory = memories scoped to the current domain
+  function renderLocalMemory() {
+    const currentDomain = location.hostname;
+    const localMems = state.kept.filter((m) => {
+      if (m.scope === 'global') return false;
+      if (m.scope === 'local') return true;
+      // No explicit scope: show if source matches current domain
+      return m.source && m.source === currentDomain;
+    });
+    renderMemoryPanel(ui.localMemory, localMems, 'local');
+  }
+
+  // Keep renderKept as an alias for backward compatibility
+  function renderKept() {
+    renderGlobalMemory();
+    renderLocalMemory();
+  }
+
+  let selectedCategoryCard = null; // legacy — not used in new 3-panel layout
+
 
   /* ═══════════════════════════════════════
      PER-MESSAGE STATUS INDICATOR (#2) & AMBIENT CAPTURE PULSE (#15)
