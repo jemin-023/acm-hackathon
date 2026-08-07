@@ -334,12 +334,12 @@
 :host, * { box-sizing: border-box; margin: 0; padding: 0; }
 
 .mn {
-  /* ═══ Detached Glassmorphism — Sage & Silver ═══ */
-  --mn-bg: rgba(10, 12, 16, 0.62);
-  --mn-bg-card: rgba(255, 255, 255, 0.045);
-  --mn-bg-elevated: rgba(255, 255, 255, 0.08);
+  /* ═══ Liquid Glass — Sage & Silver ═══ */
+  --mn-bg: rgba(18, 20, 28, 0.38);
+  --mn-bg-card: rgba(255, 255, 255, 0.035);
+  --mn-bg-elevated: rgba(255, 255, 255, 0.065);
   --mn-fg: #E8ECF1;
-  --mn-fg-muted: #7B8794;
+  --mn-fg-muted: #8A9AAA;
   --mn-primary: rgba(120, 150, 130, 0.12);
   --mn-accent: #8FADA0;
   --mn-accent-hover: #A9C4B8;
@@ -347,18 +347,20 @@
   --mn-danger: #D97373;
   --mn-danger-hover: #C45858;
   --mn-warn: #D4A056;
-  --mn-border: rgba(255,255,255,0.05);
-  --mn-border-focus: rgba(255,255,255,0.12);
+  --mn-border: rgba(255,255,255,0.04);
+  --mn-border-focus: rgba(255,255,255,0.10);
   --mn-ring: rgba(143, 173, 160, 0.35);
   --mn-shadow: 0 8px 32px rgba(0,0,0,0.45);
   --mn-radius: 14px;
   --mn-radius-sm: 10px;
   --mn-radius-xs: 7px;
   --mn-transition: 200ms cubic-bezier(.4,0,.2,1);
-  --mn-glass: blur(40px) saturate(180%);
-  --mn-glass-light: blur(20px) saturate(150%);
-  --mn-inset-border: inset 0 0 0 1px rgba(255,255,255,0.07);
-  --mn-inset-border-hover: inset 0 0 0 1px rgba(255,255,255,0.13);
+  --mn-glass: blur(50px) saturate(190%) brightness(1.05);
+  --mn-glass-light: blur(24px) saturate(160%) brightness(1.03);
+  --mn-inset-border: inset 0 0.5px 0 0 rgba(255,255,255,0.12), inset 0 0 0 1px rgba(255,255,255,0.05);
+  --mn-inset-border-hover: inset 0 0.5px 0 0 rgba(255,255,255,0.2), inset 0 0 0 1px rgba(255,255,255,0.09);
+  --mn-specular: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 40%, transparent 60%, rgba(255,255,255,0.03) 100%);
+  --mn-specular-strong: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 35%, transparent 65%, rgba(255,255,255,0.05) 100%);
   --mn-sage: #8FADA0;
   --mn-sage-glow: rgba(143, 173, 160, 0.15);
   --mn-lavender: #A093C7;
@@ -385,18 +387,19 @@
   width: 54px; height: 54px; border-radius: 18px;
   border: none;
   background: var(--mn-bg);
+  background-image: var(--mn-specular);
   backdrop-filter: var(--mn-glass);
   -webkit-backdrop-filter: var(--mn-glass);
   color: var(--mn-fg); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.45), var(--mn-inset-border);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3), var(--mn-inset-border);
   transition: all var(--mn-transition);
   z-index: 99999; outline: none;
 }
 .mn-fab:hover {
   transform: translateY(-3px);
-  box-shadow: 0 14px 44px rgba(0,0,0,0.55), var(--mn-inset-border-hover), 0 0 20px var(--mn-sage-glow);
-  background: var(--mn-bg-elevated);
+  box-shadow: 0 14px 44px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.3), var(--mn-inset-border-hover), 0 0 24px var(--mn-sage-glow);
+  background-image: var(--mn-specular-strong);
 }
 .mn-fab:active { transform: translateY(0); box-shadow: 0 4px 16px rgba(0,0,0,0.3), var(--mn-inset-border); }
 .mn-fab svg { width: 24px; height: 24px; flex-shrink: 0; stroke: var(--mn-sage); stroke-width: 2; }
@@ -430,31 +433,36 @@
 }
 .mn-ov.open { opacity: 1; pointer-events: auto; }
 
-/* ── Drawer ── */
+/* ── Drawer — Liquid Glass Pane ── */
 .mn-dr {
   position: fixed !important; top: 16px !important; right: 16px !important;
   width: 460px; max-width: calc(100vw - 32px); height: calc(100vh - 32px); height: calc(100dvh - 32px);
   background: var(--mn-bg);
+  background-image: var(--mn-specular);
   backdrop-filter: var(--mn-glass);
   -webkit-backdrop-filter: var(--mn-glass);
   border: none;
   border-radius: 24px;
-  transform: translateX(calc(100% + 32px)) scale(0.97);
-  transition: transform .42s cubic-bezier(.22,.68,0,1.01), opacity .35s ease;
+  transform: translateX(calc(100% + 32px)) scale(0.96);
+  transition: transform .45s cubic-bezier(.22,.68,0,1.01), opacity .38s ease;
   display: flex; flex-direction: column;
   z-index: 99998;
-  box-shadow: 0 28px 56px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,255,255,0.06), var(--mn-inset-border);
+  box-shadow:
+    0 32px 64px rgba(0,0,0,0.6),
+    0 8px 20px rgba(0,0,0,0.35),
+    0 0 0 0.5px rgba(255,255,255,0.08),
+    var(--mn-inset-border);
   overflow: hidden;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 .mn-dr.open { transform: translateX(0) scale(1) !important; opacity: 1 !important; }
 
-/* ── Drawer Header ── */
+/* ── Drawer Header — lighter glass layer ── */
 .mn-hdr {
   position: relative; z-index: 2;
   padding: 20px 24px;
-  background: rgba(255, 255, 255, 0.025);
-  border-bottom: 1px solid var(--mn-border);
+  background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
   display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
 }
@@ -558,13 +566,13 @@
 .mn-cls:hover { background: var(--mn-rose-glow); box-shadow: var(--mn-inset-border-hover); }
 .mn-cls:hover svg { stroke: var(--mn-rose); }
 
-/* ── Tabs ── */
+/* ── Tabs — liquid glass inner layer ── */
 .mn-tabs {
   position: relative; z-index: 2;
   display: flex; padding: 0 24px;
-  background: rgba(255, 255, 255, 0.015);
+  background: rgba(255, 255, 255, 0.02);
   backdrop-filter: var(--mn-glass-light); -webkit-backdrop-filter: var(--mn-glass-light);
-  border-bottom: 1px solid var(--mn-border);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
   flex-shrink: 0; gap: 2px;
 }
 .mn-tab {
@@ -619,21 +627,23 @@
 .mn-pane { display: none; }
 .mn-pane.active { display: block; }
 
-/* ── Memory Card ── */
+/* ── Memory Card — Liquid glass nested layer ── */
 .mn-card {
   background: var(--mn-bg-card);
+  background-image: var(--mn-specular);
   border: none;
   border-radius: var(--mn-radius); padding: 16px 18px;
   margin-bottom: 12px;
   transition: all var(--mn-transition);
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.12), var(--mn-inset-border);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15), var(--mn-inset-border);
   backdrop-filter: var(--mn-glass-light);
   -webkit-backdrop-filter: var(--mn-glass-light);
 }
 .mn-card:hover {
   background: var(--mn-bg-elevated);
-  box-shadow: 0 8px 28px rgba(0,0,0,0.2), var(--mn-inset-border-hover);
+  background-image: var(--mn-specular-strong);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.25), var(--mn-inset-border-hover);
   transform: translateY(-1px);
 }
 .mn-card-title-row {
@@ -746,20 +756,22 @@
 /* ── Empty state ── */
 .mn-empty {
   text-align: center; padding: 44px 24px; color: var(--mn-fg-muted);
-  background: var(--mn-bg-card); border: none; border-radius: 18px;
+  background: var(--mn-bg-card);
+  background-image: var(--mn-specular);
+  border: none; border-radius: 18px;
   box-shadow: var(--mn-inset-border);
 }
 .mn-empty svg { margin-bottom: 14px; stroke-width: 1.5; stroke: var(--mn-fg-muted); opacity: 0.4; }
 .mn-empty-t { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--mn-fg); }
 .mn-empty-s { font-size: 12px; line-height: 1.6; color: var(--mn-fg-muted); font-weight: 400; }
 
-/* ── Footer ── */
+/* ── Footer — bottom glass layer ── */
 .mn-foot {
   position: relative; z-index: 2;
   padding: 14px 20px;
-  background: rgba(12, 14, 18, 0.4);
+  background: linear-gradient(0deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
   backdrop-filter: var(--mn-glass-light); -webkit-backdrop-filter: var(--mn-glass-light);
-  border-top: 1px solid var(--mn-border);
+  border-top: 1px solid rgba(255,255,255,0.04);
   flex-shrink: 0;
 }
 .mn-exp {
@@ -785,13 +797,14 @@
   padding: 8px 16px; border-radius: var(--mn-radius-sm);
   border: none;
   background: var(--mn-bg);
+  background-image: var(--mn-specular);
   backdrop-filter: var(--mn-glass);
   -webkit-backdrop-filter: var(--mn-glass);
   color: var(--mn-sage); font-size: 12px; font-weight: 600;
   cursor: pointer;
   display: none; align-items: center; gap: 6px;
   z-index: 99999;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.45), var(--mn-inset-border);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3), var(--mn-inset-border);
   transition: all var(--mn-transition);
   animation: mnUp .2s ease-out;
   font-family: 'Inter', sans-serif;
@@ -810,11 +823,12 @@
   position: fixed; bottom: 94px; right: 28px;
   padding: 10px 18px; border-radius: var(--mn-radius-sm);
   background: var(--mn-bg);
+  background-image: var(--mn-specular);
   backdrop-filter: var(--mn-glass);
   -webkit-backdrop-filter: var(--mn-glass);
   border: none;
   color: var(--mn-sage); font-size: 13px; font-weight: 600;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.45), var(--mn-inset-border);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3), var(--mn-inset-border);
   opacity: 0; transform: translateY(8px);
   transition: all .25s;
   pointer-events: none; z-index: 99999;
@@ -832,13 +846,14 @@
   position: fixed; top: 16px; right: 16px;
   width: 330px; max-width: calc(100vw - 32px);
   background: var(--mn-bg);
+  background-image: var(--mn-specular);
   backdrop-filter: var(--mn-glass);
   -webkit-backdrop-filter: var(--mn-glass);
   border: none;
   border-radius: 20px;
   padding: 18px;
   z-index: 99999;
-  box-shadow: 0 24px 48px rgba(0,0,0,0.5), var(--mn-inset-border);
+  box-shadow: 0 32px 64px rgba(0,0,0,0.6), 0 8px 20px rgba(0,0,0,0.35), var(--mn-inset-border);
   animation: mnSlideIn .32s cubic-bezier(.4,0,.2,1);
 }
 @keyframes mnSlideIn { from{opacity:0;transform:translateY(-12px)} to{opacity:1;transform:translateY(0)} }
