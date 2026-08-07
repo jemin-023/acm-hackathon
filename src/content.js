@@ -839,17 +839,58 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 .mn-grav-svg { overflow: visible; display: block; margin: 0 auto; }
 .mn-grav-legend { font-size: 10px; margin-top: 6px; display: flex; gap: 10px; justify-content: center; font-weight: 700; color: #000000; }
 
-/* ── Biomimetic Osmotic Membranes (#29) ── */
-.mn-membrane-ctrl-bar { display: flex; align-items: center; gap: 8px; font-size: 10px; color: #000000; font-weight: 800; margin-bottom: 8px; padding: 4px 8px; background: #B8EBFB; border-radius: 6px; border: 1.5px solid #000000; box-shadow: 1.5px 1.5px 0px #000000; }
-.mn-membrane-slider { flex: 1; accent-color: #000000; height: 4px; cursor: pointer; }
-.mn-membrane-val { font-weight: 800; min-width: 100px; text-align: right; }
+/* ── Top-Right Topological Mirror Widget (#30) ── */
+.mn-topo-trigger {
+  position: fixed; top: 18px; right: 24px;
+  padding: 8px 16px; border-radius: 10px;
+  border: 2.5px solid #000000;
+  background: #67E8F9;
+  color: #000000; font-family: 'Space Grotesk', sans-serif;
+  font-size: 12px; font-weight: 800;
+  cursor: pointer; transition: all .15s;
+  box-shadow: 3.5px 3.5px 0px #000000;
+  z-index: 99995; outline: none;
+}
+.mn-topo-trigger:hover {
+  background: #FFE600;
+  transform: translate(-1px, -1px);
+  box-shadow: 4.5px 4.5px 0px #000000;
+}
+.mn-topo-trigger.active {
+  background: #FF66E5;
+  box-shadow: 2px 2px 0px #000000;
+}
 
-/* ── Metacognitive Topological Mirror (#30) ── */
-.mn-topo-wrap { margin-bottom: 12px; padding: 10px; border-radius: 10px; background: #FFFFFF; border: 2.5px solid #000000; box-shadow: 3px 3px 0px #000000; }
-.mn-topo-hdr { font-size: 12px; font-weight: 800; color: #000000; margin-bottom: 2px; text-align: center; font-family: 'Space Grotesk', sans-serif; }
-.mn-topo-sub { font-size: 10px; color: #4B5563; text-align: center; margin-bottom: 6px; font-weight: 600; }
-.mn-topo-svg { overflow: visible; display: block; margin: 0 auto; }
-.mn-topo-sculpt-acts { display: flex; gap: 6px; justify-content: center; margin-top: 6px; }
+.mn-topo-card {
+  position: fixed; top: 62px; right: 24px;
+  width: 360px; max-width: calc(100vw - 32px);
+  background: #FFFFFF;
+  border: 3px solid #000000;
+  border-radius: 14px;
+  padding: 16px;
+  z-index: 99996;
+  box-shadow: 6px 6px 0px #000000;
+  animation: mnSlideIn .25s cubic-bezier(.4,0,.2,1);
+}
+.mn-topo-hdr-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.mn-topo-card-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px; font-weight: 800; color: #000000;
+}
+.mn-topo-cls {
+  width: 26px; height: 26px; border-radius: 6px;
+  border: 2px solid #000000; background: #FFFFFF;
+  color: #000000; font-weight: 800; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 2px 2px 0px #000000; transition: all .15s;
+}
+.mn-topo-cls:hover { background: #FF4D4D; }
+.mn-topo-sub { font-size: 11px; color: #374151; font-weight: 600; line-height: 1.5; margin-bottom: 10px; }
+.mn-topo-svg { overflow: visible; display: block; margin: 0 auto 10px auto; }
+.mn-topo-sculpt-acts { display: flex; gap: 8px; justify-content: center; }
 
 /* ── Spatial Scoping & Chapters (#16, #22) ── */
 .mn-filter-bar { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; }
@@ -902,6 +943,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     buildSelectionPopup(root);
     buildToast(root);
     buildDigestCard(root);
+    buildTopoWidget(root);
 
     loadAll();
 
@@ -916,6 +958,90 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     setupAutoNotice();
 
     console.log('[MemoNeg] Extension loaded on', location.hostname);
+  }
+
+  /* ═══════════════════════════
+     TOP-RIGHT TOPOLOGICAL MIRROR WIDGET (#30)
+     ═══════════════════════════ */
+  function buildTopoWidget(root) {
+    const btn = document.createElement('button');
+    btn.className = 'mn-topo-trigger';
+    btn.innerHTML = '🏔️ Topological Mirror';
+    btn.title = 'Metacognitive Topological Mirror Terrain (#30)';
+    btn.addEventListener('click', toggleTopoWidget);
+
+    const card = document.createElement('div');
+    card.className = 'mn-topo-card';
+    card.style.display = 'none';
+
+    root.appendChild(btn);
+    root.appendChild(card);
+
+    ui.topoBtn = btn;
+    ui.topoCard = card;
+  }
+
+  function toggleTopoWidget() {
+    state.topoOpen = !state.topoOpen;
+    if (ui.topoCard) {
+      ui.topoCard.style.display = state.topoOpen ? 'block' : 'none';
+      if (state.topoOpen) renderTopoWidgetContent();
+    }
+    if (ui.topoBtn) {
+      ui.topoBtn.classList.toggle('active', state.topoOpen);
+    }
+  }
+
+  function renderTopoWidgetContent() {
+    if (!ui.topoCard) return;
+    const chapters = ['Work & Tech', 'Personal', 'Finance & Health', 'General'];
+    const peaks = chapters.map((chap, idx) => {
+      const chapMems = state.kept.filter((m) => getChapterForMemory(m.text) === chap);
+      const avgHealth = chapMems.length ? chapMems.reduce((acc, m) => acc + calculateDecayHealth(m).health, 0) / chapMems.length : 0.2;
+      const height = Math.round(15 + avgHealth * 65);
+      const x = 40 + idx * 70;
+      const y = 115 - height;
+      return { chap, count: chapMems.length, avgHealth, height, x, y };
+    });
+
+    const points = peaks.map((p) => p.x + ',' + p.y).join(' ');
+    const areaPoints = '20,120 ' + points + ' 270,120';
+    const peaksHTML = peaks.map((p) =>
+      '<g class="mn-topo-peak" title="' + esc(p.chap) + ': ' + p.count + ' facts (' + Math.round(p.avgHealth * 100) + '% elevation)">' +
+      '<circle cx="' + p.x + '" cy="' + p.y + '" r="5" fill="#000000" />' +
+      '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" fill="#67E8F9" />' +
+      '<text x="' + p.x + '" y="' + (p.y - 8) + '" fill="#000000" font-size="9" text-anchor="middle" font-weight="bold">' + Math.round(p.avgHealth * 100) + '%</text>' +
+      '<text x="' + p.x + '" y="134" fill="#000000" font-size="8" font-weight="700" text-anchor="middle">' + esc(p.chap) + '</text>' +
+      '</g>'
+    ).join('');
+
+    const svgHTML =
+      '<svg class="mn-topo-svg" viewBox="0 0 300 145" width="100%" height="135">' +
+      '<polygon points="' + areaPoints + '" fill="rgba(103,232,249,0.35)" stroke="none"/>' +
+      '<polyline points="' + points + '" fill="none" stroke="#000000" stroke-width="2.5" />' +
+      '<line x1="20" y1="120" x2="280" y2="120" stroke="#000000" stroke-width="2" />' +
+      peaksHTML +
+      '</svg>';
+
+    ui.topoCard.innerHTML =
+      '<div class="mn-topo-hdr-bar">' +
+      '<span class="mn-topo-card-title">🏔️ Topological Mirror (#30)</span>' +
+      '<button class="mn-topo-cls" title="Close">✕</button>' +
+      '</div>' +
+      '<div class="mn-topo-sub">Heightfield elevation drives AI perception confidence across memory domains:</div>' +
+      svgHTML +
+      '<div class="mn-topo-sculpt-acts">' +
+      '<button class="mn-btn mn-btn-sim" data-act="sculpt-flatten">🔨 Flatten Peak (Erode)</button>' +
+      '<button class="mn-btn mn-btn-k" data-act="sculpt-raise">🏔️ Raise Peak (Boost)</button>' +
+      '</div>';
+
+    const clsBtn = ui.topoCard.querySelector('.mn-topo-cls');
+    if (clsBtn) clsBtn.onclick = toggleTopoWidget;
+
+    const flattenBtn = ui.topoCard.querySelector('[data-act="sculpt-flatten"]');
+    const raiseBtn = ui.topoCard.querySelector('[data-act="sculpt-raise"]');
+    if (flattenBtn) flattenBtn.onclick = () => { showToast('🔨 Terrain Eroded (Confidence Lowered)'); renderTopoWidgetContent(); };
+    if (raiseBtn) raiseBtn.onclick = () => { showToast('🏔️ Terrain Boosted (Confidence Raised)'); renderTopoWidgetContent(); };
   }
 
   /* ═══════════════════════════
@@ -1618,37 +1744,22 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       return;
     }
 
-    // Filter by Chapter (#22) and Scope (#16)
+    // Filter by Scope (#16)
     let filtered = state.kept.filter((m) => {
-      const chapter = getChapterForMemory(m.text);
       const scope = m.scope || 'global';
-      if (keptChapterFilter !== 'all' && chapter !== keptChapterFilter) return false;
       if (keptScopeFilter !== 'all' && scope !== keptScopeFilter) return false;
       return true;
     });
 
     const filterBarHTML =
       '<div class="mn-filter-bar">' +
-      '<button class="mn-filter-pill ' + (keptChapterFilter === 'all' ? 'active' : '') + '" data-chap="all">All Chapters</button>' +
-      '<button class="mn-filter-pill ' + (keptChapterFilter === 'Work & Tech' ? 'active' : '') + '" data-chap="Work & Tech">💻 Work & Tech</button>' +
-      '<button class="mn-filter-pill ' + (keptChapterFilter === 'Personal' ? 'active' : '') + '" data-chap="Personal">👤 Personal</button>' +
-      '<button class="mn-filter-pill ' + (keptChapterFilter === 'Finance & Health' ? 'active' : '') + '" data-chap="Finance & Health">🔒 Finance & Health</button>' +
-      '</div>' +
-      '<div class="mn-filter-bar">' +
       '<button class="mn-filter-pill ' + (keptScopeFilter === 'all' ? 'active' : '') + '" data-sc="all">All Scopes</button>' +
       '<button class="mn-filter-pill ' + (keptScopeFilter === 'global' ? 'active' : '') + '" data-sc="global">🌐 Global Core</button>' +
       '<button class="mn-filter-pill ' + (keptScopeFilter === 'domain' ? 'active' : '') + '" data-sc="domain">📌 Domain Scoped</button>' +
       '<button class="mn-filter-pill ' + (keptScopeFilter === 'session' ? 'active' : '') + '" data-sc="session">⏱️ Session Ephemeral</button>' +
       '<button class="mn-filter-pill ' + (state.gravityOpen ? 'active' : '') + '" data-act="tog-grav">🪐 Gravity Canvas (#28)</button>' +
-      '<button class="mn-filter-pill ' + (state.topoOpen ? 'active' : '') + '" data-act="tog-topo">🏔️ Topological Mirror (#30)</button>' +
       '</div>' +
-      '<div class="mn-membrane-ctrl-bar">' +
-      '<span title="Biomimetic Osmotic Lipid Bilayer Permeability (#29)">🧪 Osmotic Membrane:</span>' +
-      '<input type="range" class="mn-membrane-slider" min="0" max="100" value="' + (state.membranePermeability || 50) + '" />' +
-      '<span class="mn-membrane-val">' + (state.membranePermeability || 50) + '% ' + ((state.membranePermeability || 50) < 30 ? '🔒 Impermeable' : (state.membranePermeability || 50) > 70 ? '🌊 Fluid Diffusion' : '⚖️ Semi-Permeable') + '</span>' +
-      '</div>' +
-      (state.gravityOpen ? renderSemanticGravityCanvas(filtered) : '') +
-      (state.topoOpen ? renderTopologicalMirror(filtered) : '');
+      (state.gravityOpen ? renderSemanticGravityCanvas(filtered) : '');
 
     const cardsHTML = filtered
       .map((m) => {
@@ -1774,44 +1885,17 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       })
       .join('');
 
-    p.innerHTML = filterBarHTML + (cardsHTML || '<div class="mn-empty-s" style="text-align:center;padding:20px;color:#6e6e86">No memories match the selected chapter/scope filters.</div>');
+    p.innerHTML = filterBarHTML + (cardsHTML || '<div class="mn-empty-s" style="text-align:center;padding:20px;color:#6e6e86">No memories match the selected scope filters.</div>');
 
     // Filter pill events
-    p.querySelectorAll('[data-chap]').forEach((b) =>
-      b.addEventListener('click', () => { keptChapterFilter = b.dataset.chap; renderKept(); })
-    );
     p.querySelectorAll('[data-sc]').forEach((b) =>
       b.addEventListener('click', () => { keptScopeFilter = b.dataset.sc; renderKept(); })
     );
-    const topoBtn = p.querySelector('[data-act="tog-topo"]');
-    if (topoBtn) {
-      topoBtn.addEventListener('click', () => {
-        state.topoOpen = !state.topoOpen;
-        renderKept();
-      });
-    }
-    const flatBtn = p.querySelector('[data-act="sculpt-flatten"]');
-    if (flatBtn) {
-      flatBtn.addEventListener('click', () => {
-        state.kept.forEach((m) => { m.decayTier = '24h'; });
-        renderKept();
-        playMemoryTone('warning');
-        showToast('🔨 Terrain Peak Flattened: Perception decay accelerated to 24h ✓');
-      });
-    }
-    const raiseBtn = p.querySelector('[data-act="sculpt-raise"]');
-    if (raiseBtn) {
-      raiseBtn.addEventListener('click', () => {
-        state.kept.forEach((m) => { m.decayTier = 'never'; });
-        renderKept();
-        playMemoryTone('scope');
-        showToast('🏔️ Terrain Peak Raised: Perception confidence boosted to Never Decay ✓');
-      });
-    }
-    const membSlider = p.querySelector('.mn-membrane-slider');
-    if (membSlider) {
-      membSlider.addEventListener('input', (e) => {
-        state.membranePermeability = parseInt(e.target.value, 10);
+
+    const gravBtn = p.querySelector('[data-act="tog-grav"]');
+    if (gravBtn) {
+      gravBtn.addEventListener('click', () => {
+        state.gravityOpen = !state.gravityOpen;
         renderKept();
       });
     }
