@@ -2563,6 +2563,57 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
   }
 
   /* ═══════════════════════════════════════
+     LOCAL LLM INFERENCE STREAMING API
+     ═══════════════════════════════════════ */
+  window.MemoNegInference = {
+    streamCompletion(prompt, options = {}) {
+      const { onToken, onComplete, onError, maxNewTokens = 64 } = options;
+      try {
+        if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.connect) {
+          throw new Error('Chrome extension runtime port context unavailable.');
+        }
+
+        const port = chrome.runtime.connect({ name: 'memoneg-inference' });
+
+        port.onMessage.addListener((msg) => {
+          if (msg.type === 'TOKEN') {
+            if (onToken) onToken(msg.token, msg.textSoFar);
+          } else if (msg.type === 'COMPLETE') {
+            if (onComplete) onComplete(msg.text, msg.metrics);
+            try { port.disconnect(); } catch (_) {}
+          } else if (msg.type === 'ERROR') {
+            console.error('[MemoNeg LLM Error]:', msg.error);
+            if (onError) onError(new Error(msg.error));
+            try { port.disconnect(); } catch (_) {}
+          }
+        });
+
+        port.onDisconnect.addListener(() => {
+          const err = chrome.runtime.lastError;
+          if (err) {
+            console.warn('[MemoNeg LLM Port Disconnected]:', err.message);
+          }
+        });
+
+        port.postMessage({
+          type: 'GENERATE',
+          prompt,
+          maxNewTokens,
+        });
+
+        return port;
+      } catch (err) {
+        console.error('[MemoNeg LLM Stream Error]:', err);
+        if (onError) onError(err);
+      }
+    },
+
+    getStatus(callback) {
+      send({ type: 'GET_MODEL_STATUS' }).then(callback);
+    }
+  };
+
+  /* ═══════════════════════════════════════
      BOOT
      ═══════════════════════════════════════ */
   if (document.readyState === 'loading') {

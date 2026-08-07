@@ -1,8 +1,39 @@
 /*  ═══════════════════════════════════════════════════════
     MemoNeg — Background Service Worker
-    Handles storage CRUD (chrome.storage.local / session)
-    and message routing for content scripts.
+    Handles storage CRUD (chrome.storage.local / session),
+    offscreen ONNX document lifecycle, and message routing.
     ═══════════════════════════════════════════════════════ */
+
+let creatingOffscreen = null;
+
+async function ensureOffscreenDocument() {
+  const offscreenUrl = chrome.runtime.getURL('src/offscreen/offscreen.html');
+  try {
+    const existingContexts = await chrome.runtime.getContexts({
+      contextTypes: ['OFFSCREEN_DOCUMENT'],
+      documentUrls: [offscreenUrl],
+    });
+
+    if (existingContexts.length > 0) return;
+
+    if (creatingOffscreen) {
+      await creatingOffscreen;
+    } else {
+      creatingOffscreen = chrome.offscreen.createDocument({
+        url: offscreenUrl,
+        reasons: ['WORKERS'],
+        justification: 'Run local INT4 ONNX LLM inference for memory negotiation',
+      });
+      await creatingOffscreen;
+      creatingOffscreen = null;
+    }
+  } catch (err) {
+    console.error('[MemoNeg Background] Failed to create offscreen document:', err);
+  }
+}
+
+// Auto-spawn offscreen document on SW start
+ensureOffscreenDocument();
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get('memoneg_kept', (r) => {
@@ -10,11 +41,19 @@ chrome.runtime.onInstalled.addListener(() => {
   });
   chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS' });
   chrome.storage.session.set({ memoneg_noticed: [] });
+  ensureOffscreenDocument();
 });
 
 // Also init session storage on service worker startup (survives restarts)
 chrome.runtime.onStartup.addListener(() => {
   chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS' });
+  ensureOffscreenDocument();
+});
+
+chrome.runtime.onConnect.addListener(async (port) => {
+  if (port.name === 'memoneg-inference') {
+    await ensureOffscreenDocument();
+  }
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {

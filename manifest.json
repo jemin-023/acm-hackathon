@@ -3,7 +3,7 @@
   "name": "MemoNeg — AI Memory Negotiator",
   "version": "0.1.0",
   "description": "Privacy-first, local-first AI memory negotiation and consent layer for Claude.ai",
-  "permissions": ["storage"],
+  "permissions": ["storage", "offscreen"],
   "content_scripts": [
     {
       "matches": [
@@ -15,5 +15,15 @@
   ],
   "background": {
     "service_worker": "src/background.js"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "memoneg-270m-int4.onnx",
+        "memoneg-270m-finetuned/*",
+        "src/lib/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

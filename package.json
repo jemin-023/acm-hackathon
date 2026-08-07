@@ -4,6 +4,12 @@
   "description": "MemoNeg — Privacy-first AI memory negotiation browser extension",
   "private": true,
   "scripts": {
-    "lint": "echo 'No linter configured yet'"
+    "lint": "echo 'No linter configured yet'",
+    "copy-libs": "mkdir -p src/lib && cp node_modules/onnxruntime-web/dist/ort.all.min.js src/lib/ && cp node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded*.wasm src/lib/ && cp node_modules/@huggingface/transformers/dist/transformers.min.js src/lib/",
+    "postinstall": "npm run copy-libs"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
+    "onnxruntime-web": "^1.27.0"
   }
 }
