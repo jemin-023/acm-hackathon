@@ -242,8 +242,9 @@
     showToast('Memory deleted');
   }
 
-  async function updateKept(id, text) {
-    const r = await send({ type: 'UPDATE_KEPT', id, text });
+  async function updateKept(id, updates) {
+    const payload = typeof updates === 'string' ? { id, text: updates } : { id, ...updates };
+    const r = await send({ type: 'UPDATE_KEPT', ...payload });
     state.kept = r?.kept || [];
     renderAll();
     playMemoryTone('scope');
@@ -1927,10 +1928,11 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       sel.addEventListener('change', (e) => {
         e.stopPropagation();
         const id = sel.dataset.id;
+        const newTier = sel.value;
         const item = state.kept.find((m) => m.id === id);
         if (item) {
-          item.decayTier = sel.value;
-          updateKept(id, item.text);
+          item.decayTier = newTier;
+          updateKept(id, { decayTier: newTier });
         }
       });
     });
