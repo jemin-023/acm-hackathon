@@ -2377,7 +2377,19 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
   function classifyMessage(text, role) {
     if (!text || text.length < 10) return { type: null };
 
-    // For ASSISTANT messages: check Tier 1 (Claude Memory Saved) first
+    // ── Tier 3: Private Information Leak (HIGHEST PRIORITY FOR ALL MESSAGES) ──
+    // Any credit card, SSN, password, API key, bank info MUST show RED alert box
+    for (const pat of PRIVATE_INFO_PATTERNS) {
+      if (pat.test(text)) {
+        return {
+          type: 'private_leak',
+          label: '🔒 Sensitive Data Warning',
+          description: 'Private information (credit card, SSN, password, API key, etc.) was detected in this message.',
+        };
+      }
+    }
+
+    // ── Tier 1: Claude Memory Saved (for ASSISTANT messages) ──
     if (role === 'assistant') {
       for (const pat of CLAUDE_MEMORY_PATTERNS) {
         if (pat.test(text)) {
@@ -2390,42 +2402,16 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       }
     }
 
-    // For ASSISTANT messages: check Tier 2 (response references personal/location content)
-    if (role === 'assistant') {
-      for (const pat of PERSONAL_TONE_PATTERNS) {
-        if (pat.test(text)) {
-          return {
-            type: 'personal_tone',
-            label: '💬 Personal Info Detected',
-            description: 'This response references personal details, location, or preferences from this conversation.',
-          };
-        }
-      }
-    }
-
-    // For USER messages: check Tier 3 (Private Info Leak) first
-    if (role === 'user') {
-      for (const pat of PRIVATE_INFO_PATTERNS) {
-        if (pat.test(text)) {
-          return {
-            type: 'private_leak',
-            label: '🔒 Sensitive Data Warning',
-            description: 'Private information (credit card, SSN, password, API key, etc.) was detected in your message.',
-          };
-        }
-      }
-    }
-
-    // For USER messages: check Tier 2 (user sharing personal/location info)
-    if (role === 'user') {
-      for (const pat of PERSONAL_TONE_PATTERNS) {
-        if (pat.test(text)) {
-          return {
-            type: 'personal_tone',
-            label: '💬 Personal Info Shared',
-            description: 'You shared personal/location details. Claude may remember this.',
-          };
-        }
+    // ── Tier 2: Personal Tone & Location Details ──
+    for (const pat of PERSONAL_TONE_PATTERNS) {
+      if (pat.test(text)) {
+        return {
+          type: 'personal_tone',
+          label: role === 'user' ? '💬 Personal Info Shared' : '💬 Personal Info Detected',
+          description: role === 'user'
+            ? 'You shared personal/location details. Claude may remember this.'
+            : 'This response references personal details, location, or preferences from this conversation.',
+        };
       }
     }
 
