@@ -23,12 +23,8 @@
      ═══════════════════════════ */
   const state = {
     drawerOpen: false,
-    activeTab: 'noticed', // 'noticed' | 'global-memory' | 'local-memory'
+    activeTab: 'global-memory', // 'global-memory' | 'local-memory'
     collectionEnabled: true,
-    soundEnabled: true, // Accessibility-First Memory Sonification (#27)
-    gravityOpen: false, // Semantic Gravity Canvas (#28)
-    membranePermeability: 50, // Biomimetic Osmotic Membranes (#29)
-    topoOpen: false,   // Topological Mirror (#30)
     noticed: [],
     kept: [],
     rules: [],          // never-save keyword rules
@@ -40,63 +36,8 @@
   let mutationTimer = null;
   let toastTimer = null;
   let digestDismissed = false; // reset on each SPA navigation
-  let audioCtx = null;
 
-  /* ── Accessibility-First Memory Sonification (#27) ── */
-  function playMemoryTone(type) {
-    if (!state.soundEnabled) return;
-    try {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-      const now = audioCtx.currentTime;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-
-      if (type === 'capture') {
-        // Ascending harmonic triad C5 -> E5 -> G5
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, now);
-        osc.frequency.setValueAtTime(659.25, now + 0.08);
-        osc.frequency.setValueAtTime(783.99, now + 0.16);
-        gain.gain.setValueAtTime(0.12, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-        osc.start(now);
-        osc.stop(now + 0.35);
-      } else if (type === 'forget') {
-        // Descending dual tone E4 -> C4
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(329.63, now);
-        osc.frequency.linearRampToValueAtTime(261.63, now + 0.2);
-        gain.gain.setValueAtTime(0.12, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-        osc.start(now);
-        osc.stop(now + 0.25);
-      } else if (type === 'warning') {
-        // Pulsing warning chime A4 -> Bb4
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(440.00, now);
-        osc.frequency.setValueAtTime(466.16, now + 0.1);
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-        osc.start(now);
-        osc.stop(now + 0.3);
-      } else if (type === 'scope') {
-        // High harmonic ping A5
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880.00, now);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-        osc.start(now);
-        osc.stop(now + 0.18);
-      }
-    } catch (_) {}
-  }
+  function playMemoryTone() {}
 
   function announceScreenReader(msg) {
     try {
@@ -461,7 +402,7 @@
 /* ── Sidebar (Glassmorphism Container) ── */
 .mn-dr {
   position: fixed !important; top: 0 !important; right: 0 !important;
-  width: 420px; max-width: 45vw; height: 100vh; height: 100dvh;
+  width: 680px; max-width: 48vw; height: 100vh; height: 100dvh;
   background: rgba(15, 23, 42, 0.72) !important;
   backdrop-filter: blur(20px) saturate(190%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
@@ -561,36 +502,67 @@
 }
 .mn-tab-bar { display: none; }
 
-/* ── 3-Tab layout adjustments ── */
-.mn-tab { font-size: 12px; padding: 11px 4px; }
+/* ── Dual Memory Section & Drag Target Styles ── */
+.mn-sidebar-subhdr {
+  position: relative; z-index: 2;
+  padding: 8px 18px;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--mn-border);
+  font-size: 11px; font-weight: 600; color: var(--mn-fg-muted);
+  text-align: center;
+}
 
-/* ── Memory Scope Badges ── */
-.mn-mem-scope-badge {
-  display: inline-flex;
+.mn-memory-section {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  height: 100%;
+  transition: all 0.25s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.mn-memory-section.mn-drop-target-active {
+  border-color: #8B5CF6 !important;
+  background: rgba(139, 92, 246, 0.18) !important;
+  box-shadow: 0 0 28px rgba(139, 92, 246, 0.4), inset 0 0 12px rgba(139, 92, 246, 0.2) !important;
+  transform: scale(1.01);
+}
+
+.mn-section-hdr {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 11px;
+  justify-content: space-between;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  color: var(--mn-fg);
   margin-bottom: 10px;
-}
-.mn-mem-scope-global {
-  background: rgba(139, 92, 246, 0.15);
-  color: #A78BFA;
-  border: 1px solid rgba(139, 92, 246, 0.3);
-}
-.mn-mem-scope-local {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60A5FA;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* ── Scrollable body ── */
+.mn-section-sub {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--mn-fg-muted);
+  letter-spacing: 0.3px;
+}
+
+/* ── Scrollable body (2 Side-by-Side Columns) ── */
 .mn-body {
   position: relative; z-index: 2;
   flex: 1; overflow-y: auto; padding: 18px 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
 }
 .mn-body::-webkit-scrollbar { width: 6px; }
 .mn-body::-webkit-scrollbar-track { background: transparent; }
@@ -1707,24 +1679,29 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
         <div class="mn-title">
           ${IC.brain}
           MemoNeg
-          <span class="mn-lock">${IC.lock} on-device</span>
         </div>
         <div class="mn-hdr-r">
-          <input type="checkbox" class="mn-tgl" checked title="Toggle memory collection" />
-          <button class="mn-snd-btn" title="Accessibility Sonification Tone (🔊/🔇)" style="background:none;border:none;color:#a78bfa;cursor:pointer;font-size:14px;padding:2px 4px;margin-right:4px;">🔊</button>
           <button class="mn-cls" title="Close drawer">${IC.close}</button>
         </div>
       </div>
-      <div class="mn-tabs">
-        <button class="mn-tab active" data-tab="noticed">🔍 Noticed</button>
-        <button class="mn-tab" data-tab="global-memory">🌐 Global</button>
-        <button class="mn-tab" data-tab="local-memory">📍 Local</button>
-        <div class="mn-tab-bar" style="left:0;width:33.33%"></div>
-      </div>
       <div class="mn-body">
-        <div class="mn-pane active" data-pane="noticed"></div>
-        <div class="mn-pane" data-pane="global-memory"></div>
-        <div class="mn-pane" data-pane="local-memory"></div>
+        <!-- Section 1: Global Memory -->
+        <div class="mn-memory-section mn-section-global" data-scope="global">
+          <div class="mn-section-hdr">
+            <span>🌐 Global Memory</span>
+            <span class="mn-section-sub">Applies everywhere</span>
+          </div>
+          <div class="mn-pane active" data-pane="global-memory"></div>
+        </div>
+
+        <!-- Section 2: Local Memory -->
+        <div class="mn-memory-section mn-section-local" data-scope="local">
+          <div class="mn-section-hdr">
+            <span>📍 Local Memory</span>
+            <span class="mn-section-sub">Scoped to site</span>
+          </div>
+          <div class="mn-pane active" data-pane="local-memory"></div>
+        </div>
       </div>
       <div class="mn-foot">
         <div class="mn-trash-zone">${IC.close} Drag memory here to purge</div>
@@ -1759,12 +1736,6 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
     // Attach MoltenMetal WebGL Shader Backdrop to Cover ENTIRE Extension Drawer
     createMoltenMetalCanvas(dr, { opacity: 0.35, speed: 0.35, scale: 4.0 });
 
-    // Toggle switch
-    const tgl = dr.querySelector('.mn-tgl');
-    tgl.addEventListener('change', () => {
-      state.collectionEnabled = tgl.checked;
-    });
-
     // Close button
     const closeBtn = dr.querySelector('.mn-cls');
     if (closeBtn) {
@@ -1775,34 +1746,39 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       });
     }
 
-    // Sonification audio toggle (#27)
-    const sndBtn = dr.querySelector('.mn-snd-btn');
-    sndBtn.addEventListener('click', () => {
-      state.soundEnabled = !state.soundEnabled;
-      sndBtn.textContent = state.soundEnabled ? '🔊' : '🔇';
-      if (state.soundEnabled) playMemoryTone('capture');
-      showToast(state.soundEnabled ? 'Sonification Audio Enabled 🔊' : 'Sonification Muted 🔇');
-    });
-
-    // Tabs (3-panel: Noticed, Global Memory, Local Memory)
-    const tabs = dr.querySelectorAll('.mn-tab');
-    const bar = dr.querySelector('.mn-tab-bar');
-    const tabOrder = ['noticed', 'global-memory', 'local-memory'];
-    tabs.forEach((tab) => {
-      tab.addEventListener('click', () => {
-        state.activeTab = tab.dataset.tab;
-        tabs.forEach((t) => t.classList.remove('active'));
-        tab.classList.add('active');
-        const idx = tabOrder.indexOf(tab.dataset.tab);
-        bar.style.left = (idx * 33.33) + '%';
-        bar.style.width = '33.33%';
-        dr.querySelectorAll('.mn-pane').forEach((p) => p.classList.remove('active'));
-        dr.querySelector('[data-pane="' + state.activeTab + '"]').classList.add('active');
-        if (state.activeTab === 'global-memory') renderGlobalMemory();
-        else if (state.activeTab === 'local-memory') renderLocalMemory();
-        else renderNoticed();
+    // Setup Section Drop Zones for Drag & Drop between Global & Local Memory
+    const setupSectionDropZone = (secEl, targetScope) => {
+      if (!secEl) return;
+      secEl.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        secEl.classList.add('mn-drop-target-active');
       });
-    });
+      secEl.addEventListener('dragleave', () => {
+        secEl.classList.remove('mn-drop-target-active');
+      });
+      secEl.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        secEl.classList.remove('mn-drop-target-active');
+        const jsonRaw = e.dataTransfer.getData('application/json');
+        if (!jsonRaw) return;
+        try {
+          const payload = JSON.parse(jsonRaw);
+          if (payload.id) {
+            if (targetScope === 'local') {
+              await updateKept(payload.id, { scope: 'local', source: location.hostname });
+              showToast('📍 Moved memory to Local Memory (' + location.hostname + ')');
+            } else {
+              await updateKept(payload.id, { scope: 'global', source: '' });
+              showToast('🌐 Moved memory to Global Memory (Everywhere)');
+            }
+          }
+        } catch (_) {}
+      });
+    };
+
+    setupSectionDropZone(dr.querySelector('.mn-section-global'), 'global');
+    setupSectionDropZone(dr.querySelector('.mn-section-local'), 'local');
 
     // Export
     dr.querySelector('.mn-exp').addEventListener('click', doExport);
@@ -1841,10 +1817,9 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
       snapInp.value = '';
     });
 
-    ui.noticed = dr.querySelector('[data-pane="noticed"]');
-    ui.kept = dr.querySelector('[data-pane="global-memory"]');  // kept pane is now global-memory
     ui.globalMemory = dr.querySelector('[data-pane="global-memory"]');
     ui.localMemory = dr.querySelector('[data-pane="local-memory"]');
+    ui.kept = ui.globalMemory;
     ui.rulesList = dr.querySelector('.mn-rules-list');
     ui.snapsList = dr.querySelector('.mn-snaps-list');
 
@@ -1970,8 +1945,8 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
   /* ═══════════════════════════════════════
      INTERACTIONS
      ═══════════════════════════════════════ */
-  const SIDEBAR_WIDTH = '420px';
-  const PAGE_PUSH_MARGIN = '424px'; // sidebar width + border
+  const SIDEBAR_WIDTH = '680px';
+  const PAGE_PUSH_MARGIN = '684px'; // sidebar width + border
 
   function toggleDrawer(forceState) {
     if (typeof forceState === 'boolean') {
@@ -2020,7 +1995,6 @@ ins.mn-diff-ins { color: #86EFAC; text-decoration: none; background: rgba(34,197
      RENDER
      ═══════════════════════════════════════ */
   function renderAll() {
-    renderNoticed();
     renderGlobalMemory();
     renderLocalMemory();
     renderRulesPanel();
