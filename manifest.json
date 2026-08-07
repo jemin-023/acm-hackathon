@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "MemoNeg — AI Memory Negotiator",
+  "version": "0.1.0",
+  "description": "Privacy-first, local-first AI memory negotiation and consent layer for Claude.ai",
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://claude.ai/*"
+      ],
+      "js": ["src/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  }
+}
