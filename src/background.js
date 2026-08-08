@@ -57,11 +57,17 @@ chrome.runtime.onConnect.addListener(async (port) => {
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (!msg || !msg.type) {
+    sendResponse({ success: false, error: 'Invalid message' });
+    return false;
+  }
   const handler = handlers[msg.type];
   if (handler) {
     handler(msg, sendResponse);
     return true; // keep channel open for async sendResponse
   }
+  sendResponse({ success: false, error: 'Unsupported message type: ' + msg.type });
+  return false;
 });
 
 const handlers = {

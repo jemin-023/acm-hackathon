@@ -2839,6 +2839,236 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       .replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>');
   }
 
+  /* ── PenEcho SVG Rendering Engine (Mind Map, Vector Shapes, Freehand Drawing) ── */
+  function updateWhiteboardSVG() {
+    const svg = ui.spatialView?.querySelector('.mn-whiteboard-svg');
+    if (!svg) return;
+
+    const data = state.penechoState || { timeline: [], mindmap: { nodes: [], links: [] }, canvas: { elements: [] }, drawings: [], stickies: [] };
+    const nodes = data.mindmap?.nodes || [];
+    const links = data.mindmap?.links || [];
+    const canvasElements = data.canvas?.elements || [];
+    const drawings = data.drawings || [];
+
+    const NS = 'http://www.w3.org/2000/svg';
+    svg.innerHTML = `
+      <defs>
+        <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#22C55E"/>
+        </marker>
+        <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#3B82F6"/>
+        </marker>
+        <marker id="arrow-yellow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#EAB308"/>
+        </marker>
+        <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#EF4444"/>
+        </marker>
+        <marker id="arrow-slate" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748B"/>
+        </marker>
+        <filter id="mn-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1A1A2E" flood-opacity="0.12"/>
+        </filter>
+      </defs>
+    `;
+
+    // 1. Render Mind Map Links
+    const linkGroup = document.createElementNS(NS, 'g');
+    linkGroup.setAttribute('class', 'mn-svg-links');
+
+    links.forEach((l) => {
+      const source = nodes.find((n) => n.id === l.source);
+      const target = nodes.find((n) => n.id === l.target);
+      if (source && target) {
+        const line = document.createElementNS(NS, 'line');
+        line.setAttribute('x1', source.x || 200);
+        line.setAttribute('y1', source.y || 150);
+        line.setAttribute('x2', target.x || 200);
+        line.setAttribute('y2', target.y || 150);
+        line.setAttribute('stroke', '#94A3B8');
+        line.setAttribute('stroke-width', '2');
+        if (l.style === 'dashed') {
+          line.setAttribute('stroke-dasharray', '5,5');
+        }
+        line.setAttribute('marker-end', 'url(#arrow-slate)');
+        linkGroup.appendChild(line);
+
+        if (l.label) {
+          const midX = ((source.x || 200) + (target.x || 200)) / 2;
+          const midY = ((source.y || 150) + (target.y || 150)) / 2;
+          const txt = document.createElementNS(NS, 'text');
+          txt.setAttribute('x', midX);
+          txt.setAttribute('y', midY - 4);
+          txt.setAttribute('text-anchor', 'middle');
+          txt.setAttribute('font-size', '9.5');
+          txt.setAttribute('font-family', 'Space Grotesk, sans-serif');
+          txt.setAttribute('font-weight', '700');
+          txt.setAttribute('fill', '#475569');
+          txt.textContent = l.label;
+          linkGroup.appendChild(txt);
+        }
+      }
+    });
+    svg.appendChild(linkGroup);
+
+    // 2. Render Canvas Vector Elements (Box, Arrow, Text)
+    const elemGroup = document.createElementNS(NS, 'g');
+    elemGroup.setAttribute('class', 'mn-svg-canvas-elements');
+
+    canvasElements.forEach((el) => {
+      if (el.type === 'draw_box') {
+        const rect = document.createElementNS(NS, 'rect');
+        rect.setAttribute('x', el.x || 50);
+        rect.setAttribute('y', el.y || 50);
+        rect.setAttribute('width', el.w || 140);
+        rect.setAttribute('height', el.h || 70);
+        rect.setAttribute('rx', '10');
+        rect.setAttribute('fill', '#FFFFFF');
+        rect.setAttribute('stroke', el.color || '#3B82F6');
+        rect.setAttribute('stroke-width', '2.5');
+        rect.setAttribute('filter', 'url(#mn-glow)');
+        elemGroup.appendChild(rect);
+
+        if (el.title) {
+          const txt = document.createElementNS(NS, 'text');
+          txt.setAttribute('x', (el.x || 50) + (el.w || 140) / 2);
+          txt.setAttribute('y', (el.y || 50) + 24);
+          txt.setAttribute('text-anchor', 'middle');
+          txt.setAttribute('font-size', '11');
+          txt.setAttribute('font-weight', '700');
+          txt.setAttribute('font-family', 'Space Grotesk, sans-serif');
+          txt.setAttribute('fill', '#1A1A2E');
+          txt.textContent = el.title;
+          elemGroup.appendChild(txt);
+        }
+      } else if (el.type === 'draw_arrow' && Array.isArray(el.from) && Array.isArray(el.to)) {
+        const line = document.createElementNS(NS, 'line');
+        line.setAttribute('x1', el.from[0]);
+        line.setAttribute('y1', el.from[1]);
+        line.setAttribute('x2', el.to[0]);
+        line.setAttribute('y2', el.to[1]);
+        line.setAttribute('stroke', el.color || '#22C55E');
+        line.setAttribute('stroke-width', '2.5');
+        line.setAttribute('marker-end', el.color === '#EF4444' ? 'url(#arrow-red)' : el.color === '#EAB308' ? 'url(#arrow-yellow)' : 'url(#arrow-green)');
+        elemGroup.appendChild(line);
+
+        if (el.label) {
+          const midX = (el.from[0] + el.to[0]) / 2;
+          const midY = (el.from[1] + el.to[1]) / 2;
+          const txt = document.createElementNS(NS, 'text');
+          txt.setAttribute('x', midX);
+          txt.setAttribute('y', midY - 6);
+          txt.setAttribute('text-anchor', 'middle');
+          txt.setAttribute('font-size', '10');
+          txt.setAttribute('font-weight', '700');
+          txt.setAttribute('fill', el.color || '#22C55E');
+          txt.textContent = el.label;
+          elemGroup.appendChild(txt);
+        }
+      } else if (el.type === 'draw_text') {
+        const txt = document.createElementNS(NS, 'text');
+        txt.setAttribute('x', el.x || 60);
+        txt.setAttribute('y', el.y || 60);
+        txt.setAttribute('font-size', '11.5');
+        txt.setAttribute('font-weight', '600');
+        txt.setAttribute('font-family', 'Space Grotesk, sans-serif');
+        txt.setAttribute('fill', el.color || '#1A1A2E');
+        txt.textContent = el.text || '';
+        elemGroup.appendChild(txt);
+      }
+    });
+    svg.appendChild(elemGroup);
+
+    // 3. Render Freehand Pen Drawings
+    const drawGroup = document.createElementNS(NS, 'g');
+    drawGroup.setAttribute('class', 'mn-svg-pen-drawings');
+
+    drawings.forEach((d) => {
+      if (d.points && d.points.length > 1) {
+        const path = document.createElementNS(NS, 'path');
+        const dStr = d.points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+        path.setAttribute('d', dStr);
+        path.setAttribute('stroke', d.color || '#1A1A2E');
+        path.setAttribute('stroke-width', d.width || '3');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        drawGroup.appendChild(path);
+      }
+    });
+    svg.appendChild(drawGroup);
+
+    // 4. Render Interactive Mind Map Nodes
+    const nodeGroup = document.createElementNS(NS, 'g');
+    nodeGroup.setAttribute('class', 'mn-svg-nodes');
+
+    nodes.forEach((n) => {
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('class', 'mn-wb-node');
+      g.setAttribute('transform', `translate(${n.x || 200}, ${n.y || 150})`);
+      g.style.cursor = 'pointer';
+
+      const isSelected = state.selectedMindMapNode?.id === n.id;
+      const color = n.color || '#3B82F6';
+
+      // Outer Selection Ring
+      if (isSelected) {
+        const ring = document.createElementNS(NS, 'circle');
+        ring.setAttribute('r', '26');
+        ring.setAttribute('fill', 'none');
+        ring.setAttribute('stroke', '#EC4899');
+        ring.setAttribute('stroke-width', '3');
+        ring.setAttribute('stroke-dasharray', '4,3');
+        g.appendChild(ring);
+      }
+
+      // Node Circle
+      const circle = document.createElementNS(NS, 'circle');
+      circle.setAttribute('r', '18');
+      circle.setAttribute('fill', '#FFFFFF');
+      circle.setAttribute('stroke', color);
+      circle.setAttribute('stroke-width', '3');
+      circle.setAttribute('filter', 'url(#mn-glow)');
+      g.appendChild(circle);
+
+      // Inner Category Dot
+      const dot = document.createElementNS(NS, 'circle');
+      dot.setAttribute('r', '7');
+      dot.setAttribute('fill', color);
+      g.appendChild(dot);
+
+      // Label Pill Background & Text
+      const labelText = n.label || 'Concept';
+      const txt = document.createElementNS(NS, 'text');
+      txt.setAttribute('x', '0');
+      txt.setAttribute('y', '32');
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('font-size', '10.5');
+      txt.setAttribute('font-weight', '700');
+      txt.setAttribute('font-family', 'Space Grotesk, sans-serif');
+      txt.setAttribute('fill', '#1A1A2E');
+      txt.textContent = labelText.length > 20 ? labelText.slice(0, 18) + '...' : labelText;
+      g.appendChild(txt);
+
+      // Node Click Event
+      g.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.selectedMindMapNode = n;
+        renderNodeInspector();
+        updateWhiteboardSVG();
+      });
+
+      nodeGroup.appendChild(g);
+    });
+    svg.appendChild(nodeGroup);
+  }
+
+  function updateMindMapSVG() {
+    updateWhiteboardSVG();
+  }
+
   function renderNodeInspector() {
     const inspectorEl = ui.spatialView?.querySelector('.mn-node-inspector');
     if (!inspectorEl) return;
@@ -3155,6 +3385,178 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       };
     });
 
+    // Tool switching
+    viewEl.querySelectorAll('.mn-wb-btn[data-tool]').forEach((btn) => {
+      btn.onclick = () => {
+        state.whiteboardTool = btn.dataset.tool;
+        renderPenechoSpatialView();
+      };
+    });
+
+    // Color picker
+    viewEl.querySelectorAll('.mn-wb-color-dot[data-color]').forEach((dot) => {
+      dot.onclick = () => {
+        state.whiteboardPenColor = dot.dataset.color;
+        renderPenechoSpatialView();
+      };
+    });
+
+    // Zoom controls
+    const zoomInBtn = viewEl.querySelector('.mn-wb-zoom-in');
+    if (zoomInBtn) {
+      zoomInBtn.onclick = () => {
+        state.canvasZoom = Math.min(2.5, (state.canvasZoom || 1.0) + 0.15);
+        renderPenechoSpatialView();
+      };
+    }
+
+    const zoomOutBtn = viewEl.querySelector('.mn-wb-zoom-out');
+    if (zoomOutBtn) {
+      zoomOutBtn.onclick = () => {
+        state.canvasZoom = Math.max(0.4, (state.canvasZoom || 1.0) - 0.15);
+        renderPenechoSpatialView();
+      };
+    }
+
+    const zoomResetBtn = viewEl.querySelector('.mn-wb-zoom-reset');
+    if (zoomResetBtn) {
+      zoomResetBtn.onclick = () => {
+        state.canvasZoom = 1.0;
+        state.canvasPan = { x: 0, y: 0 };
+        renderPenechoSpatialView();
+      };
+    }
+
+    // SVG Export
+    const exportSvgBtn = viewEl.querySelector('.mn-wb-btn-export');
+    if (exportSvgBtn) {
+      exportSvgBtn.onclick = () => {
+        const svgEl = viewEl.querySelector('.mn-whiteboard-svg');
+        if (svgEl) {
+          const svgData = new XMLSerializer().serializeToString(svgEl);
+          const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `penecho-whiteboard-${Date.now()}.svg`;
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast('Whiteboard exported to SVG ✓');
+        }
+      };
+    }
+
+    // Sticky Note Deletion & Editing
+    viewEl.querySelectorAll('.mn-sticky-del').forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.delSticky;
+        state.penechoState.stickies = (state.penechoState.stickies || []).filter((s) => s.id !== id);
+        saveCanvasState();
+        renderPenechoSpatialView();
+      };
+    });
+
+    viewEl.querySelectorAll('.mn-sticky-body').forEach((body) => {
+      body.onblur = () => {
+        const id = body.dataset.editSticky;
+        const s = (state.penechoState.stickies || []).find((x) => x.id === id);
+        if (s) {
+          s.text = body.textContent;
+          saveCanvasState();
+        }
+      };
+    });
+
+    // Interactive Whiteboard Canvas Surface (Freehand Pen Drawing & Sticky placement)
+    const viewport = viewEl.querySelector('.mn-whiteboard-viewport');
+    if (viewport) {
+      let isDrawing = false;
+      let currentStroke = null;
+
+      viewport.onmousedown = (e) => {
+        if (state.whiteboardTool === 'pen') {
+          isDrawing = true;
+          const rect = viewport.getBoundingClientRect();
+          const zoom = state.canvasZoom || 1.0;
+          const pan = state.canvasPan || { x: 0, y: 0 };
+          const pt = {
+            x: Math.round((e.clientX - rect.left - pan.x) / zoom),
+            y: Math.round((e.clientY - rect.top - pan.y) / zoom)
+          };
+          currentStroke = {
+            id: 'draw_' + Date.now(),
+            color: state.whiteboardPenColor || '#1A1A2E',
+            width: 3,
+            points: [pt]
+          };
+          if (!state.penechoState.drawings) state.penechoState.drawings = [];
+          state.penechoState.drawings.push(currentStroke);
+        } else if (state.whiteboardTool === 'sticky') {
+          const rect = viewport.getBoundingClientRect();
+          const zoom = state.canvasZoom || 1.0;
+          const pan = state.canvasPan || { x: 0, y: 0 };
+          const posX = Math.round((e.clientX - rect.left - pan.x) / zoom);
+          const posY = Math.round((e.clientY - rect.top - pan.y) / zoom);
+
+          if (!state.penechoState.stickies) state.penechoState.stickies = [];
+          state.penechoState.stickies.push({
+            id: 'sticky_' + Date.now(),
+            x: posX,
+            y: posY,
+            text: 'Type notes here...',
+            color: '#FEF08A'
+          });
+          state.whiteboardTool = 'select';
+          saveCanvasState();
+          renderPenechoSpatialView();
+        } else if (state.whiteboardTool === 'box') {
+          const rect = viewport.getBoundingClientRect();
+          const zoom = state.canvasZoom || 1.0;
+          const pan = state.canvasPan || { x: 0, y: 0 };
+          const posX = Math.round((e.clientX - rect.left - pan.x) / zoom);
+          const posY = Math.round((e.clientY - rect.top - pan.y) / zoom);
+
+          if (!state.penechoState.canvas) state.penechoState.canvas = { elements: [] };
+          state.penechoState.canvas.elements.push({
+            type: 'draw_box',
+            id: 'box_' + Date.now(),
+            x: posX,
+            y: posY,
+            w: 140,
+            h: 70,
+            color: '#3B82F6',
+            title: 'Concept Box'
+          });
+          state.whiteboardTool = 'select';
+          saveCanvasState();
+          renderPenechoSpatialView();
+        }
+      };
+
+      viewport.onmousemove = (e) => {
+        if (isDrawing && currentStroke) {
+          const rect = viewport.getBoundingClientRect();
+          const zoom = state.canvasZoom || 1.0;
+          const pan = state.canvasPan || { x: 0, y: 0 };
+          const pt = {
+            x: Math.round((e.clientX - rect.left - pan.x) / zoom),
+            y: Math.round((e.clientY - rect.top - pan.y) / zoom)
+          };
+          currentStroke.points.push(pt);
+          updateWhiteboardSVG();
+        }
+      };
+
+      viewport.onmouseup = () => {
+        if (isDrawing) {
+          isDrawing = false;
+          currentStroke = null;
+          saveCanvasState();
+        }
+      };
+    }
+
     const copyCodeBtn = viewEl.querySelector('.mn-btn-copy-code');
     if (copyCodeBtn) {
       copyCodeBtn.onclick = () => {
@@ -3178,7 +3580,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     if (discardBtn) discardBtn.onclick = discardPenechoDraft;
 
     if (subTab !== 'code' && subTab !== 'timeline') {
-      updateMindMapSVG();
+      updateWhiteboardSVG();
       startMindMapPhysics();
     }
   }
