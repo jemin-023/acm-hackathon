@@ -23,10 +23,17 @@
      ═══════════════════════════ */
   const state = {
     drawerOpen: false,
-    activeTab: 'global-memory', // 'global-memory' | 'local-memory'
+    activeTab: 'global-memory', // 'global-memory' | 'local-memory' | 'canvas' | 'settings' | 'export'
     mainViewTab: 'vault',       // 'vault' | 'spatial'
     collectionEnabled: true,
     spatialProtocolEnabled: true,
+    // Google Gemini Spatial Visual Co-Pilot Settings
+    geminiApiKey: '',
+    geminiDrawingEnabled: true,
+    geminiModel: 'gemini-2.5-flash',
+    isGeminiDrawing: false,
+    lastDrawnClaudeMessage: '',
+    showKeyInSettings: false,
     noticed: [],
     kept: [],
     rules: [],          // never-save keyword rules
@@ -263,7 +270,7 @@ For every response in this conversation:
         document.body.appendChild(el);
       }
       el.textContent = msg;
-    } catch (_) {}
+    } catch (_) { }
   }
 
   /* ═══════════════════════════
@@ -337,19 +344,88 @@ For every response in this conversation:
 
   async function loadAll() {
     try {
-      const [kr, nr, rr, cr] = await Promise.all([
+      const [kr, nr, rr, cr, gr] = await Promise.all([
         send({ type: 'GET_KEPT' }),
         send({ type: 'GET_NOTICED' }),
         send({ type: 'GET_RULES' }),
         send({ type: 'GET_CANVAS_STATE' }),
+        send({ type: 'GET_GEMINI_CONFIG' }),
       ]);
       state.kept = kr?.kept || state.kept || [];
       state.noticed = nr?.noticed || state.noticed || [];
       state.rules = rr?.rules || state.rules || [];
       if (cr?.canvasState) state.penechoState = cr.canvasState;
+      if (gr) {
+        if (gr.geminiApiKey !== undefined) state.geminiApiKey = gr.geminiApiKey;
+        if (gr.geminiDrawingEnabled !== undefined) state.geminiDrawingEnabled = gr.geminiDrawingEnabled;
+        if (gr.geminiModel !== undefined) state.geminiModel = gr.geminiModel;
+      }
       renderAll();
     } catch (_) {
       renderAll();
+    }
+  }
+
+  async function saveGeminiConfig(updates = {}) {
+    if (updates.geminiApiKey !== undefined) state.geminiApiKey = updates.geminiApiKey;
+    if (updates.geminiDrawingEnabled !== undefined) state.geminiDrawingEnabled = updates.geminiDrawingEnabled;
+    if (updates.geminiModel !== undefined) state.geminiModel = updates.geminiModel;
+
+    await send({
+      type: 'SET_GEMINI_CONFIG',
+      geminiApiKey: state.geminiApiKey,
+      geminiDrawingEnabled: state.geminiDrawingEnabled,
+      geminiModel: state.geminiModel,
+    });
+    renderAll();
+  }
+
+  async function triggerGeminiDrawing(claudeAnswerText, force = false) {
+    if (!claudeAnswerText || typeof claudeAnswerText !== 'string' || claudeAnswerText.length < 5) return;
+    if (!state.geminiDrawingEnabled && !force) return;
+
+    if (!state.geminiApiKey || !state.geminiApiKey.trim()) {
+      if (force) {
+        showToast('⚠️ Please configure your Gemini API Key in Settings or Canvas');
+        openTab('settings');
+      }
+      return;
+    }
+
+    const textHash = hashStr(claudeAnswerText);
+    if (!force && state.lastDrawnClaudeMessage === textHash) {
+      return; // Already visualized
+    }
+
+    state.isGeminiDrawing = true;
+    renderPenechoSpatialView();
+    showToast('⚡ Gemini is drawing spatial canvas from Claude\'s answer...');
+
+    try {
+      const res = await send({
+        type: 'CALL_GEMINI_DRAWING',
+        apiKey: state.geminiApiKey.trim(),
+        claudeAnswer: claudeAnswerText,
+        model: state.geminiModel || 'gemini-2.5-flash',
+      });
+
+      state.isGeminiDrawing = false;
+
+      if (res && res.success && res.payload) {
+        state.lastDrawnClaudeMessage = textHash;
+        applyPenechoCanvasPayload(res.payload, false);
+        playMemoryTone('scope');
+        showToast('✨ Gemini rendered Spatial Canvas & Dynamic Mind Map ✓');
+      } else {
+        const errMsg = res?.error || 'Gemini drawing could not be completed.';
+        console.warn('[MemoNeg Gemini Drawing Note]:', errMsg);
+        showToast(`⚠️ Gemini: ${errMsg.slice(0, 70)}`);
+        renderPenechoSpatialView();
+      }
+    } catch (err) {
+      state.isGeminiDrawing = false;
+      renderPenechoSpatialView();
+      console.error('[MemoNeg Gemini Error]:', err);
     }
   }
 
@@ -374,7 +450,7 @@ For every response in this conversation:
         'textarea[placeholder*="Claude"]',
         'textarea'
       ];
-      
+
       let inputEl = null;
       for (const sel of selectors) {
         const el = document.querySelector(sel);
@@ -1387,8 +1463,348 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   cursor: pointer !important; transition: all 0.15s !important; outline: none !important;
   box-shadow: 2px 2px 0px #1A1A2E !important;
 }
-.mn-penecho-pill-btn:hover {
-  background: #C2F0F8 !important; transform: translate(-1px, -1px) !important; box-shadow: 3px 3px 0px #1A1A2E !important;
+/* ── Gemini Spatial Co-Pilot UI ── */
+.mn-gemini-copilot-card {
+  border: 3px solid #1A1A2E !important;
+  border-radius: 14px !important;
+  padding: 16px !important;
+  background: #FFFFFF !important;
+  box-shadow: 4px 4px 0px #1A1A2E !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+.mn-gemini-hdr-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+}
+.mn-gemini-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #1A1A2E !important;
+}
+.mn-gemini-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 3px 8px !important;
+  border-radius: 8px !important;
+  border: 2px solid #1A1A2E !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.4px !important;
+  box-shadow: 2px 2px 0px #1A1A2E !important;
+}
+.mn-gemini-badge.active {
+  background: #D1FAE5 !important;
+  color: #065F46 !important;
+}
+.mn-gemini-badge.inactive {
+  background: #F3F4F6 !important;
+  color: #6B7280 !important;
+}
+.mn-gemini-badge.drawing {
+  background: #FEF3C7 !important;
+  color: #92400E !important;
+  animation: mnPulse 1.2s infinite !important;
+}
+.mn-gemini-desc {
+  font-size: 12px !important;
+  color: #4B5563 !important;
+  line-height: 1.5 !important;
+}
+.mn-gemini-toggle-bar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 10px 12px !important;
+  background: #F0F9FF !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 10px !important;
+}
+.mn-gemini-toggle-label {
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  color: #1A1A2E !important;
+}
+.mn-gemini-input-group {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+.mn-gemini-input-label {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #6B7280 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.4px !important;
+}
+.mn-gemini-input-row {
+  display: flex !important;
+  gap: 6px !important;
+}
+.mn-gemini-key-inp {
+  flex: 1 !important;
+  padding: 8px 12px !important;
+  border-radius: 8px !important;
+  border: 2px solid #1A1A2E !important;
+  font-family: 'DM Mono', monospace !important;
+  font-size: 12px !important;
+  color: #1A1A2E !important;
+  background: #FFFFFF !important;
+  outline: none !important;
+}
+.mn-gemini-key-inp:focus {
+  border-color: var(--mn-pink) !important;
+  box-shadow: 0 0 0 2px var(--mn-ring) !important;
+}
+.mn-gemini-model-select {
+  padding: 8px 10px !important;
+  border-radius: 8px !important;
+  border: 2px solid #1A1A2E !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  background: #FFFFFF !important;
+  color: #1A1A2E !important;
+  outline: none !important;
+  font-family: 'Space Grotesk', sans-serif !important;
+  cursor: pointer !important;
+}
+.mn-gemini-actions-row {
+  display: flex !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+.mn-prompt-gemini-draw {
+  background: #FEF3C7 !important;
+  color: #92400E !important;
+  border-color: #92400E !important;
+}
+.mn-prompt-gemini-draw:hover {
+  background: #FDE68A !important;
+}
+.mn-gemini-pulse-dot {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: #22C55E !important;
+  box-shadow: 0 0 8px #22C55E !important;
+  display: inline-block !important;
+}
+.mn-gemini-pulse-dot.drawing {
+  background: #F59E0B !important;
+  box-shadow: 0 0 10px #F59E0B !important;
+  animation: mnPulse 0.8s infinite !important;
+}
+.mn-gemini-banner-setup {
+  padding: 12px !important;
+  background: #EFF6FF !important;
+  border: 2px solid #3B82F6 !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  margin-bottom: 12px !important;
+}
+.mn-gemini-banner-ttl {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #1E40AF !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+/* ── Interactive Infinite Whiteboard Engine ── */
+.mn-whiteboard-container {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  margin-top: 4px !important;
+}
+.mn-whiteboard-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  padding: 8px 10px !important;
+  background: #FFFFFF !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 12px !important;
+  box-shadow: 2px 2px 0px #1A1A2E !important;
+  flex-wrap: wrap !important;
+}
+.mn-wb-tool-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-wrap: wrap !important;
+}
+.mn-wb-btn {
+  padding: 5px 9px !important;
+  border-radius: 8px !important;
+  border: 1.5px solid #1A1A2E !important;
+  background: #F8FAFC !important;
+  color: #1A1A2E !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  transition: all 0.12s ease !important;
+  outline: none !important;
+}
+.mn-wb-btn:hover {
+  background: #E2E8F0 !important;
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 1.5px 1.5px 0px #1A1A2E !important;
+}
+.mn-wb-btn.active {
+  background: var(--mn-pink) !important;
+  color: #FFFFFF !important;
+  border-color: #1A1A2E !important;
+  box-shadow: 2px 2px 0px #1A1A2E !important;
+}
+.mn-wb-color-picker {
+  display: flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  padding: 2px 6px !important;
+  border: 1.5px solid #CBD5E1 !important;
+  border-radius: 8px !important;
+  background: #FFFFFF !important;
+}
+.mn-wb-color-dot {
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  cursor: pointer !important;
+  border: 1.5px solid transparent !important;
+  transition: transform 0.1s !important;
+}
+.mn-wb-color-dot:hover {
+  transform: scale(1.25) !important;
+}
+.mn-wb-color-dot.active {
+  border-color: #1A1A2E !important;
+  box-shadow: 0 0 0 1.5px #FFFFFF, 0 0 0 3px #1A1A2E !important;
+  transform: scale(1.2) !important;
+}
+.mn-whiteboard-viewport {
+  position: relative !important;
+  width: 100% !important;
+  height: 480px !important;
+  background-color: #FAFAFA !important;
+  background-image: radial-gradient(#CBD5E1 1.2px, transparent 1.2px) !important;
+  background-size: 20px 20px !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 14px !important;
+  box-shadow: 3px 3px 0px #1A1A2E !important;
+  overflow: hidden !important;
+  user-select: none !important;
+  cursor: grab !important;
+}
+.mn-whiteboard-viewport.panning {
+  cursor: grabbing !important;
+}
+.mn-whiteboard-viewport.drawing {
+  cursor: crosshair !important;
+}
+.mn-whiteboard-surface {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  transform-origin: 0 0 !important;
+  pointer-events: auto !important;
+}
+.mn-whiteboard-svg {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 3200px !important;
+  height: 3200px !important;
+  pointer-events: auto !important;
+}
+.mn-sticky-note-card {
+  position: absolute !important;
+  width: 160px !important;
+  min-height: 95px !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 10px !important;
+  padding: 8px 10px !important;
+  box-shadow: 3px 3px 0px rgba(0,0,0,0.2) !important;
+  cursor: move !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  z-index: 10 !important;
+  transition: box-shadow 0.15s !important;
+  backdrop-filter: blur(4px) !important;
+}
+.mn-sticky-note-card:hover {
+  box-shadow: 5px 5px 0px rgba(0,0,0,0.28) !important;
+}
+.mn-sticky-hdr {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  opacity: 0.8 !important;
+}
+.mn-sticky-body {
+  flex: 1 !important;
+  font-size: 11.5px !important;
+  line-height: 1.35 !important;
+  color: #1A1A2E !important;
+  font-family: 'Space Grotesk', -apple-system, sans-serif !important;
+  outline: none !important;
+  cursor: text !important;
+  word-break: break-word !important;
+  min-height: 48px !important;
+}
+.mn-floating-formula-card {
+  position: absolute !important;
+  border: 2px solid #0284C7 !important;
+  border-radius: 10px !important;
+  background: #F0F9FF !important;
+  box-shadow: 3px 3px 0px #0284C7 !important;
+  padding: 10px 12px !important;
+  cursor: move !important;
+  z-index: 9 !important;
+  max-width: 240px !important;
+}
+.mn-wb-zoom-bar {
+  position: absolute !important;
+  bottom: 12px !important;
+  right: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 4px 8px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 10px !important;
+  box-shadow: 2px 2px 0px #1A1A2E !important;
+  z-index: 20 !important;
+}
+.mn-wb-badge-info {
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  color: #1A1A2E !important;
+  padding: 0 4px !important;
 }
 
     `;
@@ -1494,25 +1910,25 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     rail.className = 'mn-side-rail';
     rail.innerHTML =
       '<button class="mn-rail-item active" data-tab="global-memory" title="Global Memory">' +
-        '<span class="mn-rail-icon">' + IC.railGlobal + '</span>' +
-        '<span class="mn-rail-label">Global Memory</span>' +
+      '<span class="mn-rail-icon">' + IC.railGlobal + '</span>' +
+      '<span class="mn-rail-label">Global Memory</span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="current-session" title="Current Session">' +
-        '<span class="mn-rail-icon">' + IC.railSession + '</span>' +
-        '<span class="mn-rail-label">Current Session</span>' +
-        '<span class="mn-rail-badge" style="display:none"></span>' +
+      '<span class="mn-rail-icon">' + IC.railSession + '</span>' +
+      '<span class="mn-rail-label">Current Session</span>' +
+      '<span class="mn-rail-badge" style="display:none"></span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="canvas" title="Spatial Canvas">' +
-        '<span class="mn-rail-icon">' + IC.railCanvas + '</span>' +
-        '<span class="mn-rail-label">Spatial Canvas</span>' +
+      '<span class="mn-rail-icon">' + IC.railCanvas + '</span>' +
+      '<span class="mn-rail-label">Spatial Canvas</span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="export" title="Export">' +
-        '<span class="mn-rail-icon">' + IC.railExport + '</span>' +
-        '<span class="mn-rail-label">Export</span>' +
+      '<span class="mn-rail-icon">' + IC.railExport + '</span>' +
+      '<span class="mn-rail-label">Export</span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="settings" title="Settings">' +
-        '<span class="mn-rail-icon">' + IC.railSettings + '</span>' +
-        '<span class="mn-rail-label">Settings</span>' +
+      '<span class="mn-rail-icon">' + IC.railSettings + '</span>' +
+      '<span class="mn-rail-label">Settings</span>' +
       '</button>';
 
     rail.querySelectorAll('.mn-rail-item').forEach((btn) => {
@@ -1555,7 +1971,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     let gl;
     try {
       gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false });
-    } catch (_) {}
+    } catch (_) { }
     if (!gl) return null;
 
     const vsSource = `#version 300 es
@@ -1736,7 +2152,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       destroy() {
         cancelAnimationFrame(raf);
         window.removeEventListener('resize', resize);
-        try { canvas.remove(); } catch (_) {}
+        try { canvas.remove(); } catch (_) { }
       }
     };
   }
@@ -1864,7 +2280,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
               showToast('🌐 Moved memory to Global Memory (Everywhere)');
             }
           }
-        } catch (_) {}
+        } catch (_) { }
       });
     };
 
@@ -1958,7 +2374,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
               showToast('Kept memory purged ✓');
             }
           }
-        } catch (_) {}
+        } catch (_) { }
       });
     }
     ui.trashZone = tz;
@@ -2008,12 +2424,12 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     el.innerHTML =
       '<div class="mn-digest-ttl">' + IC.brain + 'Memory Digest</div>' +
       '<div class="mn-digest-body">' +
-        '<strong>' + count + ' unreviewed ' + (count === 1 ? 'memory' : 'memories') + '</strong> from this session ' +
-        'are waiting in your Noticed tab. Review them before they expire.' +
+      '<strong>' + count + ' unreviewed ' + (count === 1 ? 'memory' : 'memories') + '</strong> from this session ' +
+      'are waiting in your Noticed tab. Review them before they expire.' +
       '</div>' +
       '<div class="mn-digest-acts">' +
-        '<button class="mn-digest-btn mn-digest-review">Review Now</button>' +
-        '<button class="mn-digest-btn mn-digest-dismiss">Dismiss</button>' +
+      '<button class="mn-digest-btn mn-digest-review">Review Now</button>' +
+      '<button class="mn-digest-btn mn-digest-dismiss">Dismiss</button>' +
       '</div>';
     el.style.display = 'block';
 
@@ -2060,7 +2476,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       state.drawerOpen = !state.drawerOpen;
     }
     if (ui.dr) ui.dr.classList.toggle('open', state.drawerOpen);
-    
+
     // Toggle panel-open class so right: 440px !important takes effect when open
     if (ui.fab) {
       ui.fab.classList.toggle('panel-open', state.drawerOpen);
@@ -2069,7 +2485,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     try {
       document.body.style.transition = 'margin-right .28s cubic-bezier(.32,.72,0,1)';
       document.body.style.marginRight = state.drawerOpen ? PAGE_PUSH_MARGIN : '';
-    } catch (_) {}
+    } catch (_) { }
     if (state.drawerOpen) loadAll();
   }
 
@@ -2104,13 +2520,13 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         state.penechoState = r.canvasState;
         renderPenechoSpatialView();
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   async function saveCanvasState() {
     try {
       await send({ type: 'SAVE_CANVAS_STATE', canvasState: state.penechoState });
-    } catch (_) {}
+    } catch (_) { }
   }
 
   function parsePenechoJson(rawText) {
@@ -2134,150 +2550,89 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       if (parsed && (parsed.timeline || parsed.mindmap || parsed.canvas)) {
         return parsed;
       }
-    } catch (_) {
-      try {
-        let sanitized = jsonStr.trim();
-        sanitized = sanitized.replace(/,\s*([\]}])/g, '$1');
-        let openBraces = (sanitized.match(/{/g) || []).length - (sanitized.match(/}/g) || []).length;
-        let openBrackets = (sanitized.match(/\[/g) || []).length - (sanitized.match(/\]/g) || []).length;
-        const quoteCount = (sanitized.match(/"/g) || []).length;
-        if (quoteCount % 2 !== 0) sanitized += '"';
-        while (openBrackets > 0) { sanitized += ']'; openBrackets--; }
-        while (openBraces > 0) { sanitized += '}'; openBraces--; }
-        const recovered = JSON.parse(sanitized);
-        if (recovered && (recovered.timeline || recovered.mindmap || recovered.canvas)) {
-          return recovered;
-        }
-      } catch (e2) {}
-    }
+    } catch (_) { }
     return null;
-  }
-
-  function syncCanvasProtocolToClaude() {
-    try {
-      const selectors = [
-        'div.ProseMirror[contenteditable="true"]',
-        'div[contenteditable="true"]',
-        'fieldset textarea',
-        'textarea[placeholder*="Claude"]',
-        'textarea'
-      ];
-      let inputEl = null;
-      for (const sel of selectors) {
-        const el = document.querySelector(sel);
-        if (el && el.offsetParent !== null) {
-          inputEl = el;
-          break;
-        }
-      }
-      if (inputEl) {
-        inputEl.focus();
-        if (inputEl.isContentEditable) {
-          const p = document.createElement('p');
-          p.textContent = PENECHO_PROTOCOL_DIRECTIVE;
-          inputEl.appendChild(p);
-          inputEl.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText' }));
-        } else {
-          const cur = inputEl.value;
-          inputEl.value = cur ? `${cur}\n\n${PENECHO_PROTOCOL_DIRECTIVE}` : PENECHO_PROTOCOL_DIRECTIVE;
-          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-          inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        showToast('Spatial Canvas Protocol injected into prompt ✓');
-      } else {
-        navigator.clipboard.writeText(PENECHO_PROTOCOL_DIRECTIVE);
-        showToast('Protocol copied to clipboard ✓');
-      }
-    } catch (_) {
-      navigator.clipboard.writeText(PENECHO_PROTOCOL_DIRECTIVE);
-      showToast('Protocol copied to clipboard ✓');
-    }
   }
 
   function applyPenechoCanvasPayload(payload, isDraft = false) {
     if (!payload) return;
     if (isDraft) {
-      state.penechoDraft = {
-        payload,
-        receivedAt: Date.now()
-      };
+      state.penechoDraft = { payload, timestamp: Date.now() };
       renderPenechoSpatialView();
-      updateBadge();
-    } else {
-      const cur = state.penechoState || { timeline: [], mindmap: { nodes: [], links: [] }, canvas: { elements: [] } };
-      
-      // Merge Timeline
-      if (payload.timeline) {
-        cur.timeline = cur.timeline || [];
-        const existingIdx = cur.timeline.findIndex((t) => t.step_id === payload.timeline.step_id);
-        if (existingIdx !== -1) {
-          cur.timeline[existingIdx] = { ...cur.timeline[existingIdx], ...payload.timeline, updatedAt: Date.now() };
-        } else {
-          cur.timeline.unshift({ ...payload.timeline, timestamp: Date.now() });
-        }
-      }
-
-      // Merge Mindmap
-      if (payload.mindmap && payload.mindmap.nodes) {
-        cur.mindmap = cur.mindmap || { nodes: [], links: [] };
-        const existingNodes = cur.mindmap.nodes || [];
-        payload.mindmap.nodes.forEach((newNode, idx) => {
-          const matchIdx = existingNodes.findIndex((n) => n.id === newNode.id);
-          if (matchIdx !== -1) {
-            existingNodes[matchIdx] = { ...existingNodes[matchIdx], ...newNode };
-          } else {
-            const angle = (existingNodes.length * 2 * Math.PI) / Math.max(payload.mindmap.nodes.length, 1);
-            const radius = 80 + (idx % 3) * 35;
-            existingNodes.push({
-              ...newNode,
-              x: 200 + Math.cos(angle) * radius,
-              y: 150 + Math.sin(angle) * radius,
-              vx: (Math.random() - 0.5) * 2,
-              vy: (Math.random() - 0.5) * 2
-            });
-          }
-        });
-        cur.mindmap.nodes = existingNodes;
-
-        if (payload.mindmap.links) {
-          const existingLinks = cur.mindmap.links || [];
-          payload.mindmap.links.forEach((newLink) => {
-            const exists = existingLinks.some((l) => l.source === newLink.source && l.target === newLink.target);
-            if (!exists) existingLinks.push(newLink);
-          });
-          cur.mindmap.links = existingLinks;
-        }
-      }
-
-      // Merge Canvas Vector Elements
-      if (payload.canvas && payload.canvas.elements) {
-        cur.canvas = cur.canvas || { elements: [] };
-        const existingElems = cur.canvas.elements || [];
-        payload.canvas.elements.forEach((newElem) => {
-          if (newElem.id) {
-            const mIdx = existingElems.findIndex((e) => e.id === newElem.id);
-            if (mIdx !== -1) {
-              existingElems[mIdx] = { ...existingElems[mIdx], ...newElem };
-              return;
-            }
-          }
-          existingElems.push(newElem);
-        });
-        cur.canvas.elements = existingElems;
-      }
-
-      state.penechoState = cur;
-      state.penechoDraft = null;
-      saveCanvasState();
-      renderPenechoSpatialView();
-      startMindMapPhysics();
+      return;
     }
+
+    const cur = state.penechoState || { timeline: [], mindmap: { nodes: [], links: [] }, canvas: { elements: [] }, drawings: [], stickies: [] };
+    if (!cur.drawings) cur.drawings = [];
+    if (!cur.stickies) cur.stickies = [];
+
+    // Stream 1: Timeline merge
+    if (payload.timeline) {
+      if (!cur.timeline) cur.timeline = [];
+      const exists = cur.timeline.some((t) => t.step_id === payload.timeline.step_id);
+      if (!exists) {
+        cur.timeline.unshift(payload.timeline);
+        if (cur.timeline.length > 20) cur.timeline.pop();
+      }
+    }
+
+    // Stream 2: Mind map merge
+    if (payload.mindmap && Array.isArray(payload.mindmap.nodes)) {
+      if (!cur.mindmap) cur.mindmap = { nodes: [], links: [] };
+      const nodeMap = new Map();
+      (cur.mindmap.nodes || []).forEach((n) => nodeMap.set(n.id, n));
+
+      payload.mindmap.nodes.forEach((n, idx) => {
+        const existing = nodeMap.get(n.id);
+        const angle = (idx / payload.mindmap.nodes.length) * 2 * Math.PI;
+        const dist = 120 + (idx % 2) * 35;
+        const initX = existing ? existing.x : Math.round(200 + Math.cos(angle) * dist);
+        const initY = existing ? existing.y : Math.round(150 + Math.sin(angle) * dist);
+
+        nodeMap.set(n.id, {
+          ...n,
+          x: initX,
+          y: initY,
+          vx: 0,
+          vy: 0
+        });
+      });
+      cur.mindmap.nodes = Array.from(nodeMap.values());
+
+      if (Array.isArray(payload.mindmap.links)) {
+        const linkKeys = new Set((cur.mindmap.links || []).map((l) => `${l.source}->${l.target}`));
+        payload.mindmap.links.forEach((l) => {
+          const key = `${l.source}->${l.target}`;
+          if (!linkKeys.has(key)) {
+            cur.mindmap.links.push(l);
+            linkKeys.add(key);
+          }
+        });
+      }
+    }
+
+    // Stream 3: Canvas elements merge
+    if (payload.canvas && Array.isArray(payload.canvas.elements)) {
+      if (!cur.canvas) cur.canvas = { elements: [] };
+      const elMap = new Map();
+      (cur.canvas.elements || []).forEach((e) => elMap.set(e.id || JSON.stringify(e), e));
+      payload.canvas.elements.forEach((e) => {
+        elMap.set(e.id || JSON.stringify(e), e);
+      });
+      cur.canvas.elements = Array.from(elMap.values());
+    }
+
+    state.penechoState = cur;
+    state.penechoDraft = null;
+    saveCanvasState();
+    renderPenechoSpatialView();
+    startMindMapPhysics();
   }
 
   function acceptPenechoDraft() {
     if (!state.penechoDraft || !state.penechoDraft.payload) return;
     applyPenechoCanvasPayload(state.penechoDraft.payload, false);
-    showToast('Spatial Canvas Draft Committed to Board ✓');
+    showToast('Spatial Canvas Draft Committed to Whiteboard ✓');
   }
 
   function discardPenechoDraft() {
@@ -2290,25 +2645,39 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     state.penechoState = {
       timeline: [],
       mindmap: { nodes: [], links: [] },
-      canvas: { elements: [] }
+      canvas: { elements: [] },
+      drawings: [],
+      stickies: []
     };
     state.penechoDraft = null;
     state.selectedMindMapNode = null;
+    state.canvasPan = { x: 0, y: 0 };
+    state.canvasZoom = 1.0;
     saveCanvasState();
     renderPenechoSpatialView();
-    showToast('Canvas cleared');
+    showToast('Whiteboard Cleared ✓');
   }
 
   function loadPenechoDemo() {
     applyPenechoCanvasPayload(PENECHO_EXAMPLE_PAYLOAD, false);
-    showToast('Loaded PenEcho Protocol Demo ✓');
+    if (!state.penechoState.stickies) state.penechoState.stickies = [];
+    state.penechoState.stickies.push({
+      id: 'sticky_' + Date.now(),
+      x: 60,
+      y: 80,
+      text: '📌 Architectural Goal:\nAchieve sub-50ms token inference with local-first vault security.',
+      color: '#FEF08A'
+    });
+    saveCanvasState();
+    renderPenechoSpatialView();
+    showToast('Loaded Interactive Whiteboard Demo ✓');
   }
 
   /* ── Mind Map Force-Directed Physics ── */
   function startMindMapPhysics() {
     if (state.physicsRaf) cancelAnimationFrame(state.physicsRaf);
     let iterations = 0;
-    const maxIterations = 160;
+    const maxIterations = 140;
 
     function physicsStep() {
       const nodes = state.penechoState?.mindmap?.nodes || [];
@@ -2317,12 +2686,11 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
       const cx = 200;
       const cy = 150;
-      const kRepel = 3200;
-      const kSpring = 0.05;
-      const restLen = 80;
-      const damping = 0.88;
+      const kRepel = 2800;
+      const kSpring = 0.04;
+      const restLen = 90;
+      const damping = 0.85;
 
-      // 1. Repulsion between all node pairs
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const n1 = nodes[i];
@@ -2341,7 +2709,6 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         }
       }
 
-      // 2. Spring attraction along links
       for (const link of links) {
         const source = nodes.find((n) => n.id === link.source);
         const target = nodes.find((n) => n.id === link.target);
@@ -2359,15 +2726,15 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         }
       }
 
-      // 3. Center gravity & integrate velocity
       for (const node of nodes) {
-        node.vx = ((node.vx || 0) + (cx - node.x) * 0.015) * damping;
-        node.vy = ((node.vy || 0) + (cy - node.y) * 0.015) * damping;
+        if (state.draggedElement && state.draggedElement.id === node.id) continue;
+        node.vx = ((node.vx || 0) + (cx - node.x) * 0.012) * damping;
+        node.vy = ((node.vy || 0) + (cy - node.y) * 0.012) * damping;
         node.x = Math.max(30, Math.min(370, node.x + node.vx));
         node.y = Math.max(30, Math.min(270, node.y + node.vy));
       }
 
-      updateMindMapSVG();
+      updateWhiteboardSVG();
       iterations++;
       if (iterations < maxIterations) {
         state.physicsRaf = requestAnimationFrame(physicsStep);
@@ -2376,72 +2743,20 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     state.physicsRaf = requestAnimationFrame(physicsStep);
   }
 
-  function updateMindMapSVG() {
-    const svgEl = ui.spatialView?.querySelector('.mn-mindmap-svg');
-    if (!svgEl) return;
-    const nodes = state.penechoState?.mindmap?.nodes || [];
-    const links = state.penechoState?.mindmap?.links || [];
-
-    // Render Links
-    let linksHtml = '';
-    links.forEach((l) => {
-      const src = nodes.find((n) => n.id === l.source);
-      const tgt = nodes.find((n) => n.id === l.target);
-      if (src && tgt) {
-        const isDashed = l.style === 'dashed';
-        const mx = (src.x + tgt.x) / 2;
-        const my = (src.y + tgt.y) / 2;
-        linksHtml += `
-          <line x1="${src.x}" y1="${src.y}" x2="${tgt.x}" y2="${tgt.y}"
-            stroke="#94A3B8" stroke-width="2"
-            ${isDashed ? 'stroke-dasharray="4 3"' : ''}
-            marker-end="url(#mn-arrowhead)" />
-          ${l.label ? `<text x="${mx}" y="${my - 4}" fill="#475569" font-size="9.5" font-weight="600" text-anchor="middle" font-family="'Space Grotesk', sans-serif">${esc(l.label)}</text>` : ''}
-        `;
-      }
-    });
-
-    // Render Nodes with Strict Color Taxonomy in Light Theme
-    let nodesHtml = '';
-    nodes.forEach((n) => {
-      const color = n.color || (
-        n.category === 'safe_memory' ? '#22C55E' :
-        n.category === 'consideration' ? '#EAB308' :
-        n.category === 'reconsider' ? '#EF4444' :
-        n.category === 'active_focus' ? '#3B82F6' : '#64748B'
-      );
-      const isSelected = state.selectedMindMapNode?.id === n.id;
-      nodesHtml += `
-        <g class="mn-node-group" data-nid="${esc(n.id)}" style="cursor:pointer;">
-          <circle cx="${n.x}" cy="${n.y}" r="22" fill="#FFFFFF" stroke="${color}" stroke-width="${isSelected ? 3.5 : 2.5}" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.12))" />
-          <circle cx="${n.x}" cy="${n.y - 6}" r="4.5" fill="${color}" />
-          <text x="${n.x}" y="${n.y + 7}" fill="#0F172A" font-size="9.5" font-weight="700" text-anchor="middle" font-family="'Space Grotesk', sans-serif">${esc(truncate(n.label, 14))}</text>
-        </g>
-      `;
-    });
-
-    svgEl.innerHTML = `
-      <defs>
-        <marker id="mn-arrowhead" markerWidth="8" markerHeight="6" refX="22" refY="3" orient="auto">
-          <polygon points="0 0, 8 3, 0 6" fill="#64748B" />
-        </marker>
-      </defs>
-      <g class="mn-links-layer">${linksHtml}</g>
-      <g class="mn-nodes-layer">${nodesHtml}</g>
-    `;
-
-    // Attach click inspection handlers to SVG nodes
-    svgEl.querySelectorAll('.mn-node-group').forEach((g) => {
-      g.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const nid = g.dataset.nid;
-        const node = (state.penechoState?.mindmap?.nodes || []).find((n) => n.id === nid);
-        if (node) {
-          state.selectedMindMapNode = node;
-          renderNodeInspector();
-        }
-      });
-    });
+  function formatLatexFormula(latex) {
+    if (!latex) return '';
+    return String(latex)
+      .split('\\nabla').join('∇')
+      .split('\\times').join(' × ')
+      .split('\\partial').join('∂')
+      .split('\\mu').join('μ')
+      .split('\\sigma').join('σ')
+      .split('\\sum').join('∑')
+      .split('\\int').join('∫')
+      .replace(/\\mathbf\{([^}]+)\}/g, '<b>$1</b>')
+      .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1 / $2)')
+      .replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
+      .replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>');
   }
 
   function renderNodeInspector() {
@@ -2456,9 +2771,16 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     const color = node.color || '#64748B';
     const catLabel =
       node.category === 'safe_memory' ? '🟢 Safe Long-Term Memory' :
-      node.category === 'consideration' ? '🟡 Consideration / Revisit' :
-      node.category === 'reconsider' ? '🔴 High Risk / Reconsider' :
-      node.category === 'active_focus' ? '🔵 Active Focus' : '⚪ Structural Connector';
+        node.category === 'consideration' ? '🟡 Consideration / Revisit' :
+          node.category === 'reconsider' ? '🔴 High Risk / Reconsider' :
+            node.category === 'active_focus' ? '🔵 Active Focus' : '⚪ Structural Connector';
+
+    const saveBtnHtml = (node.category === 'safe_memory' || color === '#22C55E')
+      ? '<button class="mn-spatial-btn mn-spatial-btn-primary mn-node-save-btn">💾 Save Fact to Kept Vault</button>'
+      : '';
+    const ruleBtnHtml = (node.category === 'reconsider' || color === '#EF4444')
+      ? '<button class="mn-spatial-btn mn-spatial-btn-danger mn-node-rule-btn">🛡️ Add to Never-Save Rules</button>'
+      : '';
 
     inspectorEl.innerHTML = `
       <div class="mn-inspector-hdr">
@@ -2470,12 +2792,8 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       </div>
       <div class="mn-inspector-desc">${esc(node.description || 'No description provided.')}</div>
       <div class="mn-inspector-acts">
-        ${node.category === 'safe_memory' || color === '#22C55E' ? `
-          <button class="mn-spatial-btn mn-spatial-btn-primary mn-node-save-btn">💾 Save Fact to Kept Vault</button>
-        ` : ''}
-        ${node.category === 'reconsider' || color === '#EF4444' ? `
-          <button class="mn-spatial-btn mn-spatial-btn-danger mn-node-rule-btn">🛡️ Add to Never-Save Rules</button>
-        ` : ''}
+        ${saveBtnHtml}
+        ${ruleBtnHtml}
         <button class="mn-spatial-btn mn-node-close-btn">Close</button>
       </div>
     `;
@@ -2513,46 +2831,28 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     }
   }
 
-  function formatLatexFormula(latex) {
-    if (!latex) return '';
-    // Format mathematical formula nicely for canvas display
-    return latex
-      .replace(/\\nabla/g, '∇')
-      .replace(/\\times/g, ' × ')
-      .replace(/\\mathbf\{([^}]+)\}/g, '<b>$1</b>')
-      .replace(/\\frac\{\\partial\s*([^}]+)\}\{\\partial\s*([^}]+)\}/g, '(∂$1/∂$2)')
-      .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1 / $2)')
-      .replace(/\\partial/g, '∂')
-      .replace(/\\mu_\{([^}]+)\}/g, 'μ<sub>$1</sub>')
-      .replace(/\\mu/g, 'μ')
-      .replace(/\\sigma/g, 'σ')
-      .replace(/\\sum/g, '∑')
-      .replace(/\\int/g, '∫')
-      .replace(/\\text\{([^}]+)\}/g, '$1')
-      .replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
-      .replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>');
-  }
-
+  /* ═══════════════════════════════════════════════════════════════
+     RENDER TRUE INTERACTIVE INFINITE WHITEBOARD
+     ═══════════════════════════════════════════════════════════════ */
   function renderPenechoSpatialView() {
     const viewEl = ui.spatialView;
     if (!viewEl) return;
 
-    const data = state.penechoState || { timeline: [], mindmap: { nodes: [], links: [] }, canvas: { elements: [] } };
+    const data = state.penechoState || { timeline: [], mindmap: { nodes: [], links: [] }, canvas: { elements: [] }, drawings: [], stickies: [] };
     const draft = state.penechoDraft?.payload;
+    const isDrawing = state.isGeminiDrawing;
+    const isGeminiOn = state.geminiDrawingEnabled;
+    const hasKey = !!(state.geminiApiKey && state.geminiApiKey.trim());
+    const activeTool = state.whiteboardTool || 'select';
 
-    // 1. Header Toolbar
-    const toolbarHtml = `
-      <div class="mn-spatial-toolbar">
-        <div class="mn-spatial-status">
-          <span class="mn-spatial-pulse-dot ${draft ? 'drafting' : ''}"></span>
-          <span>${draft ? 'Live Draft Streaming' : 'Live Spatial Board Ready'}</span>
-        </div>
-        <div class="mn-spatial-actions">
-          <button class="mn-spatial-btn mn-btn-load-demo" title="Load sample architecture & formulas from canvas.md">✨ Demo</button>
-          <button class="mn-spatial-btn mn-btn-clear-canvas" title="Clear canvas elements">🧹 Clear</button>
-        </div>
-      </div>
-    `;
+    // 1. Status Bar & Quick Toggle Header
+    const statusHtml = isDrawing
+      ? `<span class="mn-gemini-pulse-dot drawing"></span><span style="color:#92400E;font-weight:700;">⚡ Gemini Drawing from Claude...</span>`
+      : isGeminiOn && hasKey
+        ? `<span class="mn-gemini-pulse-dot"></span><span style="color:#065F46;font-weight:700;">🟢 Gemini Visual Co-Pilot (${esc(state.geminiModel)})</span>`
+        : isGeminiOn
+          ? `<span class="mn-gemini-pulse-dot" style="background:#F59E0B;box-shadow:0 0 8px #F59E0B;"></span><span style="color:#92400E;font-weight:700;">🟡 Gemini (API Key Connected)</span>`
+          : `<span class="mn-gemini-pulse-dot" style="background:#64748B;box-shadow:none;"></span><span style="color:#64748B;">⏸️ Direct Claude Mode</span>`;
 
     // 2. Draft Layer Banner
     let draftBannerHtml = '';
@@ -2561,145 +2861,179 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       const nodeCnt = draft.mindmap?.nodes?.length || 0;
       const elemCnt = draft.canvas?.elements?.length || 0;
       draftBannerHtml = `
-        <div class="mn-draft-banner">
+        <div class="mn-draft-banner" style="margin-bottom:8px;">
           <div class="mn-draft-info">
             <div class="mn-draft-title">✨ Draft Layer: ${esc(stepTtl)}</div>
-            <div class="mn-draft-subtitle">${nodeCnt} Mind Map Nodes • ${elemCnt} Canvas Visuals</div>
+            <div class="mn-draft-subtitle">${nodeCnt} Nodes • ${elemCnt} Visuals</div>
           </div>
           <div class="mn-draft-acts">
-            <button class="mn-spatial-btn mn-spatial-btn-primary mn-btn-accept-draft">✅ Accept Draft</button>
+            <button class="mn-spatial-btn mn-spatial-btn-primary mn-btn-accept-draft">✅ Accept</button>
             <button class="mn-spatial-btn mn-spatial-btn-danger mn-btn-discard-draft">Discard</button>
           </div>
         </div>
       `;
     }
 
-    // 3. Stream 1: Running Timeline
-    const timelineItems = (data.timeline && data.timeline.length ? data.timeline : (draft?.timeline ? [draft.timeline] : []));
-    let timelineHtml = '';
-    if (timelineItems.length) {
-      timelineHtml = timelineItems.map((item, idx) => {
-        const stepNum = item.step_number || (timelineItems.length - idx);
-        const status = item.status || 'completed';
-        const statusClass = `mn-timeline-status-${status}`;
-        const statusLabel = status === 'completed' ? '✓ Completed' : status === 'in_progress' ? '⏳ In Progress' : '📅 Planned';
-        return `
-          <div class="mn-timeline-step-item">
-            <div class="mn-timeline-step-num">#${stepNum}</div>
-            <div class="mn-timeline-step-content">
-              <div class="mn-timeline-step-top">
-                <span class="mn-timeline-step-ttl">${esc(item.title || 'Turn Milestone')}</span>
-                <span class="mn-timeline-status-pill ${statusClass}">${statusLabel}</span>
-              </div>
-              <div class="mn-timeline-step-sum">${esc(item.summary || '')}</div>
-            </div>
+    // 3. Interactive Whiteboard Toolbar
+    const toolButtons = [
+      { id: 'select', label: '👆 Move / Select', title: 'Pan canvas or drag nodes' },
+      { id: 'pen', label: '✏️ Draw Pen', title: 'Freehand sketch on whiteboard' },
+      { id: 'sticky', label: '📝 Sticky Note', title: 'Click on whiteboard to add sticky note' },
+      { id: 'box', label: '⬜ Box', title: 'Add concept boundary box' },
+      { id: 'eraser', label: '🧹 Eraser', title: 'Click on drawings or nodes to erase' },
+    ];
+
+    const penColors = ['#1A1A2E', '#2563EB', '#EC4899', '#16A34A', '#D97706', '#DC2626'];
+    const activeColor = state.whiteboardPenColor || '#1A1A2E';
+
+    const toolsHtml = `
+      <div class="mn-whiteboard-toolbar">
+        <div class="mn-wb-tool-group">
+          ${toolButtons.map(t => `
+            <button class="mn-wb-btn ${activeTool === t.id ? 'active' : ''}" data-tool="${t.id}" title="${t.title}">${t.label}</button>
+          `).join('')}
+        </div>
+
+        <div class="mn-wb-tool-group">
+          <div class="mn-wb-color-picker" title="Pen Stroke Color">
+            ${penColors.map(c => `
+              <div class="mn-wb-color-dot ${activeColor === c ? 'active' : ''}" data-color="${c}" style="background:${c};"></div>
+            `).join('')}
           </div>
-        `;
-      }).join('');
-    } else {
-      timelineHtml = '<div class="mn-rules-empty">No milestones yet. Claude will populate chronological steps here.</div>';
-    }
 
-    // 4. Stream 2: Dynamic Mind Map Elements
-    const nodesCount = (data.mindmap?.nodes?.length || 0) + (draft?.mindmap?.nodes?.length || 0);
+          <button class="mn-wb-btn mn-wb-btn-export" title="Export Whiteboard to SVG">${IC.download} SVG</button>
+          <button class="mn-wb-btn mn-wb-btn-demo" title="Load sample whiteboard">✨ Demo</button>
+          <button class="mn-wb-btn mn-wb-btn-clear" title="Clear all whiteboard elements">🧹 Clear</button>
+        </div>
+      </div>
+    `;
 
-    // 5. Stream 3: General Canvas Visuals (LaTeX Formulas & Vectors)
+    // 4. Whiteboard HTML Overlay Elements (Sticky Notes & LaTeX Formula Cards)
+    const stickies = data.stickies || [];
+    let stickiesHtml = '';
+    stickies.forEach((s) => {
+      stickiesHtml += `
+        <div class="mn-sticky-note-card" data-sticky-id="${esc(s.id)}" style="left:${s.x}px;top:${s.y}px;background:${s.color || '#FEF08A'};">
+          <div class="mn-sticky-hdr">
+            <span>📌 Note</span>
+            <span class="mn-sticky-del" data-del-sticky="${esc(s.id)}" style="cursor:pointer;padding:0 2px;" title="Delete note">×</span>
+          </div>
+          <div class="mn-sticky-body" contenteditable="true" data-edit-sticky="${esc(s.id)}">${esc(s.text || 'Type notes here...')}</div>
+        </div>
+      `;
+    });
+
     const canvasElements = (data.canvas?.elements?.length ? data.canvas.elements : (draft?.canvas?.elements || []));
-    let formulasHtml = '';
-    let vectorBoxesHtml = '';
-    let vectorArrowsHtml = '';
-
-    canvasElements.forEach((el) => {
+    let formulasOverlayHtml = '';
+    canvasElements.forEach((el, idx) => {
       if (el.type === 'render_formula') {
-        formulasHtml += `
-          <div class="mn-formula-card">
+        const posX = el.x || (40 + idx * 30);
+        const posY = el.y || (30 + idx * 40);
+        formulasOverlayHtml += `
+          <div class="mn-floating-formula-card" data-formula-id="${esc(el.id || 'f_' + idx)}" style="left:${posX}px;top:${posY}px;">
             ${el.caption ? `<div class="mn-formula-caption">📐 ${esc(el.caption)}</div>` : ''}
             <div class="mn-formula-math">${formatLatexFormula(el.latex)}</div>
-          </div>
-        `;
-      } else if (el.type === 'draw_box') {
-        const borderStyle = el.style === 'dashed' ? 'dashed' : 'solid';
-        const color = el.color || '#3B82F6';
-        vectorBoxesHtml += `
-          <div class="mn-vector-box-item" style="border: 1.5px ${borderStyle} ${color};">
-            <div class="mn-vector-box-ttl" style="color:${color};">${esc(el.title || 'Component Box')}</div>
-            <div style="font-size:10px;color:#94a3b8;">${el.w}×${el.h}px @ (${el.x}, ${el.y})</div>
-          </div>
-        `;
-      } else if (el.type === 'draw_arrow') {
-        const color = el.color || '#22C55E';
-        vectorArrowsHtml += `
-          <div class="mn-vector-arrow-card">
-            <span>➔</span>
-            <span>${esc(el.label || 'Connection')}</span>
-            <span style="font-size:9px;color:#94a3b8;margin-left:auto;">(${el.from?.[0]},${el.from?.[1]}) ➔ (${el.to?.[0]},${el.to?.[1]})</span>
-          </div>
-        `;
-      } else if (el.type === 'draw_text') {
-        vectorBoxesHtml += `
-          <div class="mn-vector-box-item" style="border-left:3px solid ${el.color || '#EAB308'};">
-            <div style="font-size:11px;color:${el.color || '#EAB308'};">${esc(el.text)}</div>
           </div>
         `;
       }
     });
 
+    // 5. Build Viewport Structure
     viewEl.innerHTML = `
-      ${toolbarHtml}
-      ${draftBannerHtml}
-
-      <!-- Stream 1: Running Timeline -->
-      <div class="mn-stream-card">
-        <div class="mn-stream-hdr">
-          <div class="mn-stream-title">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#38BDF8" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span>Running Timeline (${timelineItems.length} steps)</span>
-          </div>
+      <!-- Status Top Bar -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#F0F8FF;border:2px solid #1A1A2E;border-radius:10px;margin-bottom:8px;box-shadow:2px 2px 0px #1A1A2E;">
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
+          ${statusHtml}
         </div>
-        <div class="mn-timeline-steps">${timelineHtml}</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="mn-spatial-btn mn-btn-gemini-draw-now" style="background:var(--mn-pink);color:#FFFFFF;border:2px solid #1A1A2E;font-size:10px;font-weight:700;padding:3px 8px;cursor:pointer;" title="Draw the latest Claude answer with Gemini">⚡ Draw Answer</button>
+          <label style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;cursor:pointer;">
+            <span>Gemini:</span>
+            <input type="checkbox" class="mn-tgl mn-gemini-toggle-tgl" ${isGeminiOn ? 'checked' : ''} style="width:30px;height:16px;" />
+          </label>
+        </div>
       </div>
 
-      <!-- Stream 2: Dynamic Mind Map with Physics -->
-      <div class="mn-stream-card">
-        <div class="mn-stream-hdr">
-          <div class="mn-stream-title">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#EC4899" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-            <span>Active Mind Map (${nodesCount} nodes)</span>
+      ${draftBannerHtml}
+
+      <!-- Interactive Whiteboard -->
+      <div class="mn-whiteboard-container">
+        ${toolsHtml}
+
+        <div class="mn-whiteboard-viewport ${activeTool === 'pen' ? 'drawing' : ''}">
+          <div class="mn-whiteboard-surface" style="transform: translate(${state.canvasPan.x}px, ${state.canvasPan.y}px) scale(${state.canvasZoom});">
+            <svg class="mn-whiteboard-svg" viewBox="0 0 3200 3200"></svg>
+            <div class="mn-whiteboard-overlay">
+              ${stickiesHtml}
+              ${formulasOverlayHtml}
+            </div>
+          </div>
+
+          <!-- Bottom-Right Zoom Bar -->
+          <div class="mn-wb-zoom-bar">
+            <button class="mn-wb-btn mn-wb-zoom-out" style="padding:2px 6px;" title="Zoom Out">➖</button>
+            <span class="mn-wb-badge-info">${Math.round((state.canvasZoom || 1.0) * 100)}%</span>
+            <button class="mn-wb-btn mn-wb-zoom-in" style="padding:2px 6px;" title="Zoom In">➕</button>
+            <button class="mn-wb-btn mn-wb-zoom-reset" style="padding:2px 6px;" title="Reset View">🎯 100%</button>
           </div>
         </div>
-        <div class="mn-mindmap-wrap">
-          <svg class="mn-mindmap-svg" viewBox="0 0 400 300"></svg>
-        </div>
-        <div class="mn-mindmap-legend">
+
+        <div class="mn-mindmap-legend" style="margin-top:4px;">
           <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#22C55E;"></span> 🟢 Safe Memory</span>
           <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#EAB308;"></span> 🟡 Consideration</span>
           <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#EF4444;"></span> 🔴 Reconsider</span>
           <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#3B82F6;"></span> 🔵 Active Focus</span>
           <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#64748B;"></span> ⚪ Structure</span>
         </div>
-        <div class="mn-node-inspector" style="display:none;"></div>
-      </div>
 
-      <!-- Stream 3: General Canvas Visuals & Math Formulas -->
-      <div class="mn-stream-card">
-        <div class="mn-stream-hdr">
-          <div class="mn-stream-title">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A78BFA" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-            <span>Canvas Visuals &amp; LaTeX Formulas (${canvasElements.length} items)</span>
-          </div>
-        </div>
-        <div class="mn-canvas-elements-grid">
-          ${formulasHtml || ''}
-          ${vectorBoxesHtml ? `<div class="mn-vector-boxes-row">${vectorBoxesHtml}</div>` : ''}
-          ${vectorArrowsHtml || ''}
-          ${!canvasElements.length ? '<div class="mn-rules-empty">No vector diagrams or formulas yet.</div>' : ''}
-        </div>
+        <div class="mn-node-inspector" style="display:none;"></div>
       </div>
     `;
 
     // Event listeners
-    const injectBtn = viewEl.querySelector('.mn-btn-inject-proto');
-    if (injectBtn) injectBtn.onclick = syncCanvasProtocolToClaude;
+    const toggleTgl = viewEl.querySelector('.mn-gemini-toggle-tgl');
+    if (toggleTgl) {
+      toggleTgl.onchange = () => {
+        saveGeminiConfig({ geminiDrawingEnabled: toggleTgl.checked });
+        showToast(toggleTgl.checked ? '⚡ Gemini Visual Co-Pilot Enabled ✓' : 'Direct Claude Mode Enabled');
+      };
+    }
+
+    const drawNowBtn = viewEl.querySelector('.mn-btn-gemini-draw-now');
+    if (drawNowBtn) {
+      drawNowBtn.onclick = () => {
+        // Find latest assistant message
+        const lastMsgEl = document.querySelector('[data-message-author-role="assistant"]:last-of-type, .font-claude-message:last-of-type, .prose:last-of-type');
+        const text = lastMsgEl ? lastMsgEl.textContent.trim() : '';
+        if (text) {
+          triggerGeminiDrawing(text, true);
+        } else {
+          showToast('⚠️ No assistant message found in current chat. Loading demo...');
+          loadPenechoDemo();
+        }
+      };
+    }
+
+    const keyConfigBtn = viewEl.querySelector('.mn-btn-gemini-key-config');
+    if (keyConfigBtn) {
+      keyConfigBtn.onclick = () => {
+        openTab('settings');
+      };
+    }
+
+    const quickSaveBtn = viewEl.querySelector('.mn-gemini-save-quick');
+    if (quickSaveBtn) {
+      quickSaveBtn.onclick = () => {
+        const inp = viewEl.querySelector('.mn-gemini-quick-key');
+        const keyVal = inp ? inp.value.trim() : '';
+        if (keyVal) {
+          saveGeminiConfig({ geminiApiKey: keyVal, geminiDrawingEnabled: true });
+          showToast('🔑 Gemini API Key Saved & Connected ✓');
+        } else {
+          showToast('⚠️ Please enter an API key');
+        }
+      };
+    }
 
     const demoBtn = viewEl.querySelector('.mn-btn-load-demo');
     if (demoBtn) demoBtn.onclick = loadPenechoDemo;
@@ -2718,12 +3052,207 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   }
 
   /* ═══════════════════════════════════════
+     RENDER SETTINGS PANEL
+     ═══════════════════════════════════════ */
+  function renderSettingsPanel() {
+    const pane = ui.dr?.querySelector('[data-pane="settings"]');
+    if (!pane) return;
+
+    const hasKey = !!(state.geminiApiKey && state.geminiApiKey.trim());
+    const isGeminiOn = state.geminiDrawingEnabled;
+
+    pane.innerHTML = `
+      <div class="mn-settings-pane-wrap" style="padding:16px;display:flex;flex-direction:column;gap:16px;">
+        <!-- Card 1: Google Gemini Spatial Visual Co-Pilot -->
+        <div class="mn-gemini-copilot-card">
+          <div class="mn-gemini-hdr-row">
+            <div class="mn-gemini-title">
+              <span style="font-size:18px;">⚡</span>
+              <span>Gemini Spatial Drawing</span>
+            </div>
+            <span class="mn-gemini-badge ${hasKey ? 'active' : 'inactive'}">
+              ${hasKey ? '● API Key Ready' : '○ Key Missing'}
+            </span>
+          </div>
+
+          <div class="mn-gemini-desc">
+            Use Gemini API to automatically parse Claude's conversational output and generate the 3 synchronized visual streams (Running Timeline, Dynamic Mind Map with 5-color taxonomy, and Canvas LaTeX / vector elements).
+          </div>
+
+          <!-- Toggle Row -->
+          <div class="mn-gemini-toggle-bar">
+            <div>
+              <div class="mn-gemini-toggle-label">Enable Gemini Drawing</div>
+              <div style="font-size:11px;color:#6B7280;">Auto-draw visual canvas from Claude's answers</div>
+            </div>
+            <input type="checkbox" class="mn-tgl mn-settings-gemini-toggle" ${isGeminiOn ? 'checked' : ''} />
+          </div>
+
+          <!-- API Key Input -->
+          <div class="mn-gemini-input-group">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span class="mn-gemini-input-label">Gemini API Key</span>
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="font-size:10.5px;color:#2563EB;font-weight:700;text-decoration:none;">Get Free Key ↗</a>
+            </div>
+            <div class="mn-gemini-input-row">
+              <input type="${state.showKeyInSettings ? 'text' : 'password'}" class="mn-gemini-key-inp mn-settings-gemini-key" placeholder="Enter API Key (AIzaSy...)" value="${esc(state.geminiApiKey || '')}" />
+              <button class="mn-btn mn-btn-e mn-settings-key-eye" style="padding:6px 10px;" title="Toggle show/hide">${state.showKeyInSettings ? '🙈' : '👁️'}</button>
+            </div>
+          </div>
+
+          <!-- Model Selection Dropdown -->
+          <div class="mn-gemini-input-group">
+            <span class="mn-gemini-input-label">Gemini Vision &amp; Spatial Model</span>
+            <select class="mn-gemini-model-select mn-settings-model-sel">
+              <option value="gemini-2.5-flash" ${state.geminiModel === 'gemini-2.5-flash' ? 'selected' : ''}>Gemini 2.5 Flash (Recommended - Ultra Fast)</option>
+              <option value="gemini-2.0-flash" ${state.geminiModel === 'gemini-2.0-flash' ? 'selected' : ''}>Gemini 2.0 Flash</option>
+              <option value="gemini-1.5-flash" ${state.geminiModel === 'gemini-1.5-flash' ? 'selected' : ''}>Gemini 1.5 Flash</option>
+              <option value="gemini-1.5-pro" ${state.geminiModel === 'gemini-1.5-pro' ? 'selected' : ''}>Gemini 1.5 Pro</option>
+            </select>
+          </div>
+
+          <!-- Actions Row -->
+          <div class="mn-gemini-actions-row" style="margin-top:6px;">
+            <button class="mn-btn mn-btn-p mn-settings-save-gemini" style="flex:1;">💾 Save Key &amp; Settings</button>
+            <button class="mn-btn mn-btn-sim mn-settings-test-gemini" style="flex:1;">⚡ Test Key &amp; Draw Demo</button>
+          </div>
+        </div>
+
+        <!-- Card 2: Never-Save Rules -->
+        <div style="border:3px solid #1A1A2E;border-radius:12px;padding:14px;background:#FFFFFF;box-shadow:3px 3px 0px #1A1A2E;">
+          <div style="font-weight:700;font-size:14px;color:#1A1A2E;margin-bottom:4px;">🛑 Never-Save Rules</div>
+          <div style="font-size:12px;color:#4B5563;margin-bottom:10px;">Keywords or natural rules for topics Claude must never remember.</div>
+          <div class="mn-rules-inp-row" style="display:flex;gap:6px;margin-bottom:10px;">
+            <input class="mn-rules-inp" type="text" placeholder="e.g. Never remember salary details" maxlength="80" style="flex:1;padding:8px;border:2px solid #1A1A2E;border-radius:8px;font-size:12px;" />
+            <button class="mn-rules-add" style="padding:8px 14px;border:2px solid #1A1A2E;background:var(--mn-pink);border-radius:8px;font-weight:700;cursor:pointer;font-size:12px;">Add</button>
+          </div>
+          <div class="mn-rules-list"></div>
+        </div>
+
+        <!-- Card 3: Memory Freeze & Snapshots -->
+        <div style="border:3px solid #1A1A2E;border-radius:12px;padding:14px;background:#FFFFFF;box-shadow:3px 3px 0px #1A1A2E;">
+          <div style="font-weight:700;font-size:14px;color:#1A1A2E;margin-bottom:4px;">❄️ Memory Freeze &amp; Snapshots</div>
+          <div style="font-size:12px;color:#4B5563;margin-bottom:10px;">Freeze current memory state or restore previous memory snapshots.</div>
+          <div class="mn-snaps-inp-row" style="display:flex;gap:6px;margin-bottom:10px;">
+            <input class="mn-rules-inp mn-snaps-inp" type="text" placeholder="Snapshot label" maxlength="40" style="flex:1;padding:8px;border:2px solid #1A1A2E;border-radius:8px;font-size:12px;" />
+            <button class="mn-rules-add mn-snaps-add" style="padding:8px 14px;border:2px solid #1A1A2E;background:var(--mn-blue);border-radius:8px;font-weight:700;cursor:pointer;font-size:12px;">Freeze</button>
+          </div>
+          <div class="mn-snaps-list"></div>
+        </div>
+      </div>
+    `;
+
+    // Rebind rules and snapshots lists
+    ui.rulesList = pane.querySelector('.mn-rules-list');
+    ui.snapsList = pane.querySelector('.mn-snaps-list');
+    renderRulesPanel();
+    renderSnapshotsPanel();
+
+    // Bind Gemini settings events
+    const tgl = pane.querySelector('.mn-settings-gemini-toggle');
+    if (tgl) {
+      tgl.addEventListener('change', () => {
+        saveGeminiConfig({ geminiDrawingEnabled: tgl.checked });
+        showToast(tgl.checked ? '⚡ Gemini Visual Co-Pilot Enabled ✓' : 'Direct Claude Mode Enabled');
+      });
+    }
+
+    const eyeBtn = pane.querySelector('.mn-settings-key-eye');
+    if (eyeBtn) {
+      eyeBtn.addEventListener('click', () => {
+        state.showKeyInSettings = !state.showKeyInSettings;
+        renderSettingsPanel();
+      });
+    }
+
+    const modelSel = pane.querySelector('.mn-settings-model-sel');
+    if (modelSel) {
+      modelSel.addEventListener('change', () => {
+        saveGeminiConfig({ geminiModel: modelSel.value });
+        showToast('Model set to ' + modelSel.value + ' ✓');
+      });
+    }
+
+    const saveBtn = pane.querySelector('.mn-settings-save-gemini');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        const keyInp = pane.querySelector('.mn-settings-gemini-key');
+        const keyVal = keyInp ? keyInp.value.trim() : '';
+        const selVal = modelSel ? modelSel.value : 'gemini-2.5-flash';
+        const tglVal = tgl ? tgl.checked : true;
+        saveGeminiConfig({
+          geminiApiKey: keyVal,
+          geminiModel: selVal,
+          geminiDrawingEnabled: tglVal,
+        });
+        showToast('⚡ Gemini API Key & Settings Saved ✓');
+      });
+    }
+
+    const testBtn = pane.querySelector('.mn-settings-test-gemini');
+    if (testBtn) {
+      testBtn.addEventListener('click', async () => {
+        const keyInp = pane.querySelector('.mn-settings-gemini-key');
+        const keyVal = keyInp ? keyInp.value.trim() : state.geminiApiKey;
+        if (!keyVal) {
+          showToast('⚠️ Please enter an API key first');
+          return;
+        }
+        showToast('⚡ Testing Gemini API Connection...');
+        const testAnswer = 'To architect a resilient distributed cache with token rotation, we implement a stateless Ed25519 authentication microservice with adaptive TTL calculations and Redis blacklist protection.';
+        try {
+          const res = await send({
+            type: 'CALL_GEMINI_DRAWING',
+            apiKey: keyVal,
+            claudeAnswer: testAnswer,
+            model: modelSel ? modelSel.value : state.geminiModel || 'gemini-2.5-flash',
+          });
+          if (res && res.success && res.payload) {
+            applyPenechoCanvasPayload(res.payload, false);
+            openTab('canvas');
+            showToast('✅ Gemini API Verified & Demo Drawn on Canvas!');
+          } else {
+            showToast('⚠️ Test Failed: ' + (res?.error || 'Unknown error'));
+          }
+        } catch (e) {
+          showToast('⚠️ Test Error: ' + e.message);
+        }
+      });
+    }
+
+    // Bind Rules Add
+    const inp = pane.querySelector('.mn-rules-inp');
+    const rulesAddBtn = pane.querySelector('.mn-rules-add');
+    if (rulesAddBtn && inp) {
+      rulesAddBtn.addEventListener('click', () => {
+        addRule(inp.value);
+        inp.value = '';
+      });
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { addRule(inp.value); inp.value = ''; }
+      });
+    }
+
+    // Bind Snapshot Add
+    const snapInp = pane.querySelector('.mn-snaps-inp');
+    const snapsAddBtn = pane.querySelector('.mn-snaps-add');
+    if (snapsAddBtn && snapInp) {
+      snapsAddBtn.addEventListener('click', () => {
+        createSnapshot(snapInp.value);
+        snapInp.value = '';
+      });
+    }
+  }
+
+  /* ═══════════════════════════════════════
      RENDER ALL
      ═══════════════════════════════════════ */
   function renderAll() {
     renderGlobalMemory();
     renderLocalMemory();
     renderRulesPanel();
+    renderSnapshotsPanel();
+    renderSettingsPanel();
     renderPenechoSpatialView();
     updateBadge();
     updateMessageStatusIndicators();
@@ -3066,7 +3595,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     // 💬 Personal & Profile check
     if (
-      /\b(?:my\s+(?:name|birthday|age|location|city|address|hobbies|hobby|favorite|pet|dog|cat|phone|email)\b)/i.test(lower) ||
+      /\b(?:my\s+(?:name|birthday|age|location|city|address|hobbies|hobby|favorite|pet|dog|cat|phone|email))\b/i.test(lower) ||
       /\b(?:i\s+(?:live|love|hate|prefer|enjoy|dislike|am\s+feeling|am\s+a|feel|want\s+to\s+shift))\b/i.test(lower) ||
       /\b[1-9][0-9]{5}\b/.test(text) ||
       /\b(?:bhopal|mumbai|delhi|bangalore|pune|indore)\b/i.test(lower)
@@ -3103,11 +3632,11 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     let contentHTML = isEditing
       ? '<div class="mn-edit-area" onclick="event.stopPropagation()">' +
-        '<textarea class="mn-edit-box" data-id="' + m.id + '">' + esc(m.text) + '</textarea>' +
-        '<div class="mn-edit-acts">' +
-        '<button class="mn-btn mn-btn-k" data-act="save-edit" data-id="' + m.id + '">Save</button>' +
-        '<button class="mn-btn mn-btn-d" data-act="cancel-edit" data-id="' + m.id + '">Cancel</button>' +
-        '</div></div>'
+      '<textarea class="mn-edit-box" data-id="' + m.id + '">' + esc(m.text) + '</textarea>' +
+      '<div class="mn-edit-acts">' +
+      '<button class="mn-btn mn-btn-k" data-act="save-edit" data-id="' + m.id + '">Save</button>' +
+      '<button class="mn-btn mn-btn-d" data-act="cancel-edit" data-id="' + m.id + '">Cancel</button>' +
+      '</div></div>'
       : '<div class="mn-card-snippet-text">' + esc(snippetPreview) + '</div>';
 
     let detailsHTML = '';
@@ -3221,13 +3750,13 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     }
 
     const categoriesMap = {
-      work:          { title: 'Work & Projects',       icon: IC.wipSign, items: [] },
-      coding:        { title: 'Coding & Tech',          icon: IC.cppLogo, items: [] },
-      personal:      { title: 'Personal & Profile',     icon: IC.personAvatar, items: [] },
-      health:        { title: 'Health & Wellbeing',     icon: IC.healthCross, items: [] },
+      work: { title: 'Work & Projects', icon: IC.wipSign, items: [] },
+      coding: { title: 'Coding & Tech', icon: IC.cppLogo, items: [] },
+      personal: { title: 'Personal & Profile', icon: IC.personAvatar, items: [] },
+      health: { title: 'Health & Wellbeing', icon: IC.healthCross, items: [] },
       relationships: { title: 'Relationships & Family', icon: IC.familyHeart, items: [] },
-      research:      { title: 'Research & Knowledge',   icon: IC.researchAtom, items: [] },
-      general:       { title: 'General Vault',          icon: IC.safeVault, items: [] }
+      research: { title: 'Research & Knowledge', icon: IC.researchAtom, items: [] },
+      general: { title: 'General Vault', icon: IC.safeVault, items: [] }
     };
 
     memories.forEach((m) => {
@@ -4023,7 +4552,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           : null;
         if (el) role = 'assistant';
       }
-    } catch (_) {}
+    } catch (_) { }
 
     addKept({
       id: uid(),
@@ -4036,7 +4565,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     });
 
     hideSelPopup();
-    try { window.getSelection()?.removeAllRanges(); } catch (_) {}
+    try { window.getSelection()?.removeAllRanges(); } catch (_) { }
   }
 
   /* ═══════════════════════════════════════
@@ -4199,7 +4728,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     // ── Case 1: Suspicious / Private Information Leak (RED BOUNDARY BOX) ──
     const suspiciousWords = [
-      'password', 'secret key', 'api key', 'credit card', 'ssn', 
+      'password', 'secret key', 'api key', 'credit card', 'ssn',
       'social security', 'bank account', 'private key', 'auth token', 'suspicious'
     ];
     for (const w of suspiciousWords) {
@@ -4215,7 +4744,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     // ── Case 2: Claude Saved a Memory by Himself in Chat (RED BOUNDARY BOX) ──
     if (role === 'assistant') {
       const memoryWords = [
-        'remember', 'noted', 'saved', 'memory', 'memories', 
+        'remember', 'noted', 'saved', 'memory', 'memories',
         'keep in mind', 'got it', 'profile', 'updating'
       ];
       for (const w of memoryWords) {
@@ -4255,9 +4784,9 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     for (const sel of assistantSelectors) {
       document.querySelectorAll(sel).forEach((el) => {
         const container = el.closest('[data-message-author-role="assistant"]') ||
-                          el.closest('[class*="Message"]') ||
-                          el.closest('article') ||
-                          el;
+          el.closest('[class*="Message"]') ||
+          el.closest('article') ||
+          el;
         if (container) assistantContainersSet.add(container);
       });
     }
@@ -4278,26 +4807,36 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     for (const sel of userSelectors) {
       document.querySelectorAll(sel).forEach((el) => {
         const container = el.closest('[data-message-author-role="user"]') ||
-                          el.closest('[class*="Message"]') ||
-                          el.closest('article') ||
-                          el;
+          el.closest('[class*="Message"]') ||
+          el.closest('article') ||
+          el;
         if (container) userContainersSet.add(container);
       });
     }
 
     const topAssistantContainers = Array.from(assistantContainersSet).filter(c => {
       let p = c.parentElement;
-      while(p) { if (assistantContainersSet.has(p)) return false; p = p.parentElement; }
+      while (p) { if (assistantContainersSet.has(p)) return false; p = p.parentElement; }
       return true;
     });
 
-    // Process assistant messages (check if Claude saved a memory by himself)
+    // Process assistant messages (check if Claude saved a memory by himself & trigger Gemini Drawing)
     topAssistantContainers.forEach((container) => {
+      const text = container.textContent.trim();
+
+      // If inline PenEcho protocol JSON is emitted directly by Claude
+      const directJson = parsePenechoJson(text);
+      if (directJson) {
+        applyPenechoCanvasPayload(directJson, false);
+      } else if (state.geminiDrawingEnabled && state.geminiApiKey && !container.dataset.mnGeminiDrawn) {
+        container.dataset.mnGeminiDrawn = 'true';
+        triggerGeminiDrawing(text);
+      }
+
       if (container.dataset.mnPrompted === 'true' || container.querySelector('.mn-inline-memory-prompt')) {
         return;
       }
 
-      const text = container.textContent.trim();
       const result = classifyMessage(text, 'assistant');
       if (!result.type) return;
 
@@ -4322,7 +4861,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     const topUserContainers = Array.from(userContainersSet).filter(c => {
       let p = c.parentElement;
-      while(p) { if (userContainersSet.has(p)) return false; p = p.parentElement; }
+      while (p) { if (userContainersSet.has(p)) return false; p = p.parentElement; }
       return true;
     });
 
@@ -4384,9 +4923,8 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     injectHostCSS();
 
-    // Conditionally apply border color based on classification
-    const borderClass = classification.type === 'private_leak' 
-      ? 'mn-red-memory-border' 
+    const borderClass = classification.type === 'private_leak'
+      ? 'mn-red-memory-border'
       : 'mn-purple-memory-border';
     msgElement.classList.add(borderClass);
 
@@ -4406,7 +4944,8 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           '<div class="mn-prompt-body">' + esc(classification.description) + '</div>' +
           '<div class="mn-prompt-acts">' +
           '<button class="mn-prompt-btn mn-prompt-accept" title="Accept memory &amp; save">Accept & Save</button>' +
-          '<button class="mn-prompt-btn mn-prompt-kept" title="View stored details or change options">Change Something / Options</button>' +
+          '<button class="mn-prompt-btn mn-prompt-gemini-draw" title="Draw with Gemini Spatial Canvas">🎨 Draw with Gemini</button>' +
+          '<button class="mn-prompt-btn mn-prompt-kept" title="View stored details or change options">Options</button>' +
           '</div>';
 
         promptEl.querySelector('.mn-prompt-accept').onclick = (e) => {
@@ -4427,6 +4966,15 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           showToast('Memory Accepted & Saved ✓');
         };
 
+        const drawBtn = promptEl.querySelector('.mn-prompt-gemini-draw');
+        if (drawBtn) {
+          drawBtn.onclick = (e) => {
+            e.stopPropagation();
+            openTab('canvas');
+            triggerGeminiDrawing(currentSnippet, true);
+          };
+        }
+
         promptEl.querySelector('.mn-prompt-kept').onclick = (e) => {
           e.stopPropagation();
           renderBannerStep('options');
@@ -4440,7 +4988,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         promptEl.innerHTML =
           '<div class="mn-prompt-hdr"><span>' + classification.label + '</span></div>' +
           '<div class="mn-prompt-body" style="font-weight:600;color:#111827;margin:6px 0 8px 0;font-size:13px;">' +
-            '📌 Title: ' + esc(msgTitle) +
+          '📌 Title: ' + esc(msgTitle) +
           '</div>' +
           '<div class="mn-prompt-acts" style="margin-top:8px">' +
           '<button class="mn-prompt-btn mn-prompt-accept" title="Accept memory">Accept</button>' +
@@ -4603,11 +5151,11 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
             if (onToken) onToken(msg.token, msg.textSoFar);
           } else if (msg.type === 'COMPLETE') {
             if (onComplete) onComplete(msg.text, msg.metrics);
-            try { port.disconnect(); } catch (_) {}
+            try { port.disconnect(); } catch (_) { }
           } else if (msg.type === 'ERROR') {
             console.error('[MemoNeg LLM Error]:', msg.error);
             if (onError) onError(new Error(msg.error));
-            try { port.disconnect(); } catch (_) {}
+            try { port.disconnect(); } catch (_) { }
           }
         });
 

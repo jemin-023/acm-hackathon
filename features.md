@@ -218,3 +218,10 @@ Web Audio API synthesizer rendering multi-tone spatialized auditory signatures (
 Live multimodal spatial thinking protocol integrating a Running Timeline, force-directed Dynamic Mind Map with strict color taxonomy (#22C55E safe memory, #EAB308 consideration, #EF4444 reconsider, #3B82F6 active focus, #64748B structure), Canvas2D vector shapes, and LaTeX mathematical formula rendering.  
 Features live DOM stream interception of ```json:penecho-canvas``` blocks, draft safety commit layer, and 1-click memory integration.
 
+---
+
+### 36. ✅ Google Gemini Spatial Visual Co-Pilot & API Key Drawing
+Dedicated toggle switch and API key integration enabling Gemini to analyze Claude's conversational output and automatically render the live spatial thinking board.  
+Supports Gemini 2.5 Flash, 2.0 Flash, 1.5 Flash, and 1.5 Pro with real-time stream parsing, manual draw triggers, and connection validation tests.
+
+

@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "description": "Privacy-first, local-first AI memory negotiation and consent layer for Claude.ai",
   "permissions": ["storage", "offscreen"],
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*"
+  ],
   "content_scripts": [
     {
       "matches": [
