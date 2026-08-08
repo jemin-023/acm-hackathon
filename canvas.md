@@ -1,6 +1,6 @@
-# PenEcho + MemoNeg Spatial Canvas Protocol
+# PenEcho + Memo.io Spatial Canvas Protocol
 
-This specification defines the system protocol and skill contract for the **Live Spatial Canvas, Dynamic Mind Map, and Running Timeline** integration between Claude.ai and the MemoNeg browser extension.
+This specification defines the system protocol and skill contract for the **Live Spatial Canvas, Dynamic Mind Map, and Running Timeline** integration between Claude.ai and the Memo.io browser extension.
 
 ---
 
@@ -238,7 +238,7 @@ $$T_{\text{expiry}} = \mu_{\text{session}} + 2\sigma$$
 
 ## 5. Extension Lifecycle & Handling Details
 
-1. **Prompt Injection & Consent:** The content script injects this protocol as a system prompt directive upon session start or when the user toggles the **Spatial Canvas** switch in the MemoNeg header.
+1. **Prompt Injection & Consent:** The content script injects this protocol as a system prompt directive upon session start or when the user toggles the **Spatial Canvas** switch in the Memo.io header.
 2. **DOM Stream Interception:** A `MutationObserver` monitors Claude's streaming output. When a ````json:penecho-canvas```` block begins streaming, the extension:
    - Parses the partial JSON safely using an incremental JSON parser.
    - Hides or collapses the raw code block from the user's chat window to keep the chat tidy.

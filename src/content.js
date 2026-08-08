@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   MemoNeg — Content Script
+   Memo.io — Content Script
    Injects Shadow DOM UI into claude.ai for local-first AI memory
    negotiation: FAB icon, slide-out drawer, text-selection save,
    and auto-notice of assistant responses.
@@ -8,8 +8,8 @@
   'use strict';
 
   // Prevent double-injection
-  if (window.__memoneg_injected) return;
-  window.__memoneg_injected = true;
+  if (window.__memoio_injected) return;
+  window.__memoio_injected = true;
 
   // Suppress uncaught extension context invalidation errors when extension reloads
   window.addEventListener('unhandledrejection', (event) => {
@@ -52,9 +52,9 @@
   let toastTimer = null;
 
   /* ═══════════════════════════════════════════════════════════════
-     PENECHO + MEMONEG SPATIAL CANVAS PROTOCOL SPECIFICATION
+     PENECHO + MEMO.IO SPATIAL CANVAS PROTOCOL SPECIFICATION
      ═══════════════════════════════════════════════════════════════ */
-  const PENECHO_PROTOCOL_DIRECTIVE = `[PenEcho + MemoNeg Spatial Canvas Protocol Active]
+  const PENECHO_PROTOCOL_DIRECTIVE = `[PenEcho + Memo.io Spatial Canvas Protocol Active]
 For every response in this conversation:
 1. Always output your standard, high-quality, human-readable markdown response first.
 2. At the very bottom of your response, output a single code block tagged \`\`\`json:penecho-canvas\`\`\`.
@@ -401,7 +401,7 @@ For every response in this conversation:
         }
       }
     } catch (err) {
-      console.warn('[MemoNeg] Memory sync to Claude prompt input error:', err);
+      console.warn('[Memo.io] Memory sync to Claude prompt input error:', err);
     }
   }
 
@@ -1400,11 +1400,11 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
      ═══════════════════════════════════════ */
   function init() {
     try {
-      const existing = document.getElementById('memoneg-root');
+      const existing = document.getElementById('memoio-root');
       if (existing) existing.remove();
 
       const host = document.createElement('div');
-      host.id = 'memoneg-root';
+      host.id = 'memoio-root';
       host.style.cssText =
         'all:initial!important;position:fixed!important;top:0!important;left:0!important;' +
         'width:0!important;height:0!important;z-index:2147483647!important;pointer-events:none!important;';
@@ -1439,9 +1439,9 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       // Auto-notice for assistant responses
       setupAutoNotice();
 
-      console.log('[MemoNeg] Extension loaded on', location.hostname);
+      console.log('[Memo.io] Extension loaded on', location.hostname);
     } catch (err) {
-      console.error('[MemoNeg Initialization Error]:', err);
+      console.error('[Memo.io Initialization Error]:', err);
     }
   }
 
@@ -2115,7 +2115,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
   function parsePenechoJson(rawText) {
     if (!rawText || typeof rawText !== 'string') return null;
-    const blockRegex = /```(?:json:)?(?:penecho-canvas|memoneg-canvas|penecho)([\s\S]*?)(?:```|$)/i;
+    const blockRegex = /```(?:json:)?(?:penecho-canvas|memoio-canvas|penecho)([\s\S]*?)(?:```|$)/i;
     const match = rawText.match(blockRegex);
     let jsonStr = match ? match[1].trim() : null;
 
@@ -4566,7 +4566,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   function doExport() {
     const payload = {
       exportedAt: new Date().toISOString(),
-      extension: 'MemoNeg',
+      extension: 'Memo.io',
       version: '0.1.0',
       totalKept: state.kept.length,
       totalNoticed: state.noticed.length,
@@ -4577,7 +4577,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'memoneg-export-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.download = 'memoio-export-' + new Date().toISOString().slice(0, 10) + '.json';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -4588,7 +4588,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   /* ═══════════════════════════════════════
      LOCAL LLM INFERENCE STREAMING API
      ═══════════════════════════════════════ */
-  window.MemoNegInference = {
+  window.MemoioInference = {
     streamCompletion(prompt, options = {}) {
       const { onToken, onComplete, onError, maxNewTokens = 64 } = options;
       try {
@@ -4596,7 +4596,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           throw new Error('Chrome extension runtime port context unavailable.');
         }
 
-        const port = chrome.runtime.connect({ name: 'memoneg-inference' });
+        const port = chrome.runtime.connect({ name: 'memoio-inference' });
 
         port.onMessage.addListener((msg) => {
           if (msg.type === 'TOKEN') {
@@ -4605,7 +4605,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
             if (onComplete) onComplete(msg.text, msg.metrics);
             try { port.disconnect(); } catch (_) {}
           } else if (msg.type === 'ERROR') {
-            console.error('[MemoNeg LLM Error]:', msg.error);
+            console.error('[Memo.io LLM Error]:', msg.error);
             if (onError) onError(new Error(msg.error));
             try { port.disconnect(); } catch (_) {}
           }
@@ -4614,7 +4614,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         port.onDisconnect.addListener(() => {
           const err = chrome.runtime.lastError;
           if (err) {
-            console.warn('[MemoNeg LLM Port Disconnected]:', err.message);
+            console.warn('[Memo.io LLM Port Disconnected]:', err.message);
           }
         });
 
@@ -4626,7 +4626,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
         return port;
       } catch (err) {
-        console.error('[MemoNeg LLM Stream Error]:', err);
+        console.error('[Memo.io LLM Stream Error]:', err);
         if (onError) onError(err);
       }
     },

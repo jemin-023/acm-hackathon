@@ -1,11 +1,11 @@
 ---
 name: penecho-canvas-protocol
-description: Live Spatial Canvas, Dynamic Mind Map, and Running Timeline skill contract for Claude.ai and MemoNeg browser extension.
+description: Live Spatial Canvas, Dynamic Mind Map, and Running Timeline skill contract for Claude.ai and Memo.io browser extension.
 version: 1.0.0
-author: MemoNeg + PenEcho
+author: Memo.io + PenEcho
 ---
 
-# PenEcho + MemoNeg Live Spatial Canvas Skill Protocol
+# PenEcho + Memo.io Live Spatial Canvas Skill Protocol
 
 When this skill protocol is active, you collaborate with the user through a synchronized **Live Spatial Canvas, Dynamic Force-Directed Mind Map, and Running Timeline** rendered directly in the user's browser extension drawer.
 

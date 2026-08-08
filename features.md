@@ -1,6 +1,6 @@
-# MemoNeg — Browser Extension Feature List
+# Memo.io — Browser Extension Feature List
 
-A complete index of all core extension features, research-backed HCI features, and radical interaction paradigms in MemoNeg, each accompanied by a concise 2-line explanation.
+A complete index of all core extension features, research-backed HCI features, and radical interaction paradigms in Memo.io, each accompanied by a concise 2-line explanation.
 
 ---
 
@@ -90,7 +90,7 @@ Injects only minimal, relevant memory excerpts into prompt contexts during activ
 
 ---
 
-## Part II — Research-Grounded HCI Features (from MemoNeg Solution)
+## Part II — Research-Grounded HCI Features (from Memo.io Solution)
 
 ### 15. ✅ Ambient Memory Capture Pulse
 Real-time subtle visual glow around message text whenever the system detects a potential memory candidate.  
@@ -214,7 +214,7 @@ Web Audio API synthesizer rendering multi-tone spatialized auditory signatures (
 
 ---
 
-### 35. ✅ PenEcho + MemoNeg Live Spatial Canvas & Dynamic Mind Map Protocol
+### 35. ✅ PenEcho + Memo.io Live Spatial Canvas & Dynamic Mind Map Protocol
 Live multimodal spatial thinking protocol integrating a Running Timeline, force-directed Dynamic Mind Map with strict color taxonomy (#22C55E safe memory, #EAB308 consideration, #EF4444 reconsider, #3B82F6 active focus, #64748B structure), Canvas2D vector shapes, and LaTeX mathematical formula rendering.  
 Features live DOM stream interception of ```json:penecho-canvas``` blocks, draft safety commit layer, and 1-click memory integration.
 

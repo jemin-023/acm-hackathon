@@ -1,5 +1,5 @@
 /*  ═══════════════════════════════════════════════════════
-    MemoNeg — Background Service Worker
+    Memo.io — Background Service Worker
     Handles storage CRUD (chrome.storage.local / session),
     offscreen ONNX document lifecycle, and message routing.
     ═══════════════════════════════════════════════════════ */
@@ -28,7 +28,7 @@ async function ensureOffscreenDocument() {
       creatingOffscreen = null;
     }
   } catch (err) {
-    console.error('[MemoNeg Background] Failed to create offscreen document:', err);
+    console.error('[Memo.io Background] Failed to create offscreen document:', err);
   }
 }
 
@@ -36,11 +36,11 @@ async function ensureOffscreenDocument() {
 ensureOffscreenDocument();
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.get('memoneg_kept', (r) => {
-    if (!r.memoneg_kept) chrome.storage.local.set({ memoneg_kept: [] });
+  chrome.storage.local.get('memoio_kept', (r) => {
+    if (!r.memoio_kept) chrome.storage.local.set({ memoio_kept: [] });
   });
   chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_AND_UNTRUSTED_CONTEXTS' });
-  chrome.storage.session.set({ memoneg_noticed: [] });
+  chrome.storage.session.set({ memoio_noticed: [] });
   ensureOffscreenDocument();
 });
 
@@ -51,7 +51,7 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 chrome.runtime.onConnect.addListener(async (port) => {
-  if (port.name === 'memoneg-inference') {
+  if (port.name === 'memoio-inference') {
     await ensureOffscreenDocument();
   }
 });
@@ -67,33 +67,33 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 const handlers = {
   /* ── Kept memories (persistent) ── */
   GET_KEPT(_msg, respond) {
-    chrome.storage.local.get('memoneg_kept', (r) => {
-      respond({ kept: r.memoneg_kept || [] });
+    chrome.storage.local.get('memoio_kept', (r) => {
+      respond({ kept: r.memoio_kept || [] });
     });
   },
 
   ADD_KEPT(msg, respond) {
-    chrome.storage.local.get('memoneg_kept', (r) => {
-      const kept = r.memoneg_kept || [];
+    chrome.storage.local.get('memoio_kept', (r) => {
+      const kept = r.memoio_kept || [];
       kept.unshift(msg.memory);
-      chrome.storage.local.set({ memoneg_kept: kept }, () => {
+      chrome.storage.local.set({ memoio_kept: kept }, () => {
         respond({ success: true, kept });
       });
     });
   },
 
   DELETE_KEPT(msg, respond) {
-    chrome.storage.local.get('memoneg_kept', (r) => {
-      const kept = (r.memoneg_kept || []).filter((m) => m.id !== msg.id);
-      chrome.storage.local.set({ memoneg_kept: kept }, () => {
+    chrome.storage.local.get('memoio_kept', (r) => {
+      const kept = (r.memoio_kept || []).filter((m) => m.id !== msg.id);
+      chrome.storage.local.set({ memoio_kept: kept }, () => {
         respond({ success: true, kept });
       });
     });
   },
 
   UPDATE_KEPT(msg, respond) {
-    chrome.storage.local.get('memoneg_kept', (r) => {
-      const kept = r.memoneg_kept || [];
+    chrome.storage.local.get('memoio_kept', (r) => {
+      const kept = r.memoio_kept || [];
       const idx = kept.findIndex((m) => m.id === msg.id);
       if (idx !== -1) {
         const item = kept[idx];
@@ -109,7 +109,7 @@ const handlers = {
           history,
           updatedAt: Date.now()
         };
-        chrome.storage.local.set({ memoneg_kept: kept }, () => {
+        chrome.storage.local.set({ memoio_kept: kept }, () => {
           respond({ success: true, kept });
         });
       } else {
@@ -120,64 +120,64 @@ const handlers = {
 
   /* ── Noticed memories (session-scoped) ── */
   GET_NOTICED(_msg, respond) {
-    chrome.storage.session.get('memoneg_noticed', (r) => {
-      respond({ noticed: r.memoneg_noticed || [] });
+    chrome.storage.session.get('memoio_noticed', (r) => {
+      respond({ noticed: r.memoio_noticed || [] });
     });
   },
 
   ADD_NOTICED(msg, respond) {
-    chrome.storage.session.get('memoneg_noticed', (r) => {
-      const noticed = r.memoneg_noticed || [];
+    chrome.storage.session.get('memoio_noticed', (r) => {
+      const noticed = r.memoio_noticed || [];
       if (msg.memory?.text && noticed.some((n) => n.text === msg.memory.text)) {
         respond({ success: true, noticed });
         return;
       }
       noticed.unshift(msg.memory);
-      chrome.storage.session.set({ memoneg_noticed: noticed }, () => {
+      chrome.storage.session.set({ memoio_noticed: noticed }, () => {
         respond({ success: true, noticed });
       });
     });
   },
 
   REMOVE_NOTICED(msg, respond) {
-    chrome.storage.session.get('memoneg_noticed', (r) => {
-      const noticed = (r.memoneg_noticed || []).filter((m) => m.id !== msg.id);
-      chrome.storage.session.set({ memoneg_noticed: noticed }, () => {
+    chrome.storage.session.get('memoio_noticed', (r) => {
+      const noticed = (r.memoio_noticed || []).filter((m) => m.id !== msg.id);
+      chrome.storage.session.set({ memoio_noticed: noticed }, () => {
         respond({ success: true, noticed });
       });
     });
   },
 
   EXPORT_ALL(_msg, respond) {
-    chrome.storage.local.get('memoneg_kept', (r) => {
-      respond({ kept: r.memoneg_kept || [] });
+    chrome.storage.local.get('memoio_kept', (r) => {
+      respond({ kept: r.memoio_kept || [] });
     });
   },
 
   /* ── Never-Save Rules (sync-persisted) ── */
   GET_RULES(_msg, respond) {
-    chrome.storage.sync.get('memoneg_rules', (r) => {
-      respond({ rules: r.memoneg_rules || [] });
+    chrome.storage.sync.get('memoio_rules', (r) => {
+      respond({ rules: r.memoio_rules || [] });
     });
   },
 
   SET_RULES(msg, respond) {
-    chrome.storage.sync.set({ memoneg_rules: msg.rules }, () => {
+    chrome.storage.sync.set({ memoio_rules: msg.rules }, () => {
       respond({ success: true });
     });
   },
 
   /* ── Memory Freeze & Snapshots (#24) ── */
   GET_SNAPSHOTS(_msg, respond) {
-    chrome.storage.local.get('memoneg_snapshots', (r) => {
-      respond({ snapshots: r.memoneg_snapshots || [] });
+    chrome.storage.local.get('memoio_snapshots', (r) => {
+      respond({ snapshots: r.memoio_snapshots || [] });
     });
   },
 
   CREATE_SNAPSHOT(msg, respond) {
-    chrome.storage.local.get(['memoneg_kept', 'memoneg_snapshots'], (r) => {
-      const kept = r.memoneg_kept || [];
-      const snapshots = r.memoneg_snapshots || [];
+    chrome.storage.local.get(['memoio_kept', 'memoio_snapshots'], (r) => {
+      const kept = r.memoio_kept || [];
+      const snapshots = r.memoio_snapshots || [];
       const newSnapshot = {
         id: 'snap_' + Date.now().toString(36),
         name: msg.name || 'Memory Freeze ' + new Date().toLocaleDateString(),
@@ -186,18 +186,18 @@ const handlers = {
         kept: JSON.parse(JSON.stringify(kept)),
       };
       snapshots.unshift(newSnapshot);
-      chrome.storage.local.set({ memoneg_snapshots: snapshots }, () => {
+      chrome.storage.local.set({ memoio_snapshots: snapshots }, () => {
         respond({ success: true, snapshots });
       });
     });
   },
 
   RESTORE_SNAPSHOT(msg, respond) {
-    chrome.storage.local.get('memoneg_snapshots', (r) => {
-      const snapshots = r.memoneg_snapshots || [];
+    chrome.storage.local.get('memoio_snapshots', (r) => {
+      const snapshots = r.memoio_snapshots || [];
       const target = snapshots.find((s) => s.id === msg.id);
       if (target) {
-        chrome.storage.local.set({ memoneg_kept: target.kept }, () => {
+        chrome.storage.local.set({ memoio_kept: target.kept }, () => {
           respond({ success: true, kept: target.kept });
         });
       } else {
@@ -208,13 +208,13 @@ const handlers = {
 
   /* ── PenEcho Spatial Canvas State Persistence ── */
   GET_CANVAS_STATE(_msg, respond) {
-    chrome.storage.local.get('memoneg_canvas_state', (r) => {
-      respond({ canvasState: r.memoneg_canvas_state || null });
+    chrome.storage.local.get('memoio_canvas_state', (r) => {
+      respond({ canvasState: r.memoio_canvas_state || null });
     });
   },
 
   SAVE_CANVAS_STATE(msg, respond) {
-    chrome.storage.local.set({ memoneg_canvas_state: msg.canvasState }, () => {
+    chrome.storage.local.set({ memoio_canvas_state: msg.canvasState }, () => {
       respond({ success: true });
     });
   },

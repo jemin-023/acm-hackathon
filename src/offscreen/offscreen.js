@@ -1,5 +1,5 @@
 /*  ═══════════════════════════════════════════════════════
-    MemoNeg — Offscreen Local LLM Inference Worker
+    Memo.io — Offscreen Local LLM Inference Worker
     Runs INT4 ONNX inference (WebGPU preferred, WASM fallback).
     Session initialized ONCE and reused.
     ═══════════════════════════════════════════════════════ */
@@ -43,13 +43,13 @@ async function initModel() {
   initPromise = (async () => {
     const t0 = performance.now();
     try {
-      const modelUrl = chrome.runtime.getURL('memoneg-270m-int4.onnx');
-      const tokenizerConfigUrl = chrome.runtime.getURL('memoneg-270m-finetuned/tokenizer_config.json');
+      const modelUrl = chrome.runtime.getURL('memoio-270m-int4.onnx');
+      const tokenizerConfigUrl = chrome.runtime.getURL('memoio-270m-finetuned/tokenizer_config.json');
 
       // Pre-check if local ONNX binary is present
       const checkModel = await fetch(modelUrl, { method: 'HEAD' }).catch(() => null);
       if (!checkModel || !checkModel.ok) {
-        const warningMsg = 'Local ONNX model ("memoneg-270m-int4.onnx") is not present in bundle. Standby mode active.';
+        const warningMsg = 'Local ONNX model ("memoio-270m-int4.onnx") is not present in bundle. Standby mode active.';
         modelStats = { loaded: false, ep: null, loadTimeMs: 0, error: warningMsg };
         return null;
       }
@@ -57,7 +57,7 @@ async function initModel() {
       // Pre-check if local tokenizer files are present before invoking AutoTokenizer
       const checkTok = await fetch(tokenizerConfigUrl, { method: 'HEAD' }).catch(() => null);
       if (!checkTok || !checkTok.ok) {
-        const warningMsg = 'Local tokenizer ("memoneg-270m-finetuned/") is not present in bundle. Standby mode active.';
+        const warningMsg = 'Local tokenizer ("memoio-270m-finetuned/") is not present in bundle. Standby mode active.';
         modelStats = { loaded: false, ep: null, loadTimeMs: 0, error: warningMsg };
         return null;
       }
@@ -66,7 +66,7 @@ async function initModel() {
         throw new Error('Transformers AutoTokenizer failed to load.');
       }
 
-      const tokenizerUrl = chrome.runtime.getURL('memoneg-270m-finetuned/');
+      const tokenizerUrl = chrome.runtime.getURL('memoio-270m-finetuned/');
       tokenizer = await AutoTokenizer.from_pretrained(tokenizerUrl, {
         local_files_only: true
       });
@@ -78,7 +78,7 @@ async function initModel() {
           executionProviders: ['webgpu', 'wasm'],
         });
       } catch (gpuErr) {
-        console.warn('[MemoNeg Offscreen] WebGPU fallback to WASM:', gpuErr);
+        console.warn('[Memo.io Offscreen] WebGPU fallback to WASM:', gpuErr);
         epUsed = 'wasm';
         session = await ort.InferenceSession.create(modelUrl, {
           executionProviders: ['wasm'],
@@ -92,7 +92,7 @@ async function initModel() {
         loadTimeMs: t1 - t0,
         error: null,
       };
-      console.log(`[MemoNeg Offscreen] Model ready (${epUsed}) in ${modelStats.loadTimeMs.toFixed(2)}ms.`);
+      console.log(`[Memo.io Offscreen] Model ready (${epUsed}) in ${modelStats.loadTimeMs.toFixed(2)}ms.`);
 
       // Warmup run
       try {
@@ -100,14 +100,14 @@ async function initModel() {
         const ids = new ort.Tensor('int64', BigInt64Array.from(dummyInput.input_ids.data.map(x => BigInt(x))), dummyInput.input_ids.dims);
         const mask = new ort.Tensor('int64', BigInt64Array.from(dummyInput.attention_mask.data.map(x => BigInt(x))), dummyInput.attention_mask.dims);
         await session.run({ input_ids: ids, attention_mask: mask });
-        console.log('[MemoNeg Offscreen] Model warmup completed.');
+        console.log('[Memo.io Offscreen] Model warmup completed.');
       } catch (wErr) {
-        console.warn('[MemoNeg Offscreen] Warmup note:', wErr);
+        console.warn('[Memo.io Offscreen] Warmup note:', wErr);
       }
 
       return { session, tokenizer };
     } catch (err) {
-      console.warn('[MemoNeg Offscreen] Model init note:', err.message);
+      console.warn('[Memo.io Offscreen] Model init note:', err.message);
       modelStats = { loaded: false, ep: null, loadTimeMs: 0, error: err.message };
       session = null;
       tokenizer = null;
@@ -121,11 +121,11 @@ async function initModel() {
 }
 
 // Pre-trigger model loading on offscreen startup silently
-initModel().catch((e) => console.warn('[MemoNeg Offscreen] Auto-init note:', e?.message || e));
+initModel().catch((e) => console.warn('[Memo.io Offscreen] Auto-init note:', e?.message || e));
 
 // Handle long-lived port connections for streaming inference
 chrome.runtime.onConnect.addListener((port) => {
-  if (port.name !== 'memoneg-inference') return;
+  if (port.name !== 'memoio-inference') return;
 
   port.onMessage.addListener(async (msg) => {
     if (msg.type === 'PING') {
@@ -216,7 +216,7 @@ chrome.runtime.onConnect.addListener((port) => {
           },
         });
       } catch (err) {
-        console.error('[MemoNeg Offscreen] Inference error:', err);
+        console.error('[Memo.io Offscreen] Inference error:', err);
         port.postMessage({ type: 'ERROR', error: err.message || String(err) });
       }
     }

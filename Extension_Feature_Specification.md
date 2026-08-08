@@ -1,4 +1,4 @@
-# MemoNeg — AI Memory Negotiator Extension: Feature & Technical Specification
+# Memo.io — AI Memory Negotiator Extension: Feature & Technical Specification
 
 > **Full Extension Specification** | **Scope:** Browser Extension (Manifest V3) / Interface Control Layer | **Strict Line Budget:** < 500 lines
 
@@ -6,7 +6,7 @@
 
 ## 1. Executive Summary & Extension Architecture
 
-**MemoNeg** is a privacy-first, local-first browser extension (Manifest V3) that acts as an interface control layer over web-based AI chat services (ChatGPT, Claude, Gemini). It transforms opaque, post-hoc AI memory into **live, human-controlled negotiation and consent**. MemoNeg operates strictly at the browser DOM and prompt-context layer without requiring backend AI model changes.
+**Memo.io** is a privacy-first, local-first browser extension (Manifest V3) that acts as an interface control layer over web-based AI chat services (ChatGPT, Claude, Gemini). It transforms opaque, post-hoc AI memory into **live, human-controlled negotiation and consent**. Memo.io operates strictly at the browser DOM and prompt-context layer without requiring backend AI model changes.
 
 ### Core Technical Architecture
 - **Isolated Shadow DOM UI:** Injects top-bar icons, status indicators, and side drawers into host web app DOMs via Web Components with closed `ShadowRoot` boundaries to eliminate CSS collisions.
@@ -20,7 +20,7 @@
 
 ### 1. Memory Lens Header Icon & Badge
 Persistent top-bar header icon with an unreviewed *Noticed* badge counter and an "on this device" lock glyph.
-> **Implementation Strategy:** Content script uses `MutationObserver` to locate host nav headers (`header`, `nav`), injecting a custom `<memoneg-lens-badge>` Shadow DOM element. Queries background worker via `chrome.runtime.sendMessage` for live unreviewed counts from `chrome.storage.session`.
+> **Implementation Strategy:** Content script uses `MutationObserver` to locate host nav headers (`header`, `nav`), injecting a custom `<memo-io-lens-badge>` Shadow DOM element. Queries background worker via `chrome.runtime.sendMessage` for live unreviewed counts from `chrome.storage.session`.
 
 ### 2. Per-Message Memory Status Indicator
 Inline toolbar dot showing message memory state (light grey = session *Noticed*; solid accent = durable *Kept*).
@@ -36,7 +36,7 @@ Drag messages directly onto top Memory Lens icon to keep; drag stored cards out 
 
 ### 5. Per-Conversation Memory Toggle
 Header switch allowing users to pause or enable memory collection for the active chat session.
-> **Implementation Strategy:** Toggle switch injected into chat header area. Setting state updates `sessionStorage` key `memoneg_session_active`. When `false`, content script suspends text scraping and background classifier execution.
+> **Implementation Strategy:** Toggle switch injected into chat header area. Setting state updates `sessionStorage` key `memoio_session_active`. When `false`, content script suspends text scraping and background classifier execution.
 
 ### 6. Noticed Memories Tab
 Drawer view displaying session-scoped memory candidates auto-captured during active chat with `[Keep]` and `[Discard]` actions.
@@ -64,7 +64,7 @@ One-click export tool generating structured JSON or plain text files of all stor
 
 ### 12. In-Thread Conflict Resolution Annotations
 Quiet inline warning under assistant responses when generated using memory contradicted by new input.
-> **Implementation Strategy:** Content script inspects assistant text output against active context memories using client-side similarity scoring. Injects an inline conflict banner (`<div class="memoneg-conflict">`) with side-by-side merge drawer modal.
+> **Implementation Strategy:** Content script inspects assistant text output against active context memories using client-side similarity scoring. Injects an inline conflict banner (`<div class="memoio-conflict">`) with side-by-side merge drawer modal.
 
 ### 13. Ambient Background Memory Classifier
 Non-blocking evaluation algorithm identifying durable facts immediately after assistant responses finish.

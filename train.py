@@ -20,9 +20,9 @@ from transformers import (
 # ── Config ──────────────────────────────────────────────────────────────────
 MODEL_ID = "google/gemma-3-270m-it"
 data = "/home/jemin/Projects/acm-extension/dataset.jsonl"
-OUTPUT_DIR = "/home/jemin/Projects/acm-extension/memoneg-270m-finetuned"
-ONNX_PATH = "/home/jemin/Projects/acm-extension/memoneg-270m.onnx"
-ONNX_INT4_PATH = "/home/jemin/Projects/acm-extension/memoneg-270m-int4.onnx"
+OUTPUT_DIR = "/home/jemin/Projects/acm-extension/memoio-270m-finetuned"
+ONNX_PATH = "/home/jemin/Projects/acm-extension/memoio-270m.onnx"
+ONNX_INT4_PATH = "/home/jemin/Projects/acm-extension/memoio-270m-int4.onnx"
 EPOCHS = 3
 BATCH_SIZE = 1           # 6GB VRAM is tight
 GRAD_ACCUM = 8

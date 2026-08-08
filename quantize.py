@@ -8,8 +8,8 @@ Usage:
 import os
 from onnxruntime.quantization.matmul_nbits_quantizer import MatMulNBitsQuantizer
 
-INPUT_ONNX = "/home/jemin/Projects/acm-extension/memoneg-270m.onnx"
-OUTPUT_INT4_ONNX = "/home/jemin/Projects/acm-extension/memoneg-270m-int4.onnx"
+INPUT_ONNX = "/home/jemin/Projects/acm-extension/memoio-270m.onnx"
+OUTPUT_INT4_ONNX = "/home/jemin/Projects/acm-extension/memoio-270m-int4.onnx"
 
 
 def quantize_int4(input_path: str, output_path: str):

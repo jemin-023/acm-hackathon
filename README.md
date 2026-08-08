@@ -1,22 +1,21 @@
-# MemoNeg — AI Memory Negotiator Browser Extension
+# Memo.io — AI Memory Negotiator Browser Extension
 
-MemoNeg is a privacy-first, local-first browser extension for Chrome & Chromium-based browsers designed to give users fine-grained control and agency over AI assistant memory (specifically targeting Claude.ai).
+Memo.io is an interactive, privacy-first, local-first browser extension designed to give users explicit, fine-grained control over their AI assistant's memory (specifically targeting Claude.ai). 
+
+Standard AI memory systems operate as passive, server-side black boxes. Memo.io transforms memory retention into an active negotiation by placing inline decision controls directly inside the chat interface, ensuring no persistent memory is stored without your explicit consent.
 
 ## 🌟 Key Features
 
-* **Memory Lens Header Icon & Badge:** Floating interactive trigger with unreviewed candidate counters and privacy lock glyph.
-* **Per-Message Memory Status Indicator:** Visual inline dots indicating session-scoped candidates (light grey) and durable vault memories (accent color) directly on chat messages.
-* **Message-to-Memory Save Button:** One-click hover button to instantly promote highlighted text to long-term memory.
-* **Direct Drag-and-Drop Promotion & Purge:** Drag Noticed memory cards onto the Memory Lens icon to promote them to the Kept Vault, or drag cards into the slide-out Trash Zone to purge them instantly.
-* **Per-Conversation Memory Toggle:** Quick switch to pause or resume memory collection for private/off-topic sessions.
-* **Noticed Memories Tab:** Review session-scoped memory candidates auto-captured during active chat sessions.
-* **Kept Memories Vault Tab:** Access and manage long-term memories retained across past and present conversations with origin metadata.
-* **Session Digest Card:** Dismissible summary card appearing at the start of new sessions to review auto-captured candidates.
-* **Never-Save Rules Engine:** Configurable keyword and regex rules to silently filter out sensitive topics (e.g., finances, passwords, health).
-* **Client-Side Data Export:** 1-click JSON export ensuring complete user data ownership.
-* **PenEcho Live Spatial Canvas & Mind Map Protocol:** Real-time multimodal canvas with a Running Timeline, force-directed Dynamic Mind Map with taxonomy color coding (#22C55E safe memory, #EAB308 consideration, #EF4444 reconsider, #3B82F6 active focus, #64748B structure), Canvas2D vector shapes, and LaTeX mathematical formula rendering.
-* **Stream Interceptor & Draft Safety Layer:** Intercepts ```json:penecho-canvas``` blocks from Claude's live stream, collapses raw JSON from the chat, and provides an editable preview before committing to persistent board memory.
-* **Local-First On-Device Architecture:** All user memories and spatial canvas states remain strictly stored inside your browser's local/session storage.
+* **Shadow DOM UI:** A completely isolated, retro Y2K-styled interface injected directly into Claude.ai, accessed via a Floating Action Button (FAB) or a vertical Pull Tab.
+* **Inline Memory Prompts:** A background `MutationObserver` detects memory candidates in real-time and injects prompt cards directly beneath chat bubbles, allowing you to instantly **Accept & Save**, **Edit**, or **Reject** a memory without leaving the conversation flow.
+* **Two-Tier Storage:**
+  * **Current Session:** Ephemeral candidate memories stored temporarily in `chrome.storage.session`.
+  * **Global Memory:** Your durable, long-term memory vault stored in `chrome.storage.local`. Memories only enter this tier upon your explicit approval.
+* **Claude Context Syncing:** Approving a memory dynamically injects a hidden directive into Claude's input box, forcing the model to immediately ingest the accepted fact into its active context.
+* **Never-Save Rules Engine:** Define keyword and regex patterns that silently block sensitive topics (e.g., finances, passwords, health) from ever being surfaced as memory candidates.
+* **Memory Freeze & Snapshots:** Take named snapshots of your entire Global Memory vault and restore them with a single click if Claude's memory state becomes polluted.
+* **PenEcho Spatial Canvas Protocol:** A "Draft Safety Layer" that intercepts structural JSON outputs (`json:penecho-canvas`) from Claude and renders them in a visual Canvas tab (force-directed mind maps, timelines, and LaTeX formulas) for review before committing to memory.
+* **Local-First On-Device AI:** Memory analysis is processed entirely client-side. The extension bundles a fine-tuned Gemma-3 270M model (quantized to INT4 ONNX) running in a hidden Chrome Offscreen Document via WebGPU (with WASM fallbacks). No chat data is sent to external APIs for classification.
 
 ## 🚀 Installation & Setup
 
@@ -34,9 +33,15 @@ MemoNeg is a privacy-first, local-first browser extension for Chrome & Chromium-
 ```
 ├── manifest.json                        # Manifest V3 extension configuration
 ├── src/
-│   ├── background.js                    # Background service worker & storage handlers
-│   └── content.js                       # Shadow DOM UI, memory observer, drag-and-drop & status indicators
-├── features.md                          # Comprehensive feature tracker & progress
+│   ├── background.js                    # Background service worker & storage handlers (local/session/sync)
+│   ├── content.js                       # Shadow DOM UI, MutationObserver, inline prompts, & Canvas renderer
+│   ├── components/MoltenMetal.jsx       # WebGL Y2K dynamic aesthetic background shader
+│   └── offscreen/
+│       ├── offscreen.html               # Hidden document for WebGPU inference
+│       └── offscreen.js                 # ONNX Runtime Web logic running Gemma-3 270M INT4
+├── train.py                             # HuggingFace fine-tuning script for the Gemma-3 model
+├── quantize.py                          # ONNX MatMulNBitsQuantizer script for INT4 export
+├── features.md                          # Original hackathon feature brainstorm list
 └── Extension_Feature_Specification.md   # System design & architecture specification
 ```
 
