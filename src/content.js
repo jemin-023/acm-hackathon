@@ -3154,13 +3154,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     const activeTool = state.whiteboardTool || 'select';
     const subTab = state.canvasSubTab || 'mindmap';
 
-    // 1. Status Bar & Controls Header
-    const statusHtml = `
-      <span class="mn-spatial-pulse-dot"></span>
-      <span style="color:#065F46;font-weight:700;">🟢 Claude Spatial Canvas Active</span>
-    `;
-
-    // 2. Draft Layer Banner
+    // 1. Draft Layer Banner
     let draftBannerHtml = '';
     if (draft) {
       const stepTtl = draft.timeline?.title || 'Incoming Turn Update';
@@ -3180,87 +3174,28 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       `;
     }
 
-    // 3. Sub-tabs bar
-    const subTabsHtml = `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
-        <div style="display:flex;gap:6px;">
+    // 2. Sleek Single-Row Top Bar
+    const topBarHtml = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 10px;background:#F8FAFC;border:2px solid #1A1A2E;border-radius:10px;margin-bottom:8px;box-shadow:2px 2px 0px #1A1A2E;flex-wrap:wrap;">
+        <div style="display:flex;gap:4px;align-items:center;">
           <button class="mn-spatial-subtab-btn ${subTab === 'mindmap' ? 'active' : ''}" data-subtab="mindmap">🗺️ Mind Map</button>
           <button class="mn-spatial-subtab-btn ${subTab === 'canvas' ? 'active' : ''}" data-subtab="canvas">📐 Whiteboard</button>
           <button class="mn-spatial-subtab-btn ${subTab === 'timeline' ? 'active' : ''}" data-subtab="timeline">⏳ Timeline (${data.timeline?.length || 0})</button>
-          <button class="mn-spatial-subtab-btn ${subTab === 'code' ? 'active' : ''}" data-subtab="code">📜 Canvas Code File</button>
+          <button class="mn-spatial-subtab-btn ${subTab === 'code' ? 'active' : ''}" data-subtab="code">📜 Code</button>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <button class="mn-spatial-btn mn-btn-inject-prompt" style="background:var(--mn-blue);color:#1A1A2E;font-size:10.5px;font-weight:700;padding:4px 8px;" title="Inject PenEcho Canvas prompt directive into Claude input">⚡ Inject Prompt</button>
-          <button class="mn-spatial-btn mn-btn-render-chat" style="background:var(--mn-pink);color:#FFFFFF;font-size:10.5px;font-weight:700;padding:4px 8px;" title="Render latest Claude conversation to canvas">🎨 Render Chat</button>
-        </div>
-      </div>
-    `;
-
-    // 4. Interactive Whiteboard Toolbar
-    const toolButtons = [
-      { id: 'select', label: '👆 Move / Select', title: 'Pan canvas or drag nodes' },
-      { id: 'pen', label: '✏️ Draw Pen', title: 'Freehand sketch on whiteboard' },
-      { id: 'sticky', label: '📝 Sticky Note', title: 'Click on whiteboard to add sticky note' },
-      { id: 'box', label: '⬜ Box', title: 'Add concept boundary box' },
-      { id: 'eraser', label: '🧹 Eraser', title: 'Click on drawings or nodes to erase' },
-    ];
-
-    const penColors = ['#1A1A2E', '#2563EB', '#EC4899', '#16A34A', '#D97706', '#DC2626'];
-    const activeColor = state.whiteboardPenColor || '#1A1A2E';
-
-    const toolsHtml = `
-      <div class="mn-whiteboard-toolbar">
-        <div class="mn-wb-tool-group">
-          ${toolButtons.map(t => `
-            <button class="mn-wb-btn ${activeTool === t.id ? 'active' : ''}" data-tool="${t.id}" title="${t.title}">${t.label}</button>
-          `).join('')}
-        </div>
-
-        <div class="mn-wb-tool-group">
-          <div class="mn-wb-color-picker" title="Pen Stroke Color">
-            ${penColors.map(c => `
-              <div class="mn-wb-color-dot ${activeColor === c ? 'active' : ''}" data-color="${c}" style="background:${c};"></div>
-            `).join('')}
-          </div>
-
-          <button class="mn-wb-btn mn-wb-btn-export" title="Export Whiteboard to SVG">${IC.download} SVG</button>
-          <button class="mn-wb-btn mn-wb-btn-demo" title="Load sample whiteboard">✨ Demo</button>
-          <button class="mn-wb-btn mn-wb-btn-clear" title="Clear all whiteboard elements">🧹 Clear</button>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <button class="mn-spatial-btn mn-btn-inject-prompt" style="background:#E0F2FE;color:#0369A1;border:1.5px solid #0369A1;font-size:10px;font-weight:700;padding:3px 7px;" title="Inject PenEcho Canvas protocol prompt into Claude">⚡ Prompt</button>
+          <button class="mn-spatial-btn mn-btn-render-chat" style="background:var(--mn-pink);color:#FFFFFF;border:1.5px solid #1A1A2E;font-size:10px;font-weight:700;padding:3px 7px;" title="Render current chat conversation to canvas">🎨 Sync Chat</button>
+          <button class="mn-spatial-btn mn-btn-clear-canvas" style="background:#F1F5F9;color:#475569;border:1.5px solid #1A1A2E;font-size:10px;font-weight:700;padding:3px 7px;" title="Clear whiteboard">🧹</button>
+          <label style="display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:700;cursor:pointer;" title="Auto live-sync with chat">
+            <span>Sync:</span>
+            <input type="checkbox" class="mn-tgl mn-live-sync-tgl" ${isLiveOn ? 'checked' : ''} style="width:26px;height:14px;" />
+          </label>
         </div>
       </div>
     `;
 
-    // 5. Whiteboard HTML Overlay Elements (Sticky Notes & LaTeX Formula Cards)
-    const stickies = data.stickies || [];
-    let stickiesHtml = '';
-    stickies.forEach((s) => {
-      stickiesHtml += `
-        <div class="mn-sticky-note-card" data-sticky-id="${esc(s.id)}" style="left:${s.x}px;top:${s.y}px;background:${s.color || '#FEF08A'};">
-          <div class="mn-sticky-hdr">
-            <span>📌 Note</span>
-            <span class="mn-sticky-del" data-del-sticky="${esc(s.id)}" style="cursor:pointer;padding:0 2px;" title="Delete note">×</span>
-          </div>
-          <div class="mn-sticky-body" contenteditable="true" data-edit-sticky="${esc(s.id)}">${esc(s.text || 'Type notes here...')}</div>
-        </div>
-      `;
-    });
-
-    const canvasElements = (data.canvas?.elements?.length ? data.canvas.elements : (draft?.canvas?.elements || []));
-    let formulasOverlayHtml = '';
-    canvasElements.forEach((el, idx) => {
-      if (el.type === 'render_formula') {
-        const posX = el.x || (40 + idx * 30);
-        const posY = el.y || (30 + idx * 40);
-        formulasOverlayHtml += `
-          <div class="mn-floating-formula-card" data-formula-id="${esc(el.id || 'f_' + idx)}" style="left:${posX}px;top:${posY}px;">
-            ${el.caption ? `<div class="mn-formula-caption">📐 ${esc(el.caption)}</div>` : ''}
-            <div class="mn-formula-math">${formatLatexFormula(el.latex)}</div>
-          </div>
-        `;
-      }
-    });
-
-    // 6. Sub-tab Content Generation
+    // 3. Sub-tab Content Generation
     let mainSubTabContentHtml = '';
 
     if (subTab === 'code') {
@@ -3271,7 +3206,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
             <div style="font-size:12px;font-weight:700;color:#1A1A2E;">📄 penecho-canvas.json (Live Code File)</div>
             <div style="display:flex;gap:6px;">
               <button class="mn-spatial-btn mn-btn-copy-code" style="background:var(--mn-blue);padding:4px 8px;font-size:11px;font-weight:700;">📋 Copy JSON</button>
-              <button class="mn-spatial-btn mn-btn-load-demo" style="padding:4px 8px;font-size:11px;font-weight:700;">✨ Load Sample</button>
+              <button class="mn-spatial-btn mn-btn-load-demo" style="padding:4px 8px;font-size:11px;font-weight:700;">✨ Demo</button>
             </div>
           </div>
           <pre class="mn-canvas-code-box"><code>${esc(codeJsonStr)}</code></pre>
@@ -3282,7 +3217,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       mainSubTabContentHtml = `
         <div style="display:flex;flex-direction:column;gap:8px;">
           <div style="font-size:12px;font-weight:700;color:#1A1A2E;margin-bottom:4px;">⏳ Running Chronological Milestones</div>
-          ${steps.length === 0 ? '<div style="font-size:12px;color:#6B7280;padding:12px;text-align:center;">No milestones in timeline yet. Ask Claude to solve a problem or click "Render Chat".</div>' : ''}
+          ${steps.length === 0 ? '<div style="font-size:12px;color:#6B7280;padding:12px;text-align:center;">No milestones in timeline yet. Ask Claude a question or click "Sync Chat".</div>' : ''}
           ${steps.map((st, i) => `
             <div style="border:2px solid #1A1A2E;border-radius:10px;padding:10px;background:#FFFFFF;box-shadow:2px 2px 0px #1A1A2E;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
@@ -3294,11 +3229,67 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           `).join('')}
         </div>
       `;
-    } else {
-      // Default: Whiteboard surface with SVG MindMap & Formulas
+    } else if (subTab === 'canvas') {
+      // Whiteboard View (Tools, LaTeX cards, Stickies, Drawings)
+      const toolButtons = [
+        { id: 'select', label: '👆 Select', title: 'Drag elements or pan' },
+        { id: 'pen', label: '✏️ Pen', title: 'Freehand sketch' },
+        { id: 'sticky', label: '📝 Note', title: 'Add sticky note' },
+        { id: 'box', label: '⬜ Box', title: 'Add concept box' },
+        { id: 'eraser', label: '🧹 Eraser', title: 'Erase items' },
+      ];
+      const penColors = ['#1A1A2E', '#2563EB', '#EC4899', '#16A34A', '#D97706', '#DC2626'];
+      const activeColor = state.whiteboardPenColor || '#1A1A2E';
+
+      const stickies = data.stickies || [];
+      let stickiesHtml = '';
+      stickies.forEach((s) => {
+        stickiesHtml += `
+          <div class="mn-sticky-note-card mn-draggable" data-sticky-id="${esc(s.id)}" style="left:${s.x || 40}px;top:${s.y || 40}px;background:${s.color || '#FEF08A'};">
+            <div class="mn-sticky-hdr">
+              <span>📌 Note</span>
+              <span class="mn-sticky-del" data-del-sticky="${esc(s.id)}" style="cursor:pointer;padding:0 2px;" title="Delete note">×</span>
+            </div>
+            <div class="mn-sticky-body" contenteditable="true" data-edit-sticky="${esc(s.id)}">${esc(s.text || 'Type notes here...')}</div>
+          </div>
+        `;
+      });
+
+      const canvasElements = (data.canvas?.elements?.length ? data.canvas.elements : (draft?.canvas?.elements || []));
+      let formulasOverlayHtml = '';
+      canvasElements.forEach((el, idx) => {
+        if (el.type === 'render_formula') {
+          // Layout formula cards in a clean non-overlapping row/grid
+          const col = idx % 2;
+          const row = Math.floor(idx / 2);
+          const posX = el.x !== undefined ? el.x : (20 + col * 200);
+          const posY = el.y !== undefined ? el.y : (20 + row * 130);
+          formulasOverlayHtml += `
+            <div class="mn-floating-formula-card mn-draggable" data-formula-id="${esc(el.id || 'f_' + idx)}" style="left:${posX}px;top:${posY}px;">
+              ${el.caption ? `<div class="mn-formula-caption">📐 ${esc(el.caption)}</div>` : ''}
+              <div class="mn-formula-math">${formatLatexFormula(el.latex)}</div>
+            </div>
+          `;
+        }
+      });
+
       mainSubTabContentHtml = `
         <div class="mn-whiteboard-container">
-          ${toolsHtml}
+          <div class="mn-whiteboard-toolbar">
+            <div class="mn-wb-tool-group">
+              ${toolButtons.map(t => `
+                <button class="mn-wb-btn ${activeTool === t.id ? 'active' : ''}" data-tool="${t.id}" title="${t.title}">${t.label}</button>
+              `).join('')}
+            </div>
+            <div class="mn-wb-tool-group">
+              <div class="mn-wb-color-picker" title="Pen Stroke Color">
+                ${penColors.map(c => `
+                  <div class="mn-wb-color-dot ${activeColor === c ? 'active' : ''}" data-color="${c}" style="background:${c};"></div>
+                `).join('')}
+              </div>
+              <button class="mn-wb-btn mn-wb-btn-export" title="Export Whiteboard to SVG">${IC.download} SVG</button>
+            </div>
+          </div>
 
           <div class="mn-whiteboard-viewport ${activeTool === 'pen' ? 'drawing' : ''}">
             <div class="mn-whiteboard-surface" style="transform: translate(${state.canvasPan.x}px, ${state.canvasPan.y}px) scale(${state.canvasZoom});">
@@ -3309,7 +3300,26 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
               </div>
             </div>
 
-            <!-- Bottom-Right Zoom Bar -->
+            <!-- Zoom Controls -->
+            <div class="mn-wb-zoom-bar">
+              <button class="mn-wb-btn mn-wb-zoom-out" style="padding:2px 6px;" title="Zoom Out">➖</button>
+              <span class="mn-wb-badge-info">${Math.round((state.canvasZoom || 1.0) * 100)}%</span>
+              <button class="mn-wb-btn mn-wb-zoom-in" style="padding:2px 6px;" title="Zoom In">➕</button>
+              <button class="mn-wb-btn mn-wb-zoom-reset" style="padding:2px 6px;" title="Reset View">🎯 100%</button>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      // Default: Mind Map View (Clean, unobstructed Knowledge Graph with physics and legend)
+      mainSubTabContentHtml = `
+        <div class="mn-whiteboard-container">
+          <div class="mn-whiteboard-viewport">
+            <div class="mn-whiteboard-surface" style="transform: translate(${state.canvasPan.x}px, ${state.canvasPan.y}px) scale(${state.canvasZoom});">
+              <svg class="mn-whiteboard-svg" viewBox="0 0 3200 3200"></svg>
+            </div>
+
+            <!-- Zoom Controls -->
             <div class="mn-wb-zoom-bar">
               <button class="mn-wb-btn mn-wb-zoom-out" style="padding:2px 6px;" title="Zoom Out">➖</button>
               <span class="mn-wb-badge-info">${Math.round((state.canvasZoom || 1.0) * 100)}%</span>
@@ -3331,23 +3341,10 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       `;
     }
 
-    // 7. Assemble View Structure
+    // 4. Assemble View Structure
     viewEl.innerHTML = `
-      <!-- Top Status & Toggle Bar -->
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#F0F8FF;border:2px solid #1A1A2E;border-radius:10px;margin-bottom:8px;box-shadow:2px 2px 0px #1A1A2E;">
-        <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
-          ${statusHtml}
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <label style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;cursor:pointer;">
-            <span>Live Sync:</span>
-            <input type="checkbox" class="mn-tgl mn-live-sync-tgl" ${isLiveOn ? 'checked' : ''} style="width:30px;height:16px;" />
-          </label>
-        </div>
-      </div>
-
       ${draftBannerHtml}
-      ${subTabsHtml}
+      ${topBarHtml}
       ${mainSubTabContentHtml}
     `;
 
@@ -3366,8 +3363,13 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     const renderChatBtn = viewEl.querySelector('.mn-btn-render-chat');
     if (renderChatBtn) {
       renderChatBtn.onclick = () => {
-        const lastMsgEl = document.querySelector('[data-message-author-role="assistant"]:last-of-type, .font-claude-message:last-of-type, .prose:last-of-type');
-        const text = lastMsgEl ? lastMsgEl.textContent.trim() : '';
+        const assistantEls = document.querySelectorAll(
+          '.font-claude-message, [data-message-author-role="assistant"], .font-user-message ~ div .prose, div.standard-markdown, .prose'
+        );
+        let text = '';
+        if (assistantEls.length > 0) {
+          text = (assistantEls[assistantEls.length - 1].innerText || assistantEls[assistantEls.length - 1].textContent || '').trim();
+        }
         if (text) {
           renderClaudeMessageToCanvas(text, true);
         } else {
@@ -3438,10 +3440,10 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `penecho-whiteboard-${Date.now()}.svg`;
+          a.download = `penecho-canvas-${Date.now()}.svg`;
           a.click();
           URL.revokeObjectURL(url);
-          showToast('Whiteboard exported to SVG ✓');
+          showToast('Canvas exported to SVG ✓');
         }
       };
     }
@@ -3468,9 +3470,58 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       };
     });
 
-    // Interactive Whiteboard Canvas Surface (Freehand Pen Drawing & Sticky placement)
+    // Draggable Formula and Sticky Cards
+    viewEl.querySelectorAll('.mn-draggable').forEach((card) => {
+      let isDragging = false;
+      let startX = 0, startY = 0;
+      let initLeft = 0, initTop = 0;
+
+      card.onmousedown = (e) => {
+        if (e.target.closest('[contenteditable="true"]') || e.target.closest('.mn-sticky-del')) return;
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        initLeft = parseInt(card.style.left, 10) || card.offsetLeft;
+        initTop = parseInt(card.style.top, 10) || card.offsetTop;
+        card.style.zIndex = '100';
+
+        const onMove = (ev) => {
+          if (!isDragging) return;
+          const dx = ev.clientX - startX;
+          const dy = ev.clientY - startY;
+          card.style.left = `${initLeft + dx}px`;
+          card.style.top = `${initTop + dy}px`;
+        };
+
+        const onUp = () => {
+          if (isDragging) {
+            isDragging = false;
+            card.style.zIndex = '10';
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+
+            const stickyId = card.dataset.stickyId;
+            const formulaId = card.dataset.formulaId;
+            if (stickyId && state.penechoState?.stickies) {
+              const s = state.penechoState.stickies.find(x => x.id === stickyId);
+              if (s) { s.x = parseInt(card.style.left, 10); s.y = parseInt(card.style.top, 10); }
+            }
+            if (formulaId && state.penechoState?.canvas?.elements) {
+              const el = state.penechoState.canvas.elements.find(x => (x.id || 'f_' + x) === formulaId);
+              if (el) { el.x = parseInt(card.style.left, 10); el.y = parseInt(card.style.top, 10); }
+            }
+            saveCanvasState();
+          }
+        };
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+      };
+    });
+
+    // Whiteboard Freehand Pen Drawing
     const viewport = viewEl.querySelector('.mn-whiteboard-viewport');
-    if (viewport) {
+    if (viewport && subTab === 'canvas') {
       let isDrawing = false;
       let currentStroke = null;
 
@@ -3570,7 +3621,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     const demoBtn = viewEl.querySelector('.mn-wb-btn-demo, .mn-btn-load-demo');
     if (demoBtn) demoBtn.onclick = loadPenechoDemo;
 
-    const clearBtn = viewEl.querySelector('.mn-wb-btn-clear');
+    const clearBtn = viewEl.querySelector('.mn-btn-clear-canvas, .mn-wb-btn-clear');
     if (clearBtn) clearBtn.onclick = clearPenechoCanvas;
 
     const acceptBtn = viewEl.querySelector('.mn-btn-accept-draft');
@@ -3581,7 +3632,9 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     if (subTab !== 'code' && subTab !== 'timeline') {
       updateWhiteboardSVG();
-      startMindMapPhysics();
+      if (subTab === 'mindmap') {
+        startMindMapPhysics();
+      }
     }
   }
 
