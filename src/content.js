@@ -27,13 +27,11 @@
     mainViewTab: 'vault',       // 'vault' | 'spatial'
     collectionEnabled: true,
     spatialProtocolEnabled: true,
-    // Google Gemini Spatial Visual Co-Pilot Settings
-    geminiApiKey: '',
-    geminiDrawingEnabled: true,
-    geminiModel: 'gemini-2.5-flash',
-    isGeminiDrawing: false,
+    liveSyncEnabled: true,
     lastDrawnClaudeMessage: '',
-    showKeyInSettings: false,
+    canvasSubTab: 'mindmap',    // 'mindmap' | 'canvas' | 'timeline' | 'code'
+    whiteboardTool: 'select',
+    whiteboardPenColor: '#1A1A2E',
     noticed: [],
     kept: [],
     rules: [],          // never-save keyword rules
@@ -44,7 +42,9 @@
     penechoState: {
       timeline: [],
       mindmap: { nodes: [], links: [] },
-      canvas: { elements: [] }
+      canvas: { elements: [] },
+      drawings: [],
+      stickies: []
     },
     penechoDraft: null,
     penechoHistory: [],
@@ -61,18 +61,18 @@
   /* ═══════════════════════════════════════════════════════════════
      PENECHO + MEMONEG SPATIAL CANVAS PROTOCOL SPECIFICATION
      ═══════════════════════════════════════════════════════════════ */
-  const PENECHO_PROTOCOL_DIRECTIVE = `[PenEcho + MemoNeg Spatial Canvas Protocol Active]
+  const PENECHO_PROTOCOL_DIRECTIVE = `[PenEcho Spatial Canvas Protocol Active]
 For every response in this conversation:
-1. Always output your standard, high-quality, human-readable markdown response first.
-2. At the very bottom of your response, output a single code block tagged \`\`\`json:penecho-canvas\`\`\`.
-3. Adhere strictly to the three synchronized visual streams and standardized color taxonomy:
-- Color Taxonomy:
-  * 🟢 Green "#22C55E" (safe_memory): Long-term memory / verified architecture decisions / safe facts.
-  * 🟡 Yellow "#EAB308" (consideration): Trade-offs / provisional assumptions / revisit if time permits.
-  * 🔴 Red "#EF4444" (reconsider): High-risk failure modes / security risks / must reconsider / sensitive data.
-  * 🔵 Blue "#3B82F6" (active_focus): Current active task / step currently being computed.
-  * ⚪ Slate "#64748B" (neutral_structure): Structural concepts / groupings / neutral connectors.
-- Schema:
+1. Always output your complete, high-quality, human-readable markdown response first.
+2. DO NOT make a hidden output. Whenever visualizing architecture, derivations, workflows, formulas, concepts, or mind maps, generate a dedicated code file / artifact named "penecho-canvas.json" (or a single code block tagged \`\`\`json:penecho-canvas\`\`\`) containing the exact structured canvas drawing JSON code.
+3. The spatial canvas code file will be rendered directly onto our PenEcho shared whiteboard canvas.
+4. Adhere strictly to the standardized 5-color memory taxonomy:
+- 🟢 Green "#22C55E" (safe_memory): Long-term memory / verified architecture decisions / safe facts.
+- 🟡 Yellow "#EAB308" (consideration): Trade-offs / provisional assumptions / revisit if time permits.
+- 🔴 Red "#EF4444" (reconsider): High-risk failure modes / security risks / must reconsider / sensitive data.
+- 🔵 Blue "#3B82F6" (active_focus): Current active task / step currently being computed.
+- ⚪ Slate "#64748B" (neutral_structure): Structural concepts / groupings / neutral connectors.
+5. Schema specification:
 \`\`\`json:penecho-canvas
 {
   "version": "1.0",
@@ -344,88 +344,85 @@ For every response in this conversation:
 
   async function loadAll() {
     try {
-      const [kr, nr, rr, cr, gr] = await Promise.all([
+      const [kr, nr, rr, cr] = await Promise.all([
         send({ type: 'GET_KEPT' }),
         send({ type: 'GET_NOTICED' }),
         send({ type: 'GET_RULES' }),
         send({ type: 'GET_CANVAS_STATE' }),
-        send({ type: 'GET_GEMINI_CONFIG' }),
       ]);
       state.kept = kr?.kept || state.kept || [];
       state.noticed = nr?.noticed || state.noticed || [];
       state.rules = rr?.rules || state.rules || [];
       if (cr?.canvasState) state.penechoState = cr.canvasState;
-      if (gr) {
-        if (gr.geminiApiKey !== undefined) state.geminiApiKey = gr.geminiApiKey;
-        if (gr.geminiDrawingEnabled !== undefined) state.geminiDrawingEnabled = gr.geminiDrawingEnabled;
-        if (gr.geminiModel !== undefined) state.geminiModel = gr.geminiModel;
-      }
       renderAll();
     } catch (_) {
       renderAll();
     }
   }
 
-  async function saveGeminiConfig(updates = {}) {
-    if (updates.geminiApiKey !== undefined) state.geminiApiKey = updates.geminiApiKey;
-    if (updates.geminiDrawingEnabled !== undefined) state.geminiDrawingEnabled = updates.geminiDrawingEnabled;
-    if (updates.geminiModel !== undefined) state.geminiModel = updates.geminiModel;
+  function injectSpatialPromptToClaude() {
+    try {
+      const selectors = [
+        'div.ProseMirror[contenteditable="true"]',
+        'div[contenteditable="true"]',
+        'fieldset textarea',
+        'textarea[placeholder*="Claude"]',
+        'textarea'
+      ];
 
-    await send({
-      type: 'SET_GEMINI_CONFIG',
-      geminiApiKey: state.geminiApiKey,
-      geminiDrawingEnabled: state.geminiDrawingEnabled,
-      geminiModel: state.geminiModel,
-    });
-    renderAll();
+      let inputEl = null;
+      for (const sel of selectors) {
+        const el = document.querySelector(sel);
+        if (el && el.offsetParent !== null) {
+          inputEl = el;
+          break;
+        }
+      }
+
+      if (inputEl) {
+        inputEl.focus();
+        const directiveText = `${PENECHO_PROTOCOL_DIRECTIVE}\n\nPlease proceed with the next explanation/architecture and generate the penecho-canvas.json code file: `;
+
+        if (inputEl.isContentEditable) {
+          const p = document.createElement('p');
+          p.textContent = directiveText;
+          inputEl.appendChild(p);
+          inputEl.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText' }));
+        } else {
+          const currentVal = inputEl.value;
+          inputEl.value = currentVal ? `${currentVal}\n\n${directiveText}` : directiveText;
+          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+          inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        showToast('⚡ PenEcho Spatial Canvas Prompt Injected to Claude ✓');
+      } else {
+        showToast('⚠️ Claude input box not found on page');
+      }
+    } catch (err) {
+      console.warn('[MemoNeg] Error injecting prompt to Claude:', err);
+      showToast('⚠️ Could not inject prompt to Claude');
+    }
   }
 
-  async function triggerGeminiDrawing(claudeAnswerText, force = false) {
+  function renderClaudeMessageToCanvas(claudeAnswerText, force = false) {
     if (!claudeAnswerText || typeof claudeAnswerText !== 'string' || claudeAnswerText.length < 5) return;
-    if (!state.geminiDrawingEnabled && !force) return;
+    const textHash = hashStr(claudeAnswerText);
+    if (!force && state.lastDrawnClaudeMessage === textHash) return;
 
-    if (!state.geminiApiKey || !state.geminiApiKey.trim()) {
-      if (force) {
-        showToast('⚠️ Please configure your Gemini API Key in Settings or Canvas');
-        openTab('settings');
-      }
+    state.lastDrawnClaudeMessage = textHash;
+    const parsedJson = parsePenechoJson(claudeAnswerText);
+    if (parsedJson) {
+      applyPenechoCanvasPayload(parsedJson, false);
+      playMemoryTone('scope');
+      showToast('✨ PenEcho Canvas Rendered from Claude code file ✓');
       return;
     }
 
-    const textHash = hashStr(claudeAnswerText);
-    if (!force && state.lastDrawnClaudeMessage === textHash) {
-      return; // Already visualized
-    }
-
-    state.isGeminiDrawing = true;
-    renderPenechoSpatialView();
-    showToast('⚡ Gemini is drawing spatial canvas from Claude\'s answer...');
-
-    try {
-      const res = await send({
-        type: 'CALL_GEMINI_DRAWING',
-        apiKey: state.geminiApiKey.trim(),
-        claudeAnswer: claudeAnswerText,
-        model: state.geminiModel || 'gemini-2.5-flash',
-      });
-
-      state.isGeminiDrawing = false;
-
-      if (res && res.success && res.payload) {
-        state.lastDrawnClaudeMessage = textHash;
-        applyPenechoCanvasPayload(res.payload, false);
-        playMemoryTone('scope');
-        showToast('✨ Gemini rendered Spatial Canvas & Dynamic Mind Map ✓');
-      } else {
-        const errMsg = res?.error || 'Gemini drawing could not be completed.';
-        console.warn('[MemoNeg Gemini Drawing Note]:', errMsg);
-        showToast(`⚠️ Gemini: ${errMsg.slice(0, 70)}`);
-        renderPenechoSpatialView();
-      }
-    } catch (err) {
-      state.isGeminiDrawing = false;
-      renderPenechoSpatialView();
-      console.error('[MemoNeg Gemini Error]:', err);
+    const fallbackPayload = parseMarkdownToPenechoCanvas(claudeAnswerText);
+    if (fallbackPayload) {
+      applyPenechoCanvasPayload(fallbackPayload, false);
+      playMemoryTone('scope');
+      showToast('✨ PenEcho Canvas Rendered from Claude conversation ✓');
     }
   }
 
@@ -1463,8 +1460,8 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   cursor: pointer !important; transition: all 0.15s !important; outline: none !important;
   box-shadow: 2px 2px 0px #1A1A2E !important;
 }
-/* ── Gemini Spatial Co-Pilot UI ── */
-.mn-gemini-copilot-card {
+/* ── PenEcho Spatial Whiteboard & Canvas UI ── */
+.mn-spatial-copilot-card {
   border: 3px solid #1A1A2E !important;
   border-radius: 14px !important;
   padding: 16px !important;
@@ -1476,13 +1473,13 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   position: relative !important;
   overflow: hidden !important;
 }
-.mn-gemini-hdr-row {
+.mn-spatial-hdr-row {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
   gap: 10px !important;
 }
-.mn-gemini-title {
+.mn-spatial-title {
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
@@ -1490,7 +1487,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   font-weight: 700 !important;
   color: #1A1A2E !important;
 }
-.mn-gemini-badge {
+.mn-spatial-badge {
   display: inline-flex !important;
   align-items: center !important;
   gap: 5px !important;
@@ -1503,25 +1500,20 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   letter-spacing: 0.4px !important;
   box-shadow: 2px 2px 0px #1A1A2E !important;
 }
-.mn-gemini-badge.active {
+.mn-spatial-badge.active {
   background: #D1FAE5 !important;
   color: #065F46 !important;
 }
-.mn-gemini-badge.inactive {
+.mn-spatial-badge.inactive {
   background: #F3F4F6 !important;
   color: #6B7280 !important;
 }
-.mn-gemini-badge.drawing {
-  background: #FEF3C7 !important;
-  color: #92400E !important;
-  animation: mnPulse 1.2s infinite !important;
-}
-.mn-gemini-desc {
+.mn-spatial-desc {
   font-size: 12px !important;
   color: #4B5563 !important;
   line-height: 1.5 !important;
 }
-.mn-gemini-toggle-bar {
+.mn-spatial-toggle-bar {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
@@ -1530,68 +1522,25 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   border: 2px solid #1A1A2E !important;
   border-radius: 10px !important;
 }
-.mn-gemini-toggle-label {
+.mn-spatial-toggle-label {
   font-size: 12.5px !important;
   font-weight: 700 !important;
   color: #1A1A2E !important;
 }
-.mn-gemini-input-group {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 6px !important;
-}
-.mn-gemini-input-label {
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  color: #6B7280 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.4px !important;
-}
-.mn-gemini-input-row {
-  display: flex !important;
-  gap: 6px !important;
-}
-.mn-gemini-key-inp {
-  flex: 1 !important;
-  padding: 8px 12px !important;
-  border-radius: 8px !important;
-  border: 2px solid #1A1A2E !important;
-  font-family: 'DM Mono', monospace !important;
-  font-size: 12px !important;
-  color: #1A1A2E !important;
-  background: #FFFFFF !important;
-  outline: none !important;
-}
-.mn-gemini-key-inp:focus {
-  border-color: var(--mn-pink) !important;
-  box-shadow: 0 0 0 2px var(--mn-ring) !important;
-}
-.mn-gemini-model-select {
-  padding: 8px 10px !important;
-  border-radius: 8px !important;
-  border: 2px solid #1A1A2E !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-  background: #FFFFFF !important;
-  color: #1A1A2E !important;
-  outline: none !important;
-  font-family: 'Space Grotesk', sans-serif !important;
-  cursor: pointer !important;
-}
-.mn-gemini-actions-row {
+.mn-spatial-actions-row {
   display: flex !important;
   gap: 8px !important;
   flex-wrap: wrap !important;
 }
-.mn-prompt-gemini-draw {
-  background: #FEF3C7 !important;
-  color: #92400E !important;
-  border-color: #92400E !important;
+.mn-prompt-spatial-draw {
+  background: #E0F2FE !important;
+  color: #0369A1 !important;
+  border-color: #0369A1 !important;
 }
-.mn-prompt-gemini-draw:hover {
-  background: #FDE68A !important;
+.mn-prompt-spatial-draw:hover {
+  background: #BAE6FD !important;
 }
-.mn-gemini-pulse-dot {
+.mn-spatial-pulse-dot {
   width: 8px !important;
   height: 8px !important;
   border-radius: 50% !important;
@@ -1599,28 +1548,34 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   box-shadow: 0 0 8px #22C55E !important;
   display: inline-block !important;
 }
-.mn-gemini-pulse-dot.drawing {
-  background: #F59E0B !important;
-  box-shadow: 0 0 10px #F59E0B !important;
-  animation: mnPulse 0.8s infinite !important;
-}
-.mn-gemini-banner-setup {
-  padding: 12px !important;
-  background: #EFF6FF !important;
-  border: 2px solid #3B82F6 !important;
-  border-radius: 10px !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-  margin-bottom: 12px !important;
-}
-.mn-gemini-banner-ttl {
-  font-size: 12px !important;
+.mn-spatial-subtab-btn {
+  padding: 4px 10px !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 8px !important;
+  font-size: 11px !important;
   font-weight: 700 !important;
-  color: #1E40AF !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 6px !important;
+  cursor: pointer !important;
+  background: #FFFFFF !important;
+  color: #1A1A2E !important;
+  transition: all 0.15s !important;
+}
+.mn-spatial-subtab-btn.active {
+  background: var(--mn-pink) !important;
+  color: #FFFFFF !important;
+  box-shadow: 2px 2px 0px #1A1A2E !important;
+}
+.mn-canvas-code-box {
+  background: #1A1A2E !important;
+  color: #E2E8F0 !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 10px !important;
+  padding: 12px !important;
+  font-family: 'DM Mono', monospace !important;
+  font-size: 11.5px !important;
+  max-height: 480px !important;
+  overflow-y: auto !important;
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
 }
 
 /* ── Interactive Infinite Whiteboard Engine ── */
@@ -2554,6 +2509,131 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     return null;
   }
 
+  function parseMarkdownToPenechoCanvas(text) {
+    if (!text || typeof text !== 'string') return null;
+    const clean = text.replace(/```[\s\S]*?```/g, '').trim();
+    const lines = clean.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return null;
+
+    // 1. Extract Milestones for Timeline
+    const firstHeading = lines.find(l => l.startsWith('#') || l.length < 60) || 'Milestone Assessment';
+    const title = firstHeading.replace(/^[#*\-•\d.]+\s*/, '').slice(0, 50);
+    const summary = lines.slice(1, 4).join(' ').slice(0, 140) || 'Derived structured spatial architecture and milestones.';
+
+    // 2. Extract Concept Nodes for Mind Map
+    const nodes = [];
+    const links = [];
+    const bulletLines = lines.filter(l => /^[*\-•\d.]+\s+[A-Z0-9]/.test(l) || l.includes(':'));
+    const candidateTopics = bulletLines.length >= 3 ? bulletLines.slice(0, 7) : lines.slice(0, 6);
+
+    const categories = ['safe_memory', 'active_focus', 'consideration', 'reconsider', 'neutral_structure'];
+    const colors = ['#22C55E', '#3B82F6', '#EAB308', '#EF4444', '#64748B'];
+
+    // Root node
+    nodes.push({
+      id: 'node_root',
+      label: title.slice(0, 24) || 'Core Context',
+      category: 'active_focus',
+      color: '#3B82F6',
+      description: summary.slice(0, 90),
+      x: 200,
+      y: 130
+    });
+
+    candidateTopics.forEach((topic, idx) => {
+      const rawLabel = topic.replace(/^[#*\-•\d.]+\s*/, '').split(/[:—–-]/)[0].trim().slice(0, 26);
+      if (!rawLabel || rawLabel.toLowerCase() === title.toLowerCase()) return;
+      const catIdx = idx % categories.length;
+      const nid = `node_${idx + 1}`;
+      const desc = topic.length > rawLabel.length ? topic.slice(rawLabel.length + 1).trim().slice(0, 80) : `Decision factor for ${rawLabel}`;
+
+      const angle = (idx / candidateTopics.length) * 2 * Math.PI;
+      const dist = 110 + (idx % 2) * 30;
+
+      nodes.push({
+        id: nid,
+        label: rawLabel,
+        category: categories[catIdx],
+        color: colors[catIdx],
+        description: desc || 'Architectural decision point.',
+        x: Math.round(200 + Math.cos(angle) * dist),
+        y: Math.round(150 + Math.sin(angle) * dist)
+      });
+
+      links.push({
+        source: 'node_root',
+        target: nid,
+        label: catIdx === 0 ? 'persists' : catIdx === 2 ? 'evaluates' : catIdx === 3 ? 'warns' : 'connects',
+        style: catIdx === 2 || catIdx === 3 ? 'dashed' : 'solid'
+      });
+    });
+
+    // 3. Extract Formulas or Vector Boxes
+    const elements = [];
+    const mathMatches = text.match(/\$\$([\s\S]+?)\$\$|\$([^$]+)\$/g) || [];
+    if (mathMatches.length > 0) {
+      mathMatches.slice(0, 2).forEach((m, idx) => {
+        const cleanMath = m.replace(/^\$\$?|\$\$?$/g, '').trim();
+        elements.push({
+          type: 'render_formula',
+          id: `f_${idx + 1}`,
+          x: 60 + idx * 160,
+          y: 40,
+          latex: cleanMath,
+          caption: `Mathematical Formulation #${idx + 1}`
+        });
+      });
+    } else {
+      elements.push({
+        type: 'render_formula',
+        id: 'f_std',
+        x: 70,
+        y: 40,
+        latex: '\\mathcal{S}_{t+1} = f(\\mathcal{S}_t, \\mathcal{A}_t) \\quad \\text{where } \\mathcal{L} \\le \\epsilon',
+        caption: 'State Transition & Convergence'
+      });
+    }
+
+    elements.push({
+      type: 'draw_box',
+      id: 'box_core',
+      x: 40,
+      y: 180,
+      w: 160,
+      h: 80,
+      color: '#3B82F6',
+      title: 'Execution Pipeline',
+      style: 'solid'
+    });
+
+    elements.push({
+      type: 'draw_arrow',
+      from: [200, 220],
+      to: [280, 220],
+      label: 'State Flow',
+      color: '#22C55E'
+    });
+
+    return {
+      version: '1.0',
+      timeline: {
+        step_id: `step_${Date.now()}`,
+        step_number: 1,
+        title: title,
+        status: 'completed',
+        summary: summary
+      },
+      mindmap: {
+        action: 'merge',
+        nodes: nodes,
+        links: links
+      },
+      canvas: {
+        elements: elements
+      }
+    };
+  }
+
   function applyPenechoCanvasPayload(payload, isDraft = false) {
     if (!payload) return;
     if (isDraft) {
@@ -2840,19 +2920,15 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     const data = state.penechoState || { timeline: [], mindmap: { nodes: [], links: [] }, canvas: { elements: [] }, drawings: [], stickies: [] };
     const draft = state.penechoDraft?.payload;
-    const isDrawing = state.isGeminiDrawing;
-    const isGeminiOn = state.geminiDrawingEnabled;
-    const hasKey = !!(state.geminiApiKey && state.geminiApiKey.trim());
+    const isLiveOn = state.liveSyncEnabled;
     const activeTool = state.whiteboardTool || 'select';
+    const subTab = state.canvasSubTab || 'mindmap';
 
-    // 1. Status Bar & Quick Toggle Header
-    const statusHtml = isDrawing
-      ? `<span class="mn-gemini-pulse-dot drawing"></span><span style="color:#92400E;font-weight:700;">⚡ Gemini Drawing from Claude...</span>`
-      : isGeminiOn && hasKey
-        ? `<span class="mn-gemini-pulse-dot"></span><span style="color:#065F46;font-weight:700;">🟢 Gemini Visual Co-Pilot (${esc(state.geminiModel)})</span>`
-        : isGeminiOn
-          ? `<span class="mn-gemini-pulse-dot" style="background:#F59E0B;box-shadow:0 0 8px #F59E0B;"></span><span style="color:#92400E;font-weight:700;">🟡 Gemini (API Key Connected)</span>`
-          : `<span class="mn-gemini-pulse-dot" style="background:#64748B;box-shadow:none;"></span><span style="color:#64748B;">⏸️ Direct Claude Mode</span>`;
+    // 1. Status Bar & Controls Header
+    const statusHtml = `
+      <span class="mn-spatial-pulse-dot"></span>
+      <span style="color:#065F46;font-weight:700;">🟢 Claude Spatial Canvas Active</span>
+    `;
 
     // 2. Draft Layer Banner
     let draftBannerHtml = '';
@@ -2874,7 +2950,23 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       `;
     }
 
-    // 3. Interactive Whiteboard Toolbar
+    // 3. Sub-tabs bar
+    const subTabsHtml = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+        <div style="display:flex;gap:6px;">
+          <button class="mn-spatial-subtab-btn ${subTab === 'mindmap' ? 'active' : ''}" data-subtab="mindmap">🗺️ Mind Map</button>
+          <button class="mn-spatial-subtab-btn ${subTab === 'canvas' ? 'active' : ''}" data-subtab="canvas">📐 Whiteboard</button>
+          <button class="mn-spatial-subtab-btn ${subTab === 'timeline' ? 'active' : ''}" data-subtab="timeline">⏳ Timeline (${data.timeline?.length || 0})</button>
+          <button class="mn-spatial-subtab-btn ${subTab === 'code' ? 'active' : ''}" data-subtab="code">📜 Canvas Code File</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="mn-spatial-btn mn-btn-inject-prompt" style="background:var(--mn-blue);color:#1A1A2E;font-size:10.5px;font-weight:700;padding:4px 8px;" title="Inject PenEcho Canvas prompt directive into Claude input">⚡ Inject Prompt</button>
+          <button class="mn-spatial-btn mn-btn-render-chat" style="background:var(--mn-pink);color:#FFFFFF;font-size:10.5px;font-weight:700;padding:4px 8px;" title="Render latest Claude conversation to canvas">🎨 Render Chat</button>
+        </div>
+      </div>
+    `;
+
+    // 4. Interactive Whiteboard Toolbar
     const toolButtons = [
       { id: 'select', label: '👆 Move / Select', title: 'Pan canvas or drag nodes' },
       { id: 'pen', label: '✏️ Draw Pen', title: 'Freehand sketch on whiteboard' },
@@ -2908,7 +3000,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       </div>
     `;
 
-    // 4. Whiteboard HTML Overlay Elements (Sticky Notes & LaTeX Formula Cards)
+    // 5. Whiteboard HTML Overlay Elements (Sticky Notes & LaTeX Formula Cards)
     const stickies = data.stickies || [];
     let stickiesHtml = '';
     stickies.forEach((s) => {
@@ -2938,107 +3030,145 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       }
     });
 
-    // 5. Build Viewport Structure
+    // 6. Sub-tab Content Generation
+    let mainSubTabContentHtml = '';
+
+    if (subTab === 'code') {
+      const codeJsonStr = JSON.stringify(data, null, 2);
+      mainSubTabContentHtml = `
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-size:12px;font-weight:700;color:#1A1A2E;">📄 penecho-canvas.json (Live Code File)</div>
+            <div style="display:flex;gap:6px;">
+              <button class="mn-spatial-btn mn-btn-copy-code" style="background:var(--mn-blue);padding:4px 8px;font-size:11px;font-weight:700;">📋 Copy JSON</button>
+              <button class="mn-spatial-btn mn-btn-load-demo" style="padding:4px 8px;font-size:11px;font-weight:700;">✨ Load Sample</button>
+            </div>
+          </div>
+          <pre class="mn-canvas-code-box"><code>${esc(codeJsonStr)}</code></pre>
+        </div>
+      `;
+    } else if (subTab === 'timeline') {
+      const steps = data.timeline || [];
+      mainSubTabContentHtml = `
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="font-size:12px;font-weight:700;color:#1A1A2E;margin-bottom:4px;">⏳ Running Chronological Milestones</div>
+          ${steps.length === 0 ? '<div style="font-size:12px;color:#6B7280;padding:12px;text-align:center;">No milestones in timeline yet. Ask Claude to solve a problem or click "Render Chat".</div>' : ''}
+          ${steps.map((st, i) => `
+            <div style="border:2px solid #1A1A2E;border-radius:10px;padding:10px;background:#FFFFFF;box-shadow:2px 2px 0px #1A1A2E;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <strong style="font-size:13px;color:#1A1A2E;">#${st.step_number || (i + 1)}: ${esc(st.title || 'Milestone')}</strong>
+                <span style="font-size:10px;padding:2px 6px;border-radius:6px;border:1px solid #1A1A2E;background:${st.status === 'completed' ? '#D1FAE5' : '#FEF3C7'};font-weight:700;">${esc(st.status || 'completed')}</span>
+              </div>
+              <div style="font-size:12px;color:#4B5563;">${esc(st.summary || '')}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else {
+      // Default: Whiteboard surface with SVG MindMap & Formulas
+      mainSubTabContentHtml = `
+        <div class="mn-whiteboard-container">
+          ${toolsHtml}
+
+          <div class="mn-whiteboard-viewport ${activeTool === 'pen' ? 'drawing' : ''}">
+            <div class="mn-whiteboard-surface" style="transform: translate(${state.canvasPan.x}px, ${state.canvasPan.y}px) scale(${state.canvasZoom});">
+              <svg class="mn-whiteboard-svg" viewBox="0 0 3200 3200"></svg>
+              <div class="mn-whiteboard-overlay">
+                ${stickiesHtml}
+                ${formulasOverlayHtml}
+              </div>
+            </div>
+
+            <!-- Bottom-Right Zoom Bar -->
+            <div class="mn-wb-zoom-bar">
+              <button class="mn-wb-btn mn-wb-zoom-out" style="padding:2px 6px;" title="Zoom Out">➖</button>
+              <span class="mn-wb-badge-info">${Math.round((state.canvasZoom || 1.0) * 100)}%</span>
+              <button class="mn-wb-btn mn-wb-zoom-in" style="padding:2px 6px;" title="Zoom In">➕</button>
+              <button class="mn-wb-btn mn-wb-zoom-reset" style="padding:2px 6px;" title="Reset View">🎯 100%</button>
+            </div>
+          </div>
+
+          <div class="mn-mindmap-legend" style="margin-top:4px;">
+            <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#22C55E;"></span> 🟢 Safe Memory</span>
+            <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#EAB308;"></span> 🟡 Consideration</span>
+            <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#EF4444;"></span> 🔴 Reconsider</span>
+            <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#3B82F6;"></span> 🔵 Active Focus</span>
+            <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#64748B;"></span> ⚪ Structure</span>
+          </div>
+
+          <div class="mn-node-inspector" style="display:none;"></div>
+        </div>
+      `;
+    }
+
+    // 7. Assemble View Structure
     viewEl.innerHTML = `
-      <!-- Status Top Bar -->
+      <!-- Top Status & Toggle Bar -->
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#F0F8FF;border:2px solid #1A1A2E;border-radius:10px;margin-bottom:8px;box-shadow:2px 2px 0px #1A1A2E;">
         <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
           ${statusHtml}
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
-          <button class="mn-spatial-btn mn-btn-gemini-draw-now" style="background:var(--mn-pink);color:#FFFFFF;border:2px solid #1A1A2E;font-size:10px;font-weight:700;padding:3px 8px;cursor:pointer;" title="Draw the latest Claude answer with Gemini">⚡ Draw Answer</button>
           <label style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;cursor:pointer;">
-            <span>Gemini:</span>
-            <input type="checkbox" class="mn-tgl mn-gemini-toggle-tgl" ${isGeminiOn ? 'checked' : ''} style="width:30px;height:16px;" />
+            <span>Live Sync:</span>
+            <input type="checkbox" class="mn-tgl mn-live-sync-tgl" ${isLiveOn ? 'checked' : ''} style="width:30px;height:16px;" />
           </label>
         </div>
       </div>
 
       ${draftBannerHtml}
-
-      <!-- Interactive Whiteboard -->
-      <div class="mn-whiteboard-container">
-        ${toolsHtml}
-
-        <div class="mn-whiteboard-viewport ${activeTool === 'pen' ? 'drawing' : ''}">
-          <div class="mn-whiteboard-surface" style="transform: translate(${state.canvasPan.x}px, ${state.canvasPan.y}px) scale(${state.canvasZoom});">
-            <svg class="mn-whiteboard-svg" viewBox="0 0 3200 3200"></svg>
-            <div class="mn-whiteboard-overlay">
-              ${stickiesHtml}
-              ${formulasOverlayHtml}
-            </div>
-          </div>
-
-          <!-- Bottom-Right Zoom Bar -->
-          <div class="mn-wb-zoom-bar">
-            <button class="mn-wb-btn mn-wb-zoom-out" style="padding:2px 6px;" title="Zoom Out">➖</button>
-            <span class="mn-wb-badge-info">${Math.round((state.canvasZoom || 1.0) * 100)}%</span>
-            <button class="mn-wb-btn mn-wb-zoom-in" style="padding:2px 6px;" title="Zoom In">➕</button>
-            <button class="mn-wb-btn mn-wb-zoom-reset" style="padding:2px 6px;" title="Reset View">🎯 100%</button>
-          </div>
-        </div>
-
-        <div class="mn-mindmap-legend" style="margin-top:4px;">
-          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#22C55E;"></span> 🟢 Safe Memory</span>
-          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#EAB308;"></span> 🟡 Consideration</span>
-          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#EF4444;"></span> 🔴 Reconsider</span>
-          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#3B82F6;"></span> 🔵 Active Focus</span>
-          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#64748B;"></span> ⚪ Structure</span>
-        </div>
-
-        <div class="mn-node-inspector" style="display:none;"></div>
-      </div>
+      ${subTabsHtml}
+      ${mainSubTabContentHtml}
     `;
 
     // Event listeners
-    const toggleTgl = viewEl.querySelector('.mn-gemini-toggle-tgl');
-    if (toggleTgl) {
-      toggleTgl.onchange = () => {
-        saveGeminiConfig({ geminiDrawingEnabled: toggleTgl.checked });
-        showToast(toggleTgl.checked ? '⚡ Gemini Visual Co-Pilot Enabled ✓' : 'Direct Claude Mode Enabled');
+    const liveTgl = viewEl.querySelector('.mn-live-sync-tgl');
+    if (liveTgl) {
+      liveTgl.onchange = () => {
+        state.liveSyncEnabled = liveTgl.checked;
+        showToast(liveTgl.checked ? '⚡ Live Sync Enabled ✓' : 'Live Sync Paused');
       };
     }
 
-    const drawNowBtn = viewEl.querySelector('.mn-btn-gemini-draw-now');
-    if (drawNowBtn) {
-      drawNowBtn.onclick = () => {
-        // Find latest assistant message
+    const injectBtn = viewEl.querySelector('.mn-btn-inject-prompt');
+    if (injectBtn) injectBtn.onclick = injectSpatialPromptToClaude;
+
+    const renderChatBtn = viewEl.querySelector('.mn-btn-render-chat');
+    if (renderChatBtn) {
+      renderChatBtn.onclick = () => {
         const lastMsgEl = document.querySelector('[data-message-author-role="assistant"]:last-of-type, .font-claude-message:last-of-type, .prose:last-of-type');
         const text = lastMsgEl ? lastMsgEl.textContent.trim() : '';
         if (text) {
-          triggerGeminiDrawing(text, true);
+          renderClaudeMessageToCanvas(text, true);
         } else {
-          showToast('⚠️ No assistant message found in current chat. Loading demo...');
+          showToast('⚠️ No assistant message found in chat. Loading demo...');
           loadPenechoDemo();
         }
       };
     }
 
-    const keyConfigBtn = viewEl.querySelector('.mn-btn-gemini-key-config');
-    if (keyConfigBtn) {
-      keyConfigBtn.onclick = () => {
-        openTab('settings');
+    // Subtab switching
+    viewEl.querySelectorAll('.mn-spatial-subtab-btn').forEach((btn) => {
+      btn.onclick = () => {
+        state.canvasSubTab = btn.dataset.subtab;
+        renderPenechoSpatialView();
+      };
+    });
+
+    const copyCodeBtn = viewEl.querySelector('.mn-btn-copy-code');
+    if (copyCodeBtn) {
+      copyCodeBtn.onclick = () => {
+        const jsonStr = JSON.stringify(data, null, 2);
+        navigator.clipboard.writeText(jsonStr).then(() => {
+          showToast('📋 Canvas JSON copied to clipboard ✓');
+        });
       };
     }
 
-    const quickSaveBtn = viewEl.querySelector('.mn-gemini-save-quick');
-    if (quickSaveBtn) {
-      quickSaveBtn.onclick = () => {
-        const inp = viewEl.querySelector('.mn-gemini-quick-key');
-        const keyVal = inp ? inp.value.trim() : '';
-        if (keyVal) {
-          saveGeminiConfig({ geminiApiKey: keyVal, geminiDrawingEnabled: true });
-          showToast('🔑 Gemini API Key Saved & Connected ✓');
-        } else {
-          showToast('⚠️ Please enter an API key');
-        }
-      };
-    }
-
-    const demoBtn = viewEl.querySelector('.mn-btn-load-demo');
+    const demoBtn = viewEl.querySelector('.mn-wb-btn-demo, .mn-btn-load-demo');
     if (demoBtn) demoBtn.onclick = loadPenechoDemo;
 
-    const clearBtn = viewEl.querySelector('.mn-btn-clear-canvas');
+    const clearBtn = viewEl.querySelector('.mn-wb-btn-clear');
     if (clearBtn) clearBtn.onclick = clearPenechoCanvas;
 
     const acceptBtn = viewEl.querySelector('.mn-btn-accept-draft');
@@ -3047,8 +3177,10 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     const discardBtn = viewEl.querySelector('.mn-btn-discard-draft');
     if (discardBtn) discardBtn.onclick = discardPenechoDraft;
 
-    updateMindMapSVG();
-    startMindMapPhysics();
+    if (subTab !== 'code' && subTab !== 'timeline') {
+      updateMindMapSVG();
+      startMindMapPhysics();
+    }
   }
 
   /* ═══════════════════════════════════════
@@ -3058,63 +3190,37 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     const pane = ui.dr?.querySelector('[data-pane="settings"]');
     if (!pane) return;
 
-    const hasKey = !!(state.geminiApiKey && state.geminiApiKey.trim());
-    const isGeminiOn = state.geminiDrawingEnabled;
-
     pane.innerHTML = `
       <div class="mn-settings-pane-wrap" style="padding:16px;display:flex;flex-direction:column;gap:16px;">
-        <!-- Card 1: Google Gemini Spatial Visual Co-Pilot -->
-        <div class="mn-gemini-copilot-card">
-          <div class="mn-gemini-hdr-row">
-            <div class="mn-gemini-title">
-              <span style="font-size:18px;">⚡</span>
-              <span>Gemini Spatial Drawing</span>
+        <!-- Card 1: PenEcho Spatial Canvas Engine -->
+        <div class="mn-spatial-copilot-card">
+          <div class="mn-spatial-hdr-row">
+            <div class="mn-spatial-title">
+              <span style="font-size:18px;">🎨</span>
+              <span>PenEcho Spatial Canvas</span>
             </div>
-            <span class="mn-gemini-badge ${hasKey ? 'active' : 'inactive'}">
-              ${hasKey ? '● API Key Ready' : '○ Key Missing'}
+            <span class="mn-spatial-badge active">
+              ● Native Engine Active
             </span>
           </div>
 
-          <div class="mn-gemini-desc">
-            Use Gemini API to automatically parse Claude's conversational output and generate the 3 synchronized visual streams (Running Timeline, Dynamic Mind Map with 5-color taxonomy, and Canvas LaTeX / vector elements).
+          <div class="mn-spatial-desc">
+            Directly renders Claude's <strong>penecho-canvas.json</strong> code files, LaTeX mathematical formulas, dynamic 5-color mind maps, and running timelines with zero external API dependencies.
           </div>
 
           <!-- Toggle Row -->
-          <div class="mn-gemini-toggle-bar">
+          <div class="mn-spatial-toggle-bar">
             <div>
-              <div class="mn-gemini-toggle-label">Enable Gemini Drawing</div>
-              <div style="font-size:11px;color:#6B7280;">Auto-draw visual canvas from Claude's answers</div>
+              <div class="mn-spatial-toggle-label">Auto Live-Sync from Chat</div>
+              <div style="font-size:11px;color:#6B7280;">Instantly render canvas code files emitted by Claude</div>
             </div>
-            <input type="checkbox" class="mn-tgl mn-settings-gemini-toggle" ${isGeminiOn ? 'checked' : ''} />
-          </div>
-
-          <!-- API Key Input -->
-          <div class="mn-gemini-input-group">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-              <span class="mn-gemini-input-label">Gemini API Key</span>
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="font-size:10.5px;color:#2563EB;font-weight:700;text-decoration:none;">Get Free Key ↗</a>
-            </div>
-            <div class="mn-gemini-input-row">
-              <input type="${state.showKeyInSettings ? 'text' : 'password'}" class="mn-gemini-key-inp mn-settings-gemini-key" placeholder="Enter API Key (AIzaSy...)" value="${esc(state.geminiApiKey || '')}" />
-              <button class="mn-btn mn-btn-e mn-settings-key-eye" style="padding:6px 10px;" title="Toggle show/hide">${state.showKeyInSettings ? '🙈' : '👁️'}</button>
-            </div>
-          </div>
-
-          <!-- Model Selection Dropdown -->
-          <div class="mn-gemini-input-group">
-            <span class="mn-gemini-input-label">Gemini Vision &amp; Spatial Model</span>
-            <select class="mn-gemini-model-select mn-settings-model-sel">
-              <option value="gemini-2.5-flash" ${state.geminiModel === 'gemini-2.5-flash' ? 'selected' : ''}>Gemini 2.5 Flash (Recommended - Ultra Fast)</option>
-              <option value="gemini-2.0-flash" ${state.geminiModel === 'gemini-2.0-flash' ? 'selected' : ''}>Gemini 2.0 Flash</option>
-              <option value="gemini-1.5-flash" ${state.geminiModel === 'gemini-1.5-flash' ? 'selected' : ''}>Gemini 1.5 Flash</option>
-              <option value="gemini-1.5-pro" ${state.geminiModel === 'gemini-1.5-pro' ? 'selected' : ''}>Gemini 1.5 Pro</option>
-            </select>
+            <input type="checkbox" class="mn-tgl mn-settings-livesync-toggle" ${state.liveSyncEnabled ? 'checked' : ''} />
           </div>
 
           <!-- Actions Row -->
-          <div class="mn-gemini-actions-row" style="margin-top:6px;">
-            <button class="mn-btn mn-btn-p mn-settings-save-gemini" style="flex:1;">💾 Save Key &amp; Settings</button>
-            <button class="mn-btn mn-btn-sim mn-settings-test-gemini" style="flex:1;">⚡ Test Key &amp; Draw Demo</button>
+          <div class="mn-spatial-actions-row" style="margin-top:6px;">
+            <button class="mn-btn mn-btn-p mn-settings-inject-prompt" style="flex:1;">⚡ Inject Canvas Prompt</button>
+            <button class="mn-btn mn-btn-sim mn-settings-load-demo" style="flex:1;">✨ Load Sample Canvas</button>
           </div>
         </div>
 
@@ -3148,76 +3254,23 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     renderRulesPanel();
     renderSnapshotsPanel();
 
-    // Bind Gemini settings events
-    const tgl = pane.querySelector('.mn-settings-gemini-toggle');
-    if (tgl) {
-      tgl.addEventListener('change', () => {
-        saveGeminiConfig({ geminiDrawingEnabled: tgl.checked });
-        showToast(tgl.checked ? '⚡ Gemini Visual Co-Pilot Enabled ✓' : 'Direct Claude Mode Enabled');
-      });
+    const livesyncTgl = pane.querySelector('.mn-settings-livesync-toggle');
+    if (livesyncTgl) {
+      livesyncTgl.onchange = () => {
+        state.liveSyncEnabled = livesyncTgl.checked;
+        showToast(livesyncTgl.checked ? '⚡ Auto Live-Sync Enabled ✓' : 'Auto Live-Sync Disabled');
+      };
     }
 
-    const eyeBtn = pane.querySelector('.mn-settings-key-eye');
-    if (eyeBtn) {
-      eyeBtn.addEventListener('click', () => {
-        state.showKeyInSettings = !state.showKeyInSettings;
-        renderSettingsPanel();
-      });
-    }
+    const injectBtn = pane.querySelector('.mn-settings-inject-prompt');
+    if (injectBtn) injectBtn.onclick = injectSpatialPromptToClaude;
 
-    const modelSel = pane.querySelector('.mn-settings-model-sel');
-    if (modelSel) {
-      modelSel.addEventListener('change', () => {
-        saveGeminiConfig({ geminiModel: modelSel.value });
-        showToast('Model set to ' + modelSel.value + ' ✓');
-      });
-    }
-
-    const saveBtn = pane.querySelector('.mn-settings-save-gemini');
-    if (saveBtn) {
-      saveBtn.addEventListener('click', () => {
-        const keyInp = pane.querySelector('.mn-settings-gemini-key');
-        const keyVal = keyInp ? keyInp.value.trim() : '';
-        const selVal = modelSel ? modelSel.value : 'gemini-2.5-flash';
-        const tglVal = tgl ? tgl.checked : true;
-        saveGeminiConfig({
-          geminiApiKey: keyVal,
-          geminiModel: selVal,
-          geminiDrawingEnabled: tglVal,
-        });
-        showToast('⚡ Gemini API Key & Settings Saved ✓');
-      });
-    }
-
-    const testBtn = pane.querySelector('.mn-settings-test-gemini');
-    if (testBtn) {
-      testBtn.addEventListener('click', async () => {
-        const keyInp = pane.querySelector('.mn-settings-gemini-key');
-        const keyVal = keyInp ? keyInp.value.trim() : state.geminiApiKey;
-        if (!keyVal) {
-          showToast('⚠️ Please enter an API key first');
-          return;
-        }
-        showToast('⚡ Testing Gemini API Connection...');
-        const testAnswer = 'To architect a resilient distributed cache with token rotation, we implement a stateless Ed25519 authentication microservice with adaptive TTL calculations and Redis blacklist protection.';
-        try {
-          const res = await send({
-            type: 'CALL_GEMINI_DRAWING',
-            apiKey: keyVal,
-            claudeAnswer: testAnswer,
-            model: modelSel ? modelSel.value : state.geminiModel || 'gemini-2.5-flash',
-          });
-          if (res && res.success && res.payload) {
-            applyPenechoCanvasPayload(res.payload, false);
-            openTab('canvas');
-            showToast('✅ Gemini API Verified & Demo Drawn on Canvas!');
-          } else {
-            showToast('⚠️ Test Failed: ' + (res?.error || 'Unknown error'));
-          }
-        } catch (e) {
-          showToast('⚠️ Test Error: ' + e.message);
-        }
-      });
+    const demoBtn = pane.querySelector('.mn-settings-load-demo');
+    if (demoBtn) {
+      demoBtn.onclick = () => {
+        loadPenechoDemo();
+        openTab('canvas');
+      };
     }
 
     // Bind Rules Add
@@ -4820,17 +4873,17 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       return true;
     });
 
-    // Process assistant messages (check if Claude saved a memory by himself & trigger Gemini Drawing)
+    // Process assistant messages (check if Claude saved a memory by himself & trigger Spatial Canvas)
     topAssistantContainers.forEach((container) => {
       const text = container.textContent.trim();
 
-      // If inline PenEcho protocol JSON is emitted directly by Claude
+      // If inline PenEcho protocol JSON or canvas code is emitted directly by Claude
       const directJson = parsePenechoJson(text);
       if (directJson) {
         applyPenechoCanvasPayload(directJson, false);
-      } else if (state.geminiDrawingEnabled && state.geminiApiKey && !container.dataset.mnGeminiDrawn) {
-        container.dataset.mnGeminiDrawn = 'true';
-        triggerGeminiDrawing(text);
+      } else if (state.liveSyncEnabled && !container.dataset.mnCanvasDrawn) {
+        container.dataset.mnCanvasDrawn = 'true';
+        renderClaudeMessageToCanvas(text);
       }
 
       if (container.dataset.mnPrompted === 'true' || container.querySelector('.mn-inline-memory-prompt')) {
@@ -4944,7 +4997,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           '<div class="mn-prompt-body">' + esc(classification.description) + '</div>' +
           '<div class="mn-prompt-acts">' +
           '<button class="mn-prompt-btn mn-prompt-accept" title="Accept memory &amp; save">Accept & Save</button>' +
-          '<button class="mn-prompt-btn mn-prompt-gemini-draw" title="Draw with Gemini Spatial Canvas">🎨 Draw with Gemini</button>' +
+          '<button class="mn-prompt-btn mn-prompt-spatial-draw" title="Render to PenEcho Spatial Canvas">🎨 Render to Spatial Canvas</button>' +
           '<button class="mn-prompt-btn mn-prompt-kept" title="View stored details or change options">Options</button>' +
           '</div>';
 
@@ -4966,12 +5019,12 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           showToast('Memory Accepted & Saved ✓');
         };
 
-        const drawBtn = promptEl.querySelector('.mn-prompt-gemini-draw');
+        const drawBtn = promptEl.querySelector('.mn-prompt-spatial-draw');
         if (drawBtn) {
           drawBtn.onclick = (e) => {
             e.stopPropagation();
             openTab('canvas');
-            triggerGeminiDrawing(currentSnippet, true);
+            renderClaudeMessageToCanvas(currentSnippet, true);
           };
         }
 
