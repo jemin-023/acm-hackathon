@@ -23,10 +23,15 @@
      ═══════════════════════════ */
   const state = {
     drawerOpen: false,
-    activeTab: 'global-memory', // 'global-memory' | 'local-memory'
+    activeTab: 'global-memory', // 'global-memory' | 'local-memory' | 'canvas' | 'settings' | 'export'
     mainViewTab: 'vault',       // 'vault' | 'spatial'
     collectionEnabled: true,
     spatialProtocolEnabled: true,
+    liveSyncEnabled: true,
+    lastDrawnClaudeMessage: '',
+    canvasSubTab: 'mindmap',    // 'mindmap' | 'canvas' | 'timeline' | 'code'
+    whiteboardTool: 'select',
+    whiteboardPenColor: '#1A1A2E',
     noticed: [],
     kept: [],
     rules: [],          // never-save keyword rules
@@ -37,7 +42,9 @@
     penechoState: {
       timeline: [],
       mindmap: { nodes: [], links: [] },
-      canvas: { elements: [] }
+      canvas: { elements: [] },
+      drawings: [],
+      stickies: []
     },
     penechoDraft: null,
     penechoHistory: [],
@@ -56,16 +63,16 @@
      ═══════════════════════════════════════════════════════════════ */
   const PENECHO_PROTOCOL_DIRECTIVE = `[PenEcho + Memo.io Spatial Canvas Protocol Active]
 For every response in this conversation:
-1. Always output your standard, high-quality, human-readable markdown response first.
-2. At the very bottom of your response, output a single code block tagged \`\`\`json:penecho-canvas\`\`\`.
-3. Adhere strictly to the three synchronized visual streams and standardized color taxonomy:
-- Color Taxonomy:
-  * 🟢 Green "#22C55E" (safe_memory): Long-term memory / verified architecture decisions / safe facts.
-  * 🟡 Yellow "#EAB308" (consideration): Trade-offs / provisional assumptions / revisit if time permits.
-  * 🔴 Red "#EF4444" (reconsider): High-risk failure modes / security risks / must reconsider / sensitive data.
-  * 🔵 Blue "#3B82F6" (active_focus): Current active task / step currently being computed.
-  * ⚪ Slate "#64748B" (neutral_structure): Structural concepts / groupings / neutral connectors.
-- Schema:
+1. Always output your complete, high-quality, human-readable markdown response first.
+2. DO NOT make a hidden output. Whenever visualizing architecture, derivations, workflows, formulas, concepts, or mind maps, generate a dedicated code file / artifact named "penecho-canvas.json" (or a single code block tagged \`\`\`json:penecho-canvas\`\`\`) containing the exact structured canvas drawing JSON code.
+3. The spatial canvas code file will be rendered directly onto our PenEcho shared whiteboard canvas.
+4. Adhere strictly to the standardized 5-color memory taxonomy:
+- 🟢 Green "#22C55E" (safe_memory): Long-term memory / verified architecture decisions / safe facts.
+- 🟡 Yellow "#EAB308" (consideration): Trade-offs / provisional assumptions / revisit if time permits.
+- 🔴 Red "#EF4444" (reconsider): High-risk failure modes / security risks / must reconsider / sensitive data.
+- 🔵 Blue "#3B82F6" (active_focus): Current active task / step currently being computed.
+- ⚪ Slate "#64748B" (neutral_structure): Structural concepts / groupings / neutral connectors.
+5. Schema specification:
 \`\`\`json:penecho-canvas
 {
   "version": "1.0",
@@ -263,7 +270,7 @@ For every response in this conversation:
         document.body.appendChild(el);
       }
       el.textContent = msg;
-    } catch (_) {}
+    } catch (_) { }
   }
 
   /* ═══════════════════════════
@@ -353,6 +360,72 @@ For every response in this conversation:
     }
   }
 
+  function injectSpatialPromptToClaude() {
+    try {
+      const selectors = [
+        'div.ProseMirror[contenteditable="true"]',
+        'div[contenteditable="true"]',
+        'fieldset textarea',
+        'textarea[placeholder*="Claude"]',
+        'textarea'
+      ];
+
+      let inputEl = null;
+      for (const sel of selectors) {
+        const el = document.querySelector(sel);
+        if (el && el.offsetParent !== null) {
+          inputEl = el;
+          break;
+        }
+      }
+
+      if (inputEl) {
+        inputEl.focus();
+        const directiveText = `${PENECHO_PROTOCOL_DIRECTIVE}\n\nPlease proceed with the next explanation/architecture and generate the penecho-canvas.json code file: `;
+
+        if (inputEl.isContentEditable) {
+          const p = document.createElement('p');
+          p.textContent = directiveText;
+          inputEl.appendChild(p);
+          inputEl.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText' }));
+        } else {
+          const currentVal = inputEl.value;
+          inputEl.value = currentVal ? `${currentVal}\n\n${directiveText}` : directiveText;
+          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+          inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        showToast('⚡ PenEcho Spatial Canvas Prompt Injected to Claude ✓');
+      } else {
+        showToast('⚠️ Claude input box not found on page');
+      }
+    } catch (err) {
+      console.warn('[MemoNeg] Error injecting prompt to Claude:', err);
+      showToast('⚠️ Could not inject prompt to Claude');
+    }
+  }
+
+  function renderClaudeMessageToCanvas(claudeAnswerText, force = false) {
+    if (!claudeAnswerText || typeof claudeAnswerText !== 'string' || claudeAnswerText.length < 5) return;
+    const textHash = hashStr(claudeAnswerText);
+    if (!force && state.lastDrawnClaudeMessage === textHash) return;
+
+    state.lastDrawnClaudeMessage = textHash;
+    const parsedJson = parsePenechoJson(claudeAnswerText);
+    if (parsedJson) {
+      applyPenechoCanvasPayload(parsedJson, false);
+      playMemoryTone('scope');
+      showToast('✨ PenEcho Canvas Rendered from Claude code file ✓');
+      return;
+    }
+
+    const fallbackPayload = parseMarkdownToPenechoCanvas(claudeAnswerText);
+    if (fallbackPayload) {
+      applyPenechoCanvasPayload(fallbackPayload, false);
+      playMemoryTone('scope');
+      showToast('✨ PenEcho Canvas Rendered from Claude conversation ✓');
+    }
+  }
+
   async function addKept(mem) {
     const memoryToSave = { scope: 'global', ...mem };
     const r = await send({ type: 'ADD_KEPT', memory: memoryToSave });
@@ -374,7 +447,7 @@ For every response in this conversation:
         'textarea[placeholder*="Claude"]',
         'textarea'
       ];
-      
+
       let inputEl = null;
       for (const sel of selectors) {
         const el = document.querySelector(sel);
@@ -1387,8 +1460,306 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
   cursor: pointer !important; transition: all 0.15s !important; outline: none !important;
   box-shadow: 2px 2px 0px #1A1A2E !important;
 }
-.mn-penecho-pill-btn:hover {
-  background: #C2F0F8 !important; transform: translate(-1px, -1px) !important; box-shadow: 3px 3px 0px #1A1A2E !important;
+/* ── PenEcho Spatial Whiteboard & Canvas UI ── */
+.mn-spatial-copilot-card {
+  border: 3px solid #1A1A2E !important;
+  border-radius: 14px !important;
+  padding: 16px !important;
+  background: #FFFFFF !important;
+  box-shadow: 4px 4px 0px #1A1A2E !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+.mn-spatial-hdr-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+}
+.mn-spatial-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #1A1A2E !important;
+}
+.mn-spatial-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 3px 8px !important;
+  border-radius: 8px !important;
+  border: 2px solid #1A1A2E !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.4px !important;
+  box-shadow: 2px 2px 0px #1A1A2E !important;
+}
+.mn-spatial-badge.active {
+  background: #D1FAE5 !important;
+  color: #065F46 !important;
+}
+.mn-spatial-badge.inactive {
+  background: #F3F4F6 !important;
+  color: #6B7280 !important;
+}
+.mn-spatial-desc {
+  font-size: 12px !important;
+  color: #4B5563 !important;
+  line-height: 1.5 !important;
+}
+.mn-spatial-toggle-bar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 10px 12px !important;
+  background: #F0F9FF !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 10px !important;
+}
+.mn-spatial-toggle-label {
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  color: #1A1A2E !important;
+}
+.mn-spatial-actions-row {
+  display: flex !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+.mn-prompt-spatial-draw {
+  background: #E0F2FE !important;
+  color: #0369A1 !important;
+  border-color: #0369A1 !important;
+}
+.mn-prompt-spatial-draw:hover {
+  background: #BAE6FD !important;
+}
+.mn-spatial-pulse-dot {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: #22C55E !important;
+  box-shadow: 0 0 8px #22C55E !important;
+  display: inline-block !important;
+}
+.mn-spatial-subtab-btn {
+  padding: 4px 10px !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 8px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  background: #FFFFFF !important;
+  color: #1A1A2E !important;
+  transition: all 0.15s !important;
+}
+.mn-spatial-subtab-btn.active {
+  background: var(--mn-pink) !important;
+  color: #FFFFFF !important;
+  box-shadow: 2px 2px 0px #1A1A2E !important;
+}
+.mn-canvas-code-box {
+  background: #1A1A2E !important;
+  color: #E2E8F0 !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 10px !important;
+  padding: 12px !important;
+  font-family: 'DM Mono', monospace !important;
+  font-size: 11.5px !important;
+  max-height: 480px !important;
+  overflow-y: auto !important;
+  white-space: pre-wrap !important;
+  word-break: break-all !important;
+}
+
+/* ── Interactive Infinite Whiteboard Engine ── */
+.mn-whiteboard-container {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  margin-top: 4px !important;
+}
+.mn-whiteboard-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  padding: 8px 10px !important;
+  background: #FFFFFF !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 12px !important;
+  box-shadow: 2px 2px 0px #1A1A2E !important;
+  flex-wrap: wrap !important;
+}
+.mn-wb-tool-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex-wrap: wrap !important;
+}
+.mn-wb-btn {
+  padding: 5px 9px !important;
+  border-radius: 8px !important;
+  border: 1.5px solid #1A1A2E !important;
+  background: #F8FAFC !important;
+  color: #1A1A2E !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  transition: all 0.12s ease !important;
+  outline: none !important;
+}
+.mn-wb-btn:hover {
+  background: #E2E8F0 !important;
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 1.5px 1.5px 0px #1A1A2E !important;
+}
+.mn-wb-btn.active {
+  background: var(--mn-pink) !important;
+  color: #FFFFFF !important;
+  border-color: #1A1A2E !important;
+  box-shadow: 2px 2px 0px #1A1A2E !important;
+}
+.mn-wb-color-picker {
+  display: flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  padding: 2px 6px !important;
+  border: 1.5px solid #CBD5E1 !important;
+  border-radius: 8px !important;
+  background: #FFFFFF !important;
+}
+.mn-wb-color-dot {
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  cursor: pointer !important;
+  border: 1.5px solid transparent !important;
+  transition: transform 0.1s !important;
+}
+.mn-wb-color-dot:hover {
+  transform: scale(1.25) !important;
+}
+.mn-wb-color-dot.active {
+  border-color: #1A1A2E !important;
+  box-shadow: 0 0 0 1.5px #FFFFFF, 0 0 0 3px #1A1A2E !important;
+  transform: scale(1.2) !important;
+}
+.mn-whiteboard-viewport {
+  position: relative !important;
+  width: 100% !important;
+  height: 480px !important;
+  background-color: #FAFAFA !important;
+  background-image: radial-gradient(#CBD5E1 1.2px, transparent 1.2px) !important;
+  background-size: 20px 20px !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 14px !important;
+  box-shadow: 3px 3px 0px #1A1A2E !important;
+  overflow: hidden !important;
+  user-select: none !important;
+  cursor: grab !important;
+}
+.mn-whiteboard-viewport.panning {
+  cursor: grabbing !important;
+}
+.mn-whiteboard-viewport.drawing {
+  cursor: crosshair !important;
+}
+.mn-whiteboard-surface {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  transform-origin: 0 0 !important;
+  pointer-events: auto !important;
+}
+.mn-whiteboard-svg {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 3200px !important;
+  height: 3200px !important;
+  pointer-events: auto !important;
+}
+.mn-sticky-note-card {
+  position: absolute !important;
+  width: 160px !important;
+  min-height: 95px !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 10px !important;
+  padding: 8px 10px !important;
+  box-shadow: 3px 3px 0px rgba(0,0,0,0.2) !important;
+  cursor: move !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  z-index: 10 !important;
+  transition: box-shadow 0.15s !important;
+  backdrop-filter: blur(4px) !important;
+}
+.mn-sticky-note-card:hover {
+  box-shadow: 5px 5px 0px rgba(0,0,0,0.28) !important;
+}
+.mn-sticky-hdr {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  opacity: 0.8 !important;
+}
+.mn-sticky-body {
+  flex: 1 !important;
+  font-size: 11.5px !important;
+  line-height: 1.35 !important;
+  color: #1A1A2E !important;
+  font-family: 'Space Grotesk', -apple-system, sans-serif !important;
+  outline: none !important;
+  cursor: text !important;
+  word-break: break-word !important;
+  min-height: 48px !important;
+}
+.mn-floating-formula-card {
+  position: absolute !important;
+  border: 2px solid #0284C7 !important;
+  border-radius: 10px !important;
+  background: #F0F9FF !important;
+  box-shadow: 3px 3px 0px #0284C7 !important;
+  padding: 10px 12px !important;
+  cursor: move !important;
+  z-index: 9 !important;
+  max-width: 240px !important;
+}
+.mn-wb-zoom-bar {
+  position: absolute !important;
+  bottom: 12px !important;
+  right: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 4px 8px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(8px) !important;
+  border: 2px solid #1A1A2E !important;
+  border-radius: 10px !important;
+  box-shadow: 2px 2px 0px #1A1A2E !important;
+  z-index: 20 !important;
+}
+.mn-wb-badge-info {
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  color: #1A1A2E !important;
+  padding: 0 4px !important;
 }
 
     `;
@@ -1494,25 +1865,25 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     rail.className = 'mn-side-rail';
     rail.innerHTML =
       '<button class="mn-rail-item active" data-tab="global-memory" title="Global Memory">' +
-        '<span class="mn-rail-icon">' + IC.railGlobal + '</span>' +
-        '<span class="mn-rail-label">Global Memory</span>' +
+      '<span class="mn-rail-icon">' + IC.railGlobal + '</span>' +
+      '<span class="mn-rail-label">Global Memory</span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="current-session" title="Current Session">' +
-        '<span class="mn-rail-icon">' + IC.railSession + '</span>' +
-        '<span class="mn-rail-label">Current Session</span>' +
-        '<span class="mn-rail-badge" style="display:none"></span>' +
+      '<span class="mn-rail-icon">' + IC.railSession + '</span>' +
+      '<span class="mn-rail-label">Current Session</span>' +
+      '<span class="mn-rail-badge" style="display:none"></span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="canvas" title="Spatial Canvas">' +
-        '<span class="mn-rail-icon">' + IC.railCanvas + '</span>' +
-        '<span class="mn-rail-label">Spatial Canvas</span>' +
+      '<span class="mn-rail-icon">' + IC.railCanvas + '</span>' +
+      '<span class="mn-rail-label">Spatial Canvas</span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="export" title="Export">' +
-        '<span class="mn-rail-icon">' + IC.railExport + '</span>' +
-        '<span class="mn-rail-label">Export</span>' +
+      '<span class="mn-rail-icon">' + IC.railExport + '</span>' +
+      '<span class="mn-rail-label">Export</span>' +
       '</button>' +
       '<button class="mn-rail-item" data-tab="settings" title="Settings">' +
-        '<span class="mn-rail-icon">' + IC.railSettings + '</span>' +
-        '<span class="mn-rail-label">Settings</span>' +
+      '<span class="mn-rail-icon">' + IC.railSettings + '</span>' +
+      '<span class="mn-rail-label">Settings</span>' +
       '</button>';
 
     rail.querySelectorAll('.mn-rail-item').forEach((btn) => {
@@ -1555,7 +1926,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     let gl;
     try {
       gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false });
-    } catch (_) {}
+    } catch (_) { }
     if (!gl) return null;
 
     const vsSource = `#version 300 es
@@ -1736,7 +2107,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       destroy() {
         cancelAnimationFrame(raf);
         window.removeEventListener('resize', resize);
-        try { canvas.remove(); } catch (_) {}
+        try { canvas.remove(); } catch (_) { }
       }
     };
   }
@@ -1864,7 +2235,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
               showToast('🌐 Moved memory to Global Memory (Everywhere)');
             }
           }
-        } catch (_) {}
+        } catch (_) { }
       });
     };
 
@@ -1958,7 +2329,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
               showToast('Kept memory purged ✓');
             }
           }
-        } catch (_) {}
+        } catch (_) { }
       });
     }
     ui.trashZone = tz;
@@ -2008,12 +2379,12 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     el.innerHTML =
       '<div class="mn-digest-ttl">' + IC.brain + 'Memory Digest</div>' +
       '<div class="mn-digest-body">' +
-        '<strong>' + count + ' unreviewed ' + (count === 1 ? 'memory' : 'memories') + '</strong> from this session ' +
-        'are waiting in your Noticed tab. Review them before they expire.' +
+      '<strong>' + count + ' unreviewed ' + (count === 1 ? 'memory' : 'memories') + '</strong> from this session ' +
+      'are waiting in your Noticed tab. Review them before they expire.' +
       '</div>' +
       '<div class="mn-digest-acts">' +
-        '<button class="mn-digest-btn mn-digest-review">Review Now</button>' +
-        '<button class="mn-digest-btn mn-digest-dismiss">Dismiss</button>' +
+      '<button class="mn-digest-btn mn-digest-review">Review Now</button>' +
+      '<button class="mn-digest-btn mn-digest-dismiss">Dismiss</button>' +
       '</div>';
     el.style.display = 'block';
 
@@ -2060,7 +2431,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       state.drawerOpen = !state.drawerOpen;
     }
     if (ui.dr) ui.dr.classList.toggle('open', state.drawerOpen);
-    
+
     // Toggle panel-open class so right: 440px !important takes effect when open
     if (ui.fab) {
       ui.fab.classList.toggle('panel-open', state.drawerOpen);
@@ -2069,7 +2440,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     try {
       document.body.style.transition = 'margin-right .28s cubic-bezier(.32,.72,0,1)';
       document.body.style.marginRight = state.drawerOpen ? PAGE_PUSH_MARGIN : '';
-    } catch (_) {}
+    } catch (_) { }
     if (state.drawerOpen) loadAll();
   }
 
@@ -2104,13 +2475,13 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         state.penechoState = r.canvasState;
         renderPenechoSpatialView();
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   async function saveCanvasState() {
     try {
       await send({ type: 'SAVE_CANVAS_STATE', canvasState: state.penechoState });
-    } catch (_) {}
+    } catch (_) { }
   }
 
   function parsePenechoJson(rawText) {
@@ -2134,150 +2505,214 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       if (parsed && (parsed.timeline || parsed.mindmap || parsed.canvas)) {
         return parsed;
       }
-    } catch (_) {
-      try {
-        let sanitized = jsonStr.trim();
-        sanitized = sanitized.replace(/,\s*([\]}])/g, '$1');
-        let openBraces = (sanitized.match(/{/g) || []).length - (sanitized.match(/}/g) || []).length;
-        let openBrackets = (sanitized.match(/\[/g) || []).length - (sanitized.match(/\]/g) || []).length;
-        const quoteCount = (sanitized.match(/"/g) || []).length;
-        if (quoteCount % 2 !== 0) sanitized += '"';
-        while (openBrackets > 0) { sanitized += ']'; openBrackets--; }
-        while (openBraces > 0) { sanitized += '}'; openBraces--; }
-        const recovered = JSON.parse(sanitized);
-        if (recovered && (recovered.timeline || recovered.mindmap || recovered.canvas)) {
-          return recovered;
-        }
-      } catch (e2) {}
-    }
+    } catch (_) { }
     return null;
   }
 
-  function syncCanvasProtocolToClaude() {
-    try {
-      const selectors = [
-        'div.ProseMirror[contenteditable="true"]',
-        'div[contenteditable="true"]',
-        'fieldset textarea',
-        'textarea[placeholder*="Claude"]',
-        'textarea'
-      ];
-      let inputEl = null;
-      for (const sel of selectors) {
-        const el = document.querySelector(sel);
-        if (el && el.offsetParent !== null) {
-          inputEl = el;
-          break;
-        }
-      }
-      if (inputEl) {
-        inputEl.focus();
-        if (inputEl.isContentEditable) {
-          const p = document.createElement('p');
-          p.textContent = PENECHO_PROTOCOL_DIRECTIVE;
-          inputEl.appendChild(p);
-          inputEl.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText' }));
-        } else {
-          const cur = inputEl.value;
-          inputEl.value = cur ? `${cur}\n\n${PENECHO_PROTOCOL_DIRECTIVE}` : PENECHO_PROTOCOL_DIRECTIVE;
-          inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-          inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-        showToast('Spatial Canvas Protocol injected into prompt ✓');
-      } else {
-        navigator.clipboard.writeText(PENECHO_PROTOCOL_DIRECTIVE);
-        showToast('Protocol copied to clipboard ✓');
-      }
-    } catch (_) {
-      navigator.clipboard.writeText(PENECHO_PROTOCOL_DIRECTIVE);
-      showToast('Protocol copied to clipboard ✓');
+  function parseMarkdownToPenechoCanvas(text) {
+    if (!text || typeof text !== 'string') return null;
+    const clean = text.replace(/```[\s\S]*?```/g, '').trim();
+    const lines = clean.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return null;
+
+    // 1. Extract Milestones for Timeline
+    const firstHeading = lines.find(l => l.startsWith('#') || l.length < 60) || 'Milestone Assessment';
+    const title = firstHeading.replace(/^[#*\-•\d.]+\s*/, '').slice(0, 50);
+    const summary = lines.slice(1, 4).join(' ').slice(0, 140) || 'Derived structured spatial architecture and milestones.';
+
+    // 2. Extract Concept Nodes for Mind Map
+    const nodes = [];
+    const links = [];
+    const bulletLines = lines.filter(l => /^[*\-•\d.]+\s+[A-Z0-9]/.test(l) || l.includes(':'));
+    const candidateTopics = bulletLines.length >= 3 ? bulletLines.slice(0, 7) : lines.slice(0, 6);
+
+    const categories = ['safe_memory', 'active_focus', 'consideration', 'reconsider', 'neutral_structure'];
+    const colors = ['#22C55E', '#3B82F6', '#EAB308', '#EF4444', '#64748B'];
+
+    // Root node
+    nodes.push({
+      id: 'node_root',
+      label: title.slice(0, 24) || 'Core Context',
+      category: 'active_focus',
+      color: '#3B82F6',
+      description: summary.slice(0, 90),
+      x: 200,
+      y: 130
+    });
+
+    candidateTopics.forEach((topic, idx) => {
+      const rawLabel = topic.replace(/^[#*\-•\d.]+\s*/, '').split(/[:—–-]/)[0].trim().slice(0, 26);
+      if (!rawLabel || rawLabel.toLowerCase() === title.toLowerCase()) return;
+      const catIdx = idx % categories.length;
+      const nid = `node_${idx + 1}`;
+      const desc = topic.length > rawLabel.length ? topic.slice(rawLabel.length + 1).trim().slice(0, 80) : `Decision factor for ${rawLabel}`;
+
+      const angle = (idx / candidateTopics.length) * 2 * Math.PI;
+      const dist = 110 + (idx % 2) * 30;
+
+      nodes.push({
+        id: nid,
+        label: rawLabel,
+        category: categories[catIdx],
+        color: colors[catIdx],
+        description: desc || 'Architectural decision point.',
+        x: Math.round(200 + Math.cos(angle) * dist),
+        y: Math.round(150 + Math.sin(angle) * dist)
+      });
+
+      links.push({
+        source: 'node_root',
+        target: nid,
+        label: catIdx === 0 ? 'persists' : catIdx === 2 ? 'evaluates' : catIdx === 3 ? 'warns' : 'connects',
+        style: catIdx === 2 || catIdx === 3 ? 'dashed' : 'solid'
+      });
+    });
+
+    // 3. Extract Formulas or Vector Boxes
+    const elements = [];
+    const mathMatches = text.match(/\$\$([\s\S]+?)\$\$|\$([^$]+)\$/g) || [];
+    if (mathMatches.length > 0) {
+      mathMatches.slice(0, 2).forEach((m, idx) => {
+        const cleanMath = m.replace(/^\$\$?|\$\$?$/g, '').trim();
+        elements.push({
+          type: 'render_formula',
+          id: `f_${idx + 1}`,
+          x: 60 + idx * 160,
+          y: 40,
+          latex: cleanMath,
+          caption: `Mathematical Formulation #${idx + 1}`
+        });
+      });
+    } else {
+      elements.push({
+        type: 'render_formula',
+        id: 'f_std',
+        x: 70,
+        y: 40,
+        latex: '\\mathcal{S}_{t+1} = f(\\mathcal{S}_t, \\mathcal{A}_t) \\quad \\text{where } \\mathcal{L} \\le \\epsilon',
+        caption: 'State Transition & Convergence'
+      });
     }
+
+    elements.push({
+      type: 'draw_box',
+      id: 'box_core',
+      x: 40,
+      y: 180,
+      w: 160,
+      h: 80,
+      color: '#3B82F6',
+      title: 'Execution Pipeline',
+      style: 'solid'
+    });
+
+    elements.push({
+      type: 'draw_arrow',
+      from: [200, 220],
+      to: [280, 220],
+      label: 'State Flow',
+      color: '#22C55E'
+    });
+
+    return {
+      version: '1.0',
+      timeline: {
+        step_id: `step_${Date.now()}`,
+        step_number: 1,
+        title: title,
+        status: 'completed',
+        summary: summary
+      },
+      mindmap: {
+        action: 'merge',
+        nodes: nodes,
+        links: links
+      },
+      canvas: {
+        elements: elements
+      }
+    };
   }
 
   function applyPenechoCanvasPayload(payload, isDraft = false) {
     if (!payload) return;
     if (isDraft) {
-      state.penechoDraft = {
-        payload,
-        receivedAt: Date.now()
-      };
+      state.penechoDraft = { payload, timestamp: Date.now() };
       renderPenechoSpatialView();
-      updateBadge();
-    } else {
-      const cur = state.penechoState || { timeline: [], mindmap: { nodes: [], links: [] }, canvas: { elements: [] } };
-      
-      // Merge Timeline
-      if (payload.timeline) {
-        cur.timeline = cur.timeline || [];
-        const existingIdx = cur.timeline.findIndex((t) => t.step_id === payload.timeline.step_id);
-        if (existingIdx !== -1) {
-          cur.timeline[existingIdx] = { ...cur.timeline[existingIdx], ...payload.timeline, updatedAt: Date.now() };
-        } else {
-          cur.timeline.unshift({ ...payload.timeline, timestamp: Date.now() });
-        }
-      }
-
-      // Merge Mindmap
-      if (payload.mindmap && payload.mindmap.nodes) {
-        cur.mindmap = cur.mindmap || { nodes: [], links: [] };
-        const existingNodes = cur.mindmap.nodes || [];
-        payload.mindmap.nodes.forEach((newNode, idx) => {
-          const matchIdx = existingNodes.findIndex((n) => n.id === newNode.id);
-          if (matchIdx !== -1) {
-            existingNodes[matchIdx] = { ...existingNodes[matchIdx], ...newNode };
-          } else {
-            const angle = (existingNodes.length * 2 * Math.PI) / Math.max(payload.mindmap.nodes.length, 1);
-            const radius = 80 + (idx % 3) * 35;
-            existingNodes.push({
-              ...newNode,
-              x: 200 + Math.cos(angle) * radius,
-              y: 150 + Math.sin(angle) * radius,
-              vx: (Math.random() - 0.5) * 2,
-              vy: (Math.random() - 0.5) * 2
-            });
-          }
-        });
-        cur.mindmap.nodes = existingNodes;
-
-        if (payload.mindmap.links) {
-          const existingLinks = cur.mindmap.links || [];
-          payload.mindmap.links.forEach((newLink) => {
-            const exists = existingLinks.some((l) => l.source === newLink.source && l.target === newLink.target);
-            if (!exists) existingLinks.push(newLink);
-          });
-          cur.mindmap.links = existingLinks;
-        }
-      }
-
-      // Merge Canvas Vector Elements
-      if (payload.canvas && payload.canvas.elements) {
-        cur.canvas = cur.canvas || { elements: [] };
-        const existingElems = cur.canvas.elements || [];
-        payload.canvas.elements.forEach((newElem) => {
-          if (newElem.id) {
-            const mIdx = existingElems.findIndex((e) => e.id === newElem.id);
-            if (mIdx !== -1) {
-              existingElems[mIdx] = { ...existingElems[mIdx], ...newElem };
-              return;
-            }
-          }
-          existingElems.push(newElem);
-        });
-        cur.canvas.elements = existingElems;
-      }
-
-      state.penechoState = cur;
-      state.penechoDraft = null;
-      saveCanvasState();
-      renderPenechoSpatialView();
-      startMindMapPhysics();
+      return;
     }
+
+    const cur = state.penechoState || { timeline: [], mindmap: { nodes: [], links: [] }, canvas: { elements: [] }, drawings: [], stickies: [] };
+    if (!cur.drawings) cur.drawings = [];
+    if (!cur.stickies) cur.stickies = [];
+
+    // Stream 1: Timeline merge
+    if (payload.timeline) {
+      if (!cur.timeline) cur.timeline = [];
+      const exists = cur.timeline.some((t) => t.step_id === payload.timeline.step_id);
+      if (!exists) {
+        cur.timeline.unshift(payload.timeline);
+        if (cur.timeline.length > 20) cur.timeline.pop();
+      }
+    }
+
+    // Stream 2: Mind map merge
+    if (payload.mindmap && Array.isArray(payload.mindmap.nodes)) {
+      if (!cur.mindmap) cur.mindmap = { nodes: [], links: [] };
+      const nodeMap = new Map();
+      (cur.mindmap.nodes || []).forEach((n) => nodeMap.set(n.id, n));
+
+      payload.mindmap.nodes.forEach((n, idx) => {
+        const existing = nodeMap.get(n.id);
+        const angle = (idx / payload.mindmap.nodes.length) * 2 * Math.PI;
+        const dist = 120 + (idx % 2) * 35;
+        const initX = existing ? existing.x : Math.round(200 + Math.cos(angle) * dist);
+        const initY = existing ? existing.y : Math.round(150 + Math.sin(angle) * dist);
+
+        nodeMap.set(n.id, {
+          ...n,
+          x: initX,
+          y: initY,
+          vx: 0,
+          vy: 0
+        });
+      });
+      cur.mindmap.nodes = Array.from(nodeMap.values());
+
+      if (Array.isArray(payload.mindmap.links)) {
+        const linkKeys = new Set((cur.mindmap.links || []).map((l) => `${l.source}->${l.target}`));
+        payload.mindmap.links.forEach((l) => {
+          const key = `${l.source}->${l.target}`;
+          if (!linkKeys.has(key)) {
+            cur.mindmap.links.push(l);
+            linkKeys.add(key);
+          }
+        });
+      }
+    }
+
+    // Stream 3: Canvas elements merge
+    if (payload.canvas && Array.isArray(payload.canvas.elements)) {
+      if (!cur.canvas) cur.canvas = { elements: [] };
+      const elMap = new Map();
+      (cur.canvas.elements || []).forEach((e) => elMap.set(e.id || JSON.stringify(e), e));
+      payload.canvas.elements.forEach((e) => {
+        elMap.set(e.id || JSON.stringify(e), e);
+      });
+      cur.canvas.elements = Array.from(elMap.values());
+    }
+
+    state.penechoState = cur;
+    state.penechoDraft = null;
+    saveCanvasState();
+    renderPenechoSpatialView();
+    startMindMapPhysics();
   }
 
   function acceptPenechoDraft() {
     if (!state.penechoDraft || !state.penechoDraft.payload) return;
     applyPenechoCanvasPayload(state.penechoDraft.payload, false);
-    showToast('Spatial Canvas Draft Committed to Board ✓');
+    showToast('Spatial Canvas Draft Committed to Whiteboard ✓');
   }
 
   function discardPenechoDraft() {
@@ -2290,25 +2725,39 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     state.penechoState = {
       timeline: [],
       mindmap: { nodes: [], links: [] },
-      canvas: { elements: [] }
+      canvas: { elements: [] },
+      drawings: [],
+      stickies: []
     };
     state.penechoDraft = null;
     state.selectedMindMapNode = null;
+    state.canvasPan = { x: 0, y: 0 };
+    state.canvasZoom = 1.0;
     saveCanvasState();
     renderPenechoSpatialView();
-    showToast('Canvas cleared');
+    showToast('Whiteboard Cleared ✓');
   }
 
   function loadPenechoDemo() {
     applyPenechoCanvasPayload(PENECHO_EXAMPLE_PAYLOAD, false);
-    showToast('Loaded PenEcho Protocol Demo ✓');
+    if (!state.penechoState.stickies) state.penechoState.stickies = [];
+    state.penechoState.stickies.push({
+      id: 'sticky_' + Date.now(),
+      x: 60,
+      y: 80,
+      text: '📌 Architectural Goal:\nAchieve sub-50ms token inference with local-first vault security.',
+      color: '#FEF08A'
+    });
+    saveCanvasState();
+    renderPenechoSpatialView();
+    showToast('Loaded Interactive Whiteboard Demo ✓');
   }
 
   /* ── Mind Map Force-Directed Physics ── */
   function startMindMapPhysics() {
     if (state.physicsRaf) cancelAnimationFrame(state.physicsRaf);
     let iterations = 0;
-    const maxIterations = 160;
+    const maxIterations = 140;
 
     function physicsStep() {
       const nodes = state.penechoState?.mindmap?.nodes || [];
@@ -2317,12 +2766,11 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
       const cx = 200;
       const cy = 150;
-      const kRepel = 3200;
-      const kSpring = 0.05;
-      const restLen = 80;
-      const damping = 0.88;
+      const kRepel = 2800;
+      const kSpring = 0.04;
+      const restLen = 90;
+      const damping = 0.85;
 
-      // 1. Repulsion between all node pairs
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const n1 = nodes[i];
@@ -2341,7 +2789,6 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         }
       }
 
-      // 2. Spring attraction along links
       for (const link of links) {
         const source = nodes.find((n) => n.id === link.source);
         const target = nodes.find((n) => n.id === link.target);
@@ -2359,15 +2806,15 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         }
       }
 
-      // 3. Center gravity & integrate velocity
       for (const node of nodes) {
-        node.vx = ((node.vx || 0) + (cx - node.x) * 0.015) * damping;
-        node.vy = ((node.vy || 0) + (cy - node.y) * 0.015) * damping;
+        if (state.draggedElement && state.draggedElement.id === node.id) continue;
+        node.vx = ((node.vx || 0) + (cx - node.x) * 0.012) * damping;
+        node.vy = ((node.vy || 0) + (cy - node.y) * 0.012) * damping;
         node.x = Math.max(30, Math.min(370, node.x + node.vx));
         node.y = Math.max(30, Math.min(270, node.y + node.vy));
       }
 
-      updateMindMapSVG();
+      updateWhiteboardSVG();
       iterations++;
       if (iterations < maxIterations) {
         state.physicsRaf = requestAnimationFrame(physicsStep);
@@ -2376,72 +2823,250 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     state.physicsRaf = requestAnimationFrame(physicsStep);
   }
 
-  function updateMindMapSVG() {
-    const svgEl = ui.spatialView?.querySelector('.mn-mindmap-svg');
-    if (!svgEl) return;
-    const nodes = state.penechoState?.mindmap?.nodes || [];
-    const links = state.penechoState?.mindmap?.links || [];
+  function formatLatexFormula(latex) {
+    if (!latex) return '';
+    return String(latex)
+      .split('\\nabla').join('∇')
+      .split('\\times').join(' × ')
+      .split('\\partial').join('∂')
+      .split('\\mu').join('μ')
+      .split('\\sigma').join('σ')
+      .split('\\sum').join('∑')
+      .split('\\int').join('∫')
+      .replace(/\\mathbf\{([^}]+)\}/g, '<b>$1</b>')
+      .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1 / $2)')
+      .replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
+      .replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>');
+  }
 
-    // Render Links
-    let linksHtml = '';
-    links.forEach((l) => {
-      const src = nodes.find((n) => n.id === l.source);
-      const tgt = nodes.find((n) => n.id === l.target);
-      if (src && tgt) {
-        const isDashed = l.style === 'dashed';
-        const mx = (src.x + tgt.x) / 2;
-        const my = (src.y + tgt.y) / 2;
-        linksHtml += `
-          <line x1="${src.x}" y1="${src.y}" x2="${tgt.x}" y2="${tgt.y}"
-            stroke="#94A3B8" stroke-width="2"
-            ${isDashed ? 'stroke-dasharray="4 3"' : ''}
-            marker-end="url(#mn-arrowhead)" />
-          ${l.label ? `<text x="${mx}" y="${my - 4}" fill="#475569" font-size="9.5" font-weight="600" text-anchor="middle" font-family="'Space Grotesk', sans-serif">${esc(l.label)}</text>` : ''}
-        `;
-      }
-    });
+  /* ── PenEcho SVG Rendering Engine (Mind Map, Vector Shapes, Freehand Drawing) ── */
+  function updateWhiteboardSVG() {
+    const svg = ui.spatialView?.querySelector('.mn-whiteboard-svg');
+    if (!svg) return;
 
-    // Render Nodes with Strict Color Taxonomy in Light Theme
-    let nodesHtml = '';
-    nodes.forEach((n) => {
-      const color = n.color || (
-        n.category === 'safe_memory' ? '#22C55E' :
-        n.category === 'consideration' ? '#EAB308' :
-        n.category === 'reconsider' ? '#EF4444' :
-        n.category === 'active_focus' ? '#3B82F6' : '#64748B'
-      );
-      const isSelected = state.selectedMindMapNode?.id === n.id;
-      nodesHtml += `
-        <g class="mn-node-group" data-nid="${esc(n.id)}" style="cursor:pointer;">
-          <circle cx="${n.x}" cy="${n.y}" r="22" fill="#FFFFFF" stroke="${color}" stroke-width="${isSelected ? 3.5 : 2.5}" filter="drop-shadow(0 2px 4px rgba(0,0,0,0.12))" />
-          <circle cx="${n.x}" cy="${n.y - 6}" r="4.5" fill="${color}" />
-          <text x="${n.x}" y="${n.y + 7}" fill="#0F172A" font-size="9.5" font-weight="700" text-anchor="middle" font-family="'Space Grotesk', sans-serif">${esc(truncate(n.label, 14))}</text>
-        </g>
-      `;
-    });
+    const data = state.penechoState || { timeline: [], mindmap: { nodes: [], links: [] }, canvas: { elements: [] }, drawings: [], stickies: [] };
+    const nodes = data.mindmap?.nodes || [];
+    const links = data.mindmap?.links || [];
+    const canvasElements = data.canvas?.elements || [];
+    const drawings = data.drawings || [];
 
-    svgEl.innerHTML = `
+    const NS = 'http://www.w3.org/2000/svg';
+    svg.innerHTML = `
       <defs>
-        <marker id="mn-arrowhead" markerWidth="8" markerHeight="6" refX="22" refY="3" orient="auto">
-          <polygon points="0 0, 8 3, 0 6" fill="#64748B" />
+        <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#22C55E"/>
         </marker>
+        <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#3B82F6"/>
+        </marker>
+        <marker id="arrow-yellow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#EAB308"/>
+        </marker>
+        <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#EF4444"/>
+        </marker>
+        <marker id="arrow-slate" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748B"/>
+        </marker>
+        <filter id="mn-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1A1A2E" flood-opacity="0.12"/>
+        </filter>
       </defs>
-      <g class="mn-links-layer">${linksHtml}</g>
-      <g class="mn-nodes-layer">${nodesHtml}</g>
     `;
 
-    // Attach click inspection handlers to SVG nodes
-    svgEl.querySelectorAll('.mn-node-group').forEach((g) => {
+    // 1. Render Mind Map Links
+    const linkGroup = document.createElementNS(NS, 'g');
+    linkGroup.setAttribute('class', 'mn-svg-links');
+
+    links.forEach((l) => {
+      const source = nodes.find((n) => n.id === l.source);
+      const target = nodes.find((n) => n.id === l.target);
+      if (source && target) {
+        const line = document.createElementNS(NS, 'line');
+        line.setAttribute('x1', source.x || 200);
+        line.setAttribute('y1', source.y || 150);
+        line.setAttribute('x2', target.x || 200);
+        line.setAttribute('y2', target.y || 150);
+        line.setAttribute('stroke', '#94A3B8');
+        line.setAttribute('stroke-width', '2');
+        if (l.style === 'dashed') {
+          line.setAttribute('stroke-dasharray', '5,5');
+        }
+        line.setAttribute('marker-end', 'url(#arrow-slate)');
+        linkGroup.appendChild(line);
+
+        if (l.label) {
+          const midX = ((source.x || 200) + (target.x || 200)) / 2;
+          const midY = ((source.y || 150) + (target.y || 150)) / 2;
+          const txt = document.createElementNS(NS, 'text');
+          txt.setAttribute('x', midX);
+          txt.setAttribute('y', midY - 4);
+          txt.setAttribute('text-anchor', 'middle');
+          txt.setAttribute('font-size', '9.5');
+          txt.setAttribute('font-family', 'Space Grotesk, sans-serif');
+          txt.setAttribute('font-weight', '700');
+          txt.setAttribute('fill', '#475569');
+          txt.textContent = l.label;
+          linkGroup.appendChild(txt);
+        }
+      }
+    });
+    svg.appendChild(linkGroup);
+
+    // 2. Render Canvas Vector Elements (Box, Arrow, Text)
+    const elemGroup = document.createElementNS(NS, 'g');
+    elemGroup.setAttribute('class', 'mn-svg-canvas-elements');
+
+    canvasElements.forEach((el) => {
+      if (el.type === 'draw_box') {
+        const rect = document.createElementNS(NS, 'rect');
+        rect.setAttribute('x', el.x || 50);
+        rect.setAttribute('y', el.y || 50);
+        rect.setAttribute('width', el.w || 140);
+        rect.setAttribute('height', el.h || 70);
+        rect.setAttribute('rx', '10');
+        rect.setAttribute('fill', '#FFFFFF');
+        rect.setAttribute('stroke', el.color || '#3B82F6');
+        rect.setAttribute('stroke-width', '2.5');
+        rect.setAttribute('filter', 'url(#mn-glow)');
+        elemGroup.appendChild(rect);
+
+        if (el.title) {
+          const txt = document.createElementNS(NS, 'text');
+          txt.setAttribute('x', (el.x || 50) + (el.w || 140) / 2);
+          txt.setAttribute('y', (el.y || 50) + 24);
+          txt.setAttribute('text-anchor', 'middle');
+          txt.setAttribute('font-size', '11');
+          txt.setAttribute('font-weight', '700');
+          txt.setAttribute('font-family', 'Space Grotesk, sans-serif');
+          txt.setAttribute('fill', '#1A1A2E');
+          txt.textContent = el.title;
+          elemGroup.appendChild(txt);
+        }
+      } else if (el.type === 'draw_arrow' && Array.isArray(el.from) && Array.isArray(el.to)) {
+        const line = document.createElementNS(NS, 'line');
+        line.setAttribute('x1', el.from[0]);
+        line.setAttribute('y1', el.from[1]);
+        line.setAttribute('x2', el.to[0]);
+        line.setAttribute('y2', el.to[1]);
+        line.setAttribute('stroke', el.color || '#22C55E');
+        line.setAttribute('stroke-width', '2.5');
+        line.setAttribute('marker-end', el.color === '#EF4444' ? 'url(#arrow-red)' : el.color === '#EAB308' ? 'url(#arrow-yellow)' : 'url(#arrow-green)');
+        elemGroup.appendChild(line);
+
+        if (el.label) {
+          const midX = (el.from[0] + el.to[0]) / 2;
+          const midY = (el.from[1] + el.to[1]) / 2;
+          const txt = document.createElementNS(NS, 'text');
+          txt.setAttribute('x', midX);
+          txt.setAttribute('y', midY - 6);
+          txt.setAttribute('text-anchor', 'middle');
+          txt.setAttribute('font-size', '10');
+          txt.setAttribute('font-weight', '700');
+          txt.setAttribute('fill', el.color || '#22C55E');
+          txt.textContent = el.label;
+          elemGroup.appendChild(txt);
+        }
+      } else if (el.type === 'draw_text') {
+        const txt = document.createElementNS(NS, 'text');
+        txt.setAttribute('x', el.x || 60);
+        txt.setAttribute('y', el.y || 60);
+        txt.setAttribute('font-size', '11.5');
+        txt.setAttribute('font-weight', '600');
+        txt.setAttribute('font-family', 'Space Grotesk, sans-serif');
+        txt.setAttribute('fill', el.color || '#1A1A2E');
+        txt.textContent = el.text || '';
+        elemGroup.appendChild(txt);
+      }
+    });
+    svg.appendChild(elemGroup);
+
+    // 3. Render Freehand Pen Drawings
+    const drawGroup = document.createElementNS(NS, 'g');
+    drawGroup.setAttribute('class', 'mn-svg-pen-drawings');
+
+    drawings.forEach((d) => {
+      if (d.points && d.points.length > 1) {
+        const path = document.createElementNS(NS, 'path');
+        const dStr = d.points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+        path.setAttribute('d', dStr);
+        path.setAttribute('stroke', d.color || '#1A1A2E');
+        path.setAttribute('stroke-width', d.width || '3');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        drawGroup.appendChild(path);
+      }
+    });
+    svg.appendChild(drawGroup);
+
+    // 4. Render Interactive Mind Map Nodes
+    const nodeGroup = document.createElementNS(NS, 'g');
+    nodeGroup.setAttribute('class', 'mn-svg-nodes');
+
+    nodes.forEach((n) => {
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('class', 'mn-wb-node');
+      g.setAttribute('transform', `translate(${n.x || 200}, ${n.y || 150})`);
+      g.style.cursor = 'pointer';
+
+      const isSelected = state.selectedMindMapNode?.id === n.id;
+      const color = n.color || '#3B82F6';
+
+      // Outer Selection Ring
+      if (isSelected) {
+        const ring = document.createElementNS(NS, 'circle');
+        ring.setAttribute('r', '26');
+        ring.setAttribute('fill', 'none');
+        ring.setAttribute('stroke', '#EC4899');
+        ring.setAttribute('stroke-width', '3');
+        ring.setAttribute('stroke-dasharray', '4,3');
+        g.appendChild(ring);
+      }
+
+      // Node Circle
+      const circle = document.createElementNS(NS, 'circle');
+      circle.setAttribute('r', '18');
+      circle.setAttribute('fill', '#FFFFFF');
+      circle.setAttribute('stroke', color);
+      circle.setAttribute('stroke-width', '3');
+      circle.setAttribute('filter', 'url(#mn-glow)');
+      g.appendChild(circle);
+
+      // Inner Category Dot
+      const dot = document.createElementNS(NS, 'circle');
+      dot.setAttribute('r', '7');
+      dot.setAttribute('fill', color);
+      g.appendChild(dot);
+
+      // Label Pill Background & Text
+      const labelText = n.label || 'Concept';
+      const txt = document.createElementNS(NS, 'text');
+      txt.setAttribute('x', '0');
+      txt.setAttribute('y', '32');
+      txt.setAttribute('text-anchor', 'middle');
+      txt.setAttribute('font-size', '10.5');
+      txt.setAttribute('font-weight', '700');
+      txt.setAttribute('font-family', 'Space Grotesk, sans-serif');
+      txt.setAttribute('fill', '#1A1A2E');
+      txt.textContent = labelText.length > 20 ? labelText.slice(0, 18) + '...' : labelText;
+      g.appendChild(txt);
+
+      // Node Click Event
       g.addEventListener('click', (e) => {
         e.stopPropagation();
-        const nid = g.dataset.nid;
-        const node = (state.penechoState?.mindmap?.nodes || []).find((n) => n.id === nid);
-        if (node) {
-          state.selectedMindMapNode = node;
-          renderNodeInspector();
-        }
+        state.selectedMindMapNode = n;
+        renderNodeInspector();
+        updateWhiteboardSVG();
       });
+
+      nodeGroup.appendChild(g);
     });
+    svg.appendChild(nodeGroup);
+  }
+
+  function updateMindMapSVG() {
+    updateWhiteboardSVG();
   }
 
   function renderNodeInspector() {
@@ -2456,9 +3081,16 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     const color = node.color || '#64748B';
     const catLabel =
       node.category === 'safe_memory' ? '🟢 Safe Long-Term Memory' :
-      node.category === 'consideration' ? '🟡 Consideration / Revisit' :
-      node.category === 'reconsider' ? '🔴 High Risk / Reconsider' :
-      node.category === 'active_focus' ? '🔵 Active Focus' : '⚪ Structural Connector';
+        node.category === 'consideration' ? '🟡 Consideration / Revisit' :
+          node.category === 'reconsider' ? '🔴 High Risk / Reconsider' :
+            node.category === 'active_focus' ? '🔵 Active Focus' : '⚪ Structural Connector';
+
+    const saveBtnHtml = (node.category === 'safe_memory' || color === '#22C55E')
+      ? '<button class="mn-spatial-btn mn-spatial-btn-primary mn-node-save-btn">💾 Save Fact to Kept Vault</button>'
+      : '';
+    const ruleBtnHtml = (node.category === 'reconsider' || color === '#EF4444')
+      ? '<button class="mn-spatial-btn mn-spatial-btn-danger mn-node-rule-btn">🛡️ Add to Never-Save Rules</button>'
+      : '';
 
     inspectorEl.innerHTML = `
       <div class="mn-inspector-hdr">
@@ -2470,12 +3102,8 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
       </div>
       <div class="mn-inspector-desc">${esc(node.description || 'No description provided.')}</div>
       <div class="mn-inspector-acts">
-        ${node.category === 'safe_memory' || color === '#22C55E' ? `
-          <button class="mn-spatial-btn mn-spatial-btn-primary mn-node-save-btn">💾 Save Fact to Kept Vault</button>
-        ` : ''}
-        ${node.category === 'reconsider' || color === '#EF4444' ? `
-          <button class="mn-spatial-btn mn-spatial-btn-danger mn-node-rule-btn">🛡️ Add to Never-Save Rules</button>
-        ` : ''}
+        ${saveBtnHtml}
+        ${ruleBtnHtml}
         <button class="mn-spatial-btn mn-node-close-btn">Close</button>
       </div>
     `;
@@ -2513,198 +3141,487 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     }
   }
 
-  function formatLatexFormula(latex) {
-    if (!latex) return '';
-    // Format mathematical formula nicely for canvas display
-    return latex
-      .replace(/\\nabla/g, '∇')
-      .replace(/\\times/g, ' × ')
-      .replace(/\\mathbf\{([^}]+)\}/g, '<b>$1</b>')
-      .replace(/\\frac\{\\partial\s*([^}]+)\}\{\\partial\s*([^}]+)\}/g, '(∂$1/∂$2)')
-      .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1 / $2)')
-      .replace(/\\partial/g, '∂')
-      .replace(/\\mu_\{([^}]+)\}/g, 'μ<sub>$1</sub>')
-      .replace(/\\mu/g, 'μ')
-      .replace(/\\sigma/g, 'σ')
-      .replace(/\\sum/g, '∑')
-      .replace(/\\int/g, '∫')
-      .replace(/\\text\{([^}]+)\}/g, '$1')
-      .replace(/_\{([^}]+)\}/g, '<sub>$1</sub>')
-      .replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>');
-  }
-
+  /* ═══════════════════════════════════════════════════════════════
+     RENDER TRUE INTERACTIVE INFINITE WHITEBOARD
+     ═══════════════════════════════════════════════════════════════ */
   function renderPenechoSpatialView() {
     const viewEl = ui.spatialView;
     if (!viewEl) return;
 
-    const data = state.penechoState || { timeline: [], mindmap: { nodes: [], links: [] }, canvas: { elements: [] } };
+    const data = state.penechoState || { timeline: [], mindmap: { nodes: [], links: [] }, canvas: { elements: [] }, drawings: [], stickies: [] };
     const draft = state.penechoDraft?.payload;
+    const isLiveOn = state.liveSyncEnabled;
+    const activeTool = state.whiteboardTool || 'select';
+    const subTab = state.canvasSubTab || 'mindmap';
 
-    // 1. Header Toolbar
-    const toolbarHtml = `
-      <div class="mn-spatial-toolbar">
-        <div class="mn-spatial-status">
-          <span class="mn-spatial-pulse-dot ${draft ? 'drafting' : ''}"></span>
-          <span>${draft ? 'Live Draft Streaming' : 'Live Spatial Board Ready'}</span>
-        </div>
-        <div class="mn-spatial-actions">
-          <button class="mn-spatial-btn mn-btn-load-demo" title="Load sample architecture & formulas from canvas.md">✨ Demo</button>
-          <button class="mn-spatial-btn mn-btn-clear-canvas" title="Clear canvas elements">🧹 Clear</button>
-        </div>
-      </div>
-    `;
-
-    // 2. Draft Layer Banner
+    // 1. Draft Layer Banner
     let draftBannerHtml = '';
     if (draft) {
       const stepTtl = draft.timeline?.title || 'Incoming Turn Update';
       const nodeCnt = draft.mindmap?.nodes?.length || 0;
       const elemCnt = draft.canvas?.elements?.length || 0;
       draftBannerHtml = `
-        <div class="mn-draft-banner">
+        <div class="mn-draft-banner" style="margin-bottom:8px;">
           <div class="mn-draft-info">
             <div class="mn-draft-title">✨ Draft Layer: ${esc(stepTtl)}</div>
-            <div class="mn-draft-subtitle">${nodeCnt} Mind Map Nodes • ${elemCnt} Canvas Visuals</div>
+            <div class="mn-draft-subtitle">${nodeCnt} Nodes • ${elemCnt} Visuals</div>
           </div>
           <div class="mn-draft-acts">
-            <button class="mn-spatial-btn mn-spatial-btn-primary mn-btn-accept-draft">✅ Accept Draft</button>
+            <button class="mn-spatial-btn mn-spatial-btn-primary mn-btn-accept-draft">✅ Accept</button>
             <button class="mn-spatial-btn mn-spatial-btn-danger mn-btn-discard-draft">Discard</button>
           </div>
         </div>
       `;
     }
 
-    // 3. Stream 1: Running Timeline
-    const timelineItems = (data.timeline && data.timeline.length ? data.timeline : (draft?.timeline ? [draft.timeline] : []));
-    let timelineHtml = '';
-    if (timelineItems.length) {
-      timelineHtml = timelineItems.map((item, idx) => {
-        const stepNum = item.step_number || (timelineItems.length - idx);
-        const status = item.status || 'completed';
-        const statusClass = `mn-timeline-status-${status}`;
-        const statusLabel = status === 'completed' ? '✓ Completed' : status === 'in_progress' ? '⏳ In Progress' : '📅 Planned';
-        return `
-          <div class="mn-timeline-step-item">
-            <div class="mn-timeline-step-num">#${stepNum}</div>
-            <div class="mn-timeline-step-content">
-              <div class="mn-timeline-step-top">
-                <span class="mn-timeline-step-ttl">${esc(item.title || 'Turn Milestone')}</span>
-                <span class="mn-timeline-status-pill ${statusClass}">${statusLabel}</span>
-              </div>
-              <div class="mn-timeline-step-sum">${esc(item.summary || '')}</div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    } else {
-      timelineHtml = '<div class="mn-rules-empty">No milestones yet. Claude will populate chronological steps here.</div>';
-    }
-
-    // 4. Stream 2: Dynamic Mind Map Elements
-    const nodesCount = (data.mindmap?.nodes?.length || 0) + (draft?.mindmap?.nodes?.length || 0);
-
-    // 5. Stream 3: General Canvas Visuals (LaTeX Formulas & Vectors)
-    const canvasElements = (data.canvas?.elements?.length ? data.canvas.elements : (draft?.canvas?.elements || []));
-    let formulasHtml = '';
-    let vectorBoxesHtml = '';
-    let vectorArrowsHtml = '';
-
-    canvasElements.forEach((el) => {
-      if (el.type === 'render_formula') {
-        formulasHtml += `
-          <div class="mn-formula-card">
-            ${el.caption ? `<div class="mn-formula-caption">📐 ${esc(el.caption)}</div>` : ''}
-            <div class="mn-formula-math">${formatLatexFormula(el.latex)}</div>
-          </div>
-        `;
-      } else if (el.type === 'draw_box') {
-        const borderStyle = el.style === 'dashed' ? 'dashed' : 'solid';
-        const color = el.color || '#3B82F6';
-        vectorBoxesHtml += `
-          <div class="mn-vector-box-item" style="border: 1.5px ${borderStyle} ${color};">
-            <div class="mn-vector-box-ttl" style="color:${color};">${esc(el.title || 'Component Box')}</div>
-            <div style="font-size:10px;color:#94a3b8;">${el.w}×${el.h}px @ (${el.x}, ${el.y})</div>
-          </div>
-        `;
-      } else if (el.type === 'draw_arrow') {
-        const color = el.color || '#22C55E';
-        vectorArrowsHtml += `
-          <div class="mn-vector-arrow-card">
-            <span>➔</span>
-            <span>${esc(el.label || 'Connection')}</span>
-            <span style="font-size:9px;color:#94a3b8;margin-left:auto;">(${el.from?.[0]},${el.from?.[1]}) ➔ (${el.to?.[0]},${el.to?.[1]})</span>
-          </div>
-        `;
-      } else if (el.type === 'draw_text') {
-        vectorBoxesHtml += `
-          <div class="mn-vector-box-item" style="border-left:3px solid ${el.color || '#EAB308'};">
-            <div style="font-size:11px;color:${el.color || '#EAB308'};">${esc(el.text)}</div>
-          </div>
-        `;
-      }
-    });
-
-    viewEl.innerHTML = `
-      ${toolbarHtml}
-      ${draftBannerHtml}
-
-      <!-- Stream 1: Running Timeline -->
-      <div class="mn-stream-card">
-        <div class="mn-stream-hdr">
-          <div class="mn-stream-title">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#38BDF8" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span>Running Timeline (${timelineItems.length} steps)</span>
-          </div>
+    // 2. Sleek Single-Row Top Bar
+    const topBarHtml = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 10px;background:#F8FAFC;border:2px solid #1A1A2E;border-radius:10px;margin-bottom:8px;box-shadow:2px 2px 0px #1A1A2E;flex-wrap:wrap;">
+        <div style="display:flex;gap:4px;align-items:center;">
+          <button class="mn-spatial-subtab-btn ${subTab === 'mindmap' ? 'active' : ''}" data-subtab="mindmap">🗺️ Mind Map</button>
+          <button class="mn-spatial-subtab-btn ${subTab === 'canvas' ? 'active' : ''}" data-subtab="canvas">📐 Whiteboard</button>
+          <button class="mn-spatial-subtab-btn ${subTab === 'timeline' ? 'active' : ''}" data-subtab="timeline">⏳ Timeline (${data.timeline?.length || 0})</button>
+          <button class="mn-spatial-subtab-btn ${subTab === 'code' ? 'active' : ''}" data-subtab="code">📜 Code</button>
         </div>
-        <div class="mn-timeline-steps">${timelineHtml}</div>
-      </div>
-
-      <!-- Stream 2: Dynamic Mind Map with Physics -->
-      <div class="mn-stream-card">
-        <div class="mn-stream-hdr">
-          <div class="mn-stream-title">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#EC4899" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-            <span>Active Mind Map (${nodesCount} nodes)</span>
-          </div>
-        </div>
-        <div class="mn-mindmap-wrap">
-          <svg class="mn-mindmap-svg" viewBox="0 0 400 300"></svg>
-        </div>
-        <div class="mn-mindmap-legend">
-          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#22C55E;"></span> 🟢 Safe Memory</span>
-          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#EAB308;"></span> 🟡 Consideration</span>
-          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#EF4444;"></span> 🔴 Reconsider</span>
-          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#3B82F6;"></span> 🔵 Active Focus</span>
-          <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#64748B;"></span> ⚪ Structure</span>
-        </div>
-        <div class="mn-node-inspector" style="display:none;"></div>
-      </div>
-
-      <!-- Stream 3: General Canvas Visuals & Math Formulas -->
-      <div class="mn-stream-card">
-        <div class="mn-stream-hdr">
-          <div class="mn-stream-title">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#A78BFA" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-            <span>Canvas Visuals &amp; LaTeX Formulas (${canvasElements.length} items)</span>
-          </div>
-        </div>
-        <div class="mn-canvas-elements-grid">
-          ${formulasHtml || ''}
-          ${vectorBoxesHtml ? `<div class="mn-vector-boxes-row">${vectorBoxesHtml}</div>` : ''}
-          ${vectorArrowsHtml || ''}
-          ${!canvasElements.length ? '<div class="mn-rules-empty">No vector diagrams or formulas yet.</div>' : ''}
+        <div style="display:flex;align-items:center;gap:5px;">
+          <button class="mn-spatial-btn mn-btn-inject-prompt" style="background:#E0F2FE;color:#0369A1;border:1.5px solid #0369A1;font-size:10px;font-weight:700;padding:3px 7px;" title="Inject PenEcho Canvas protocol prompt into Claude">⚡ Prompt</button>
+          <button class="mn-spatial-btn mn-btn-render-chat" style="background:var(--mn-pink);color:#FFFFFF;border:1.5px solid #1A1A2E;font-size:10px;font-weight:700;padding:3px 7px;" title="Render current chat conversation to canvas">🎨 Sync Chat</button>
+          <button class="mn-spatial-btn mn-btn-clear-canvas" style="background:#F1F5F9;color:#475569;border:1.5px solid #1A1A2E;font-size:10px;font-weight:700;padding:3px 7px;" title="Clear whiteboard">🧹</button>
+          <label style="display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:700;cursor:pointer;" title="Auto live-sync with chat">
+            <span>Sync:</span>
+            <input type="checkbox" class="mn-tgl mn-live-sync-tgl" ${isLiveOn ? 'checked' : ''} style="width:26px;height:14px;" />
+          </label>
         </div>
       </div>
     `;
 
-    // Event listeners
-    const injectBtn = viewEl.querySelector('.mn-btn-inject-proto');
-    if (injectBtn) injectBtn.onclick = syncCanvasProtocolToClaude;
+    // 3. Sub-tab Content Generation
+    let mainSubTabContentHtml = '';
 
-    const demoBtn = viewEl.querySelector('.mn-btn-load-demo');
+    if (subTab === 'code') {
+      const codeJsonStr = JSON.stringify(data, null, 2);
+      mainSubTabContentHtml = `
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-size:12px;font-weight:700;color:#1A1A2E;">📄 penecho-canvas.json (Live Code File)</div>
+            <div style="display:flex;gap:6px;">
+              <button class="mn-spatial-btn mn-btn-copy-code" style="background:var(--mn-blue);padding:4px 8px;font-size:11px;font-weight:700;">📋 Copy JSON</button>
+              <button class="mn-spatial-btn mn-btn-load-demo" style="padding:4px 8px;font-size:11px;font-weight:700;">✨ Demo</button>
+            </div>
+          </div>
+          <pre class="mn-canvas-code-box"><code>${esc(codeJsonStr)}</code></pre>
+        </div>
+      `;
+    } else if (subTab === 'timeline') {
+      const steps = data.timeline || [];
+      mainSubTabContentHtml = `
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="font-size:12px;font-weight:700;color:#1A1A2E;margin-bottom:4px;">⏳ Running Chronological Milestones</div>
+          ${steps.length === 0 ? '<div style="font-size:12px;color:#6B7280;padding:12px;text-align:center;">No milestones in timeline yet. Ask Claude a question or click "Sync Chat".</div>' : ''}
+          ${steps.map((st, i) => `
+            <div style="border:2px solid #1A1A2E;border-radius:10px;padding:10px;background:#FFFFFF;box-shadow:2px 2px 0px #1A1A2E;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <strong style="font-size:13px;color:#1A1A2E;">#${st.step_number || (i + 1)}: ${esc(st.title || 'Milestone')}</strong>
+                <span style="font-size:10px;padding:2px 6px;border-radius:6px;border:1px solid #1A1A2E;background:${st.status === 'completed' ? '#D1FAE5' : '#FEF3C7'};font-weight:700;">${esc(st.status || 'completed')}</span>
+              </div>
+              <div style="font-size:12px;color:#4B5563;">${esc(st.summary || '')}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else if (subTab === 'canvas') {
+      // Whiteboard View (Tools, LaTeX cards, Stickies, Drawings)
+      const toolButtons = [
+        { id: 'select', label: '👆 Select', title: 'Drag elements or pan' },
+        { id: 'pen', label: '✏️ Pen', title: 'Freehand sketch' },
+        { id: 'sticky', label: '📝 Note', title: 'Add sticky note' },
+        { id: 'box', label: '⬜ Box', title: 'Add concept box' },
+        { id: 'eraser', label: '🧹 Eraser', title: 'Erase items' },
+      ];
+      const penColors = ['#1A1A2E', '#2563EB', '#EC4899', '#16A34A', '#D97706', '#DC2626'];
+      const activeColor = state.whiteboardPenColor || '#1A1A2E';
+
+      const stickies = data.stickies || [];
+      let stickiesHtml = '';
+      stickies.forEach((s) => {
+        stickiesHtml += `
+          <div class="mn-sticky-note-card mn-draggable" data-sticky-id="${esc(s.id)}" style="left:${s.x || 40}px;top:${s.y || 40}px;background:${s.color || '#FEF08A'};">
+            <div class="mn-sticky-hdr">
+              <span>📌 Note</span>
+              <span class="mn-sticky-del" data-del-sticky="${esc(s.id)}" style="cursor:pointer;padding:0 2px;" title="Delete note">×</span>
+            </div>
+            <div class="mn-sticky-body" contenteditable="true" data-edit-sticky="${esc(s.id)}">${esc(s.text || 'Type notes here...')}</div>
+          </div>
+        `;
+      });
+
+      const canvasElements = (data.canvas?.elements?.length ? data.canvas.elements : (draft?.canvas?.elements || []));
+      let formulasOverlayHtml = '';
+      canvasElements.forEach((el, idx) => {
+        if (el.type === 'render_formula') {
+          // Layout formula cards in a clean non-overlapping row/grid
+          const col = idx % 2;
+          const row = Math.floor(idx / 2);
+          const posX = el.x !== undefined ? el.x : (20 + col * 200);
+          const posY = el.y !== undefined ? el.y : (20 + row * 130);
+          formulasOverlayHtml += `
+            <div class="mn-floating-formula-card mn-draggable" data-formula-id="${esc(el.id || 'f_' + idx)}" style="left:${posX}px;top:${posY}px;">
+              ${el.caption ? `<div class="mn-formula-caption">📐 ${esc(el.caption)}</div>` : ''}
+              <div class="mn-formula-math">${formatLatexFormula(el.latex)}</div>
+            </div>
+          `;
+        }
+      });
+
+      mainSubTabContentHtml = `
+        <div class="mn-whiteboard-container">
+          <div class="mn-whiteboard-toolbar">
+            <div class="mn-wb-tool-group">
+              ${toolButtons.map(t => `
+                <button class="mn-wb-btn ${activeTool === t.id ? 'active' : ''}" data-tool="${t.id}" title="${t.title}">${t.label}</button>
+              `).join('')}
+            </div>
+            <div class="mn-wb-tool-group">
+              <div class="mn-wb-color-picker" title="Pen Stroke Color">
+                ${penColors.map(c => `
+                  <div class="mn-wb-color-dot ${activeColor === c ? 'active' : ''}" data-color="${c}" style="background:${c};"></div>
+                `).join('')}
+              </div>
+              <button class="mn-wb-btn mn-wb-btn-export" title="Export Whiteboard to SVG">${IC.download} SVG</button>
+            </div>
+          </div>
+
+          <div class="mn-whiteboard-viewport ${activeTool === 'pen' ? 'drawing' : ''}">
+            <div class="mn-whiteboard-surface" style="transform: translate(${state.canvasPan.x}px, ${state.canvasPan.y}px) scale(${state.canvasZoom});">
+              <svg class="mn-whiteboard-svg" viewBox="0 0 3200 3200"></svg>
+              <div class="mn-whiteboard-overlay">
+                ${stickiesHtml}
+                ${formulasOverlayHtml}
+              </div>
+            </div>
+
+            <!-- Zoom Controls -->
+            <div class="mn-wb-zoom-bar">
+              <button class="mn-wb-btn mn-wb-zoom-out" style="padding:2px 6px;" title="Zoom Out">➖</button>
+              <span class="mn-wb-badge-info">${Math.round((state.canvasZoom || 1.0) * 100)}%</span>
+              <button class="mn-wb-btn mn-wb-zoom-in" style="padding:2px 6px;" title="Zoom In">➕</button>
+              <button class="mn-wb-btn mn-wb-zoom-reset" style="padding:2px 6px;" title="Reset View">🎯 100%</button>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      // Default: Mind Map View (Clean, unobstructed Knowledge Graph with physics and legend)
+      mainSubTabContentHtml = `
+        <div class="mn-whiteboard-container">
+          <div class="mn-whiteboard-viewport">
+            <div class="mn-whiteboard-surface" style="transform: translate(${state.canvasPan.x}px, ${state.canvasPan.y}px) scale(${state.canvasZoom});">
+              <svg class="mn-whiteboard-svg" viewBox="0 0 3200 3200"></svg>
+            </div>
+
+            <!-- Zoom Controls -->
+            <div class="mn-wb-zoom-bar">
+              <button class="mn-wb-btn mn-wb-zoom-out" style="padding:2px 6px;" title="Zoom Out">➖</button>
+              <span class="mn-wb-badge-info">${Math.round((state.canvasZoom || 1.0) * 100)}%</span>
+              <button class="mn-wb-btn mn-wb-zoom-in" style="padding:2px 6px;" title="Zoom In">➕</button>
+              <button class="mn-wb-btn mn-wb-zoom-reset" style="padding:2px 6px;" title="Reset View">🎯 100%</button>
+            </div>
+          </div>
+
+          <div class="mn-mindmap-legend" style="margin-top:4px;">
+            <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#22C55E;"></span> 🟢 Safe Memory</span>
+            <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#EAB308;"></span> 🟡 Consideration</span>
+            <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#EF4444;"></span> 🔴 Reconsider</span>
+            <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#3B82F6;"></span> 🔵 Active Focus</span>
+            <span class="mn-legend-tag"><span class="mn-legend-dot" style="background:#64748B;"></span> ⚪ Structure</span>
+          </div>
+
+          <div class="mn-node-inspector" style="display:none;"></div>
+        </div>
+      `;
+    }
+
+    // 4. Assemble View Structure
+    viewEl.innerHTML = `
+      ${draftBannerHtml}
+      ${topBarHtml}
+      ${mainSubTabContentHtml}
+    `;
+
+    // Event listeners
+    const liveTgl = viewEl.querySelector('.mn-live-sync-tgl');
+    if (liveTgl) {
+      liveTgl.onchange = () => {
+        state.liveSyncEnabled = liveTgl.checked;
+        showToast(liveTgl.checked ? '⚡ Live Sync Enabled ✓' : 'Live Sync Paused');
+      };
+    }
+
+    const injectBtn = viewEl.querySelector('.mn-btn-inject-prompt');
+    if (injectBtn) injectBtn.onclick = injectSpatialPromptToClaude;
+
+    const renderChatBtn = viewEl.querySelector('.mn-btn-render-chat');
+    if (renderChatBtn) {
+      renderChatBtn.onclick = () => {
+        const assistantEls = document.querySelectorAll(
+          '.font-claude-message, [data-message-author-role="assistant"], .font-user-message ~ div .prose, div.standard-markdown, .prose'
+        );
+        let text = '';
+        if (assistantEls.length > 0) {
+          text = (assistantEls[assistantEls.length - 1].innerText || assistantEls[assistantEls.length - 1].textContent || '').trim();
+        }
+        if (text) {
+          renderClaudeMessageToCanvas(text, true);
+        } else {
+          showToast('⚠️ No assistant message found in chat. Loading demo...');
+          loadPenechoDemo();
+        }
+      };
+    }
+
+    // Subtab switching
+    viewEl.querySelectorAll('.mn-spatial-subtab-btn').forEach((btn) => {
+      btn.onclick = () => {
+        state.canvasSubTab = btn.dataset.subtab;
+        renderPenechoSpatialView();
+      };
+    });
+
+    // Tool switching
+    viewEl.querySelectorAll('.mn-wb-btn[data-tool]').forEach((btn) => {
+      btn.onclick = () => {
+        state.whiteboardTool = btn.dataset.tool;
+        renderPenechoSpatialView();
+      };
+    });
+
+    // Color picker
+    viewEl.querySelectorAll('.mn-wb-color-dot[data-color]').forEach((dot) => {
+      dot.onclick = () => {
+        state.whiteboardPenColor = dot.dataset.color;
+        renderPenechoSpatialView();
+      };
+    });
+
+    // Zoom controls
+    const zoomInBtn = viewEl.querySelector('.mn-wb-zoom-in');
+    if (zoomInBtn) {
+      zoomInBtn.onclick = () => {
+        state.canvasZoom = Math.min(2.5, (state.canvasZoom || 1.0) + 0.15);
+        renderPenechoSpatialView();
+      };
+    }
+
+    const zoomOutBtn = viewEl.querySelector('.mn-wb-zoom-out');
+    if (zoomOutBtn) {
+      zoomOutBtn.onclick = () => {
+        state.canvasZoom = Math.max(0.4, (state.canvasZoom || 1.0) - 0.15);
+        renderPenechoSpatialView();
+      };
+    }
+
+    const zoomResetBtn = viewEl.querySelector('.mn-wb-zoom-reset');
+    if (zoomResetBtn) {
+      zoomResetBtn.onclick = () => {
+        state.canvasZoom = 1.0;
+        state.canvasPan = { x: 0, y: 0 };
+        renderPenechoSpatialView();
+      };
+    }
+
+    // SVG Export
+    const exportSvgBtn = viewEl.querySelector('.mn-wb-btn-export');
+    if (exportSvgBtn) {
+      exportSvgBtn.onclick = () => {
+        const svgEl = viewEl.querySelector('.mn-whiteboard-svg');
+        if (svgEl) {
+          const svgData = new XMLSerializer().serializeToString(svgEl);
+          const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `penecho-canvas-${Date.now()}.svg`;
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast('Canvas exported to SVG ✓');
+        }
+      };
+    }
+
+    // Sticky Note Deletion & Editing
+    viewEl.querySelectorAll('.mn-sticky-del').forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.delSticky;
+        state.penechoState.stickies = (state.penechoState.stickies || []).filter((s) => s.id !== id);
+        saveCanvasState();
+        renderPenechoSpatialView();
+      };
+    });
+
+    viewEl.querySelectorAll('.mn-sticky-body').forEach((body) => {
+      body.onblur = () => {
+        const id = body.dataset.editSticky;
+        const s = (state.penechoState.stickies || []).find((x) => x.id === id);
+        if (s) {
+          s.text = body.textContent;
+          saveCanvasState();
+        }
+      };
+    });
+
+    // Draggable Formula and Sticky Cards
+    viewEl.querySelectorAll('.mn-draggable').forEach((card) => {
+      let isDragging = false;
+      let startX = 0, startY = 0;
+      let initLeft = 0, initTop = 0;
+
+      card.onmousedown = (e) => {
+        if (e.target.closest('[contenteditable="true"]') || e.target.closest('.mn-sticky-del')) return;
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        initLeft = parseInt(card.style.left, 10) || card.offsetLeft;
+        initTop = parseInt(card.style.top, 10) || card.offsetTop;
+        card.style.zIndex = '100';
+
+        const onMove = (ev) => {
+          if (!isDragging) return;
+          const dx = ev.clientX - startX;
+          const dy = ev.clientY - startY;
+          card.style.left = `${initLeft + dx}px`;
+          card.style.top = `${initTop + dy}px`;
+        };
+
+        const onUp = () => {
+          if (isDragging) {
+            isDragging = false;
+            card.style.zIndex = '10';
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+
+            const stickyId = card.dataset.stickyId;
+            const formulaId = card.dataset.formulaId;
+            if (stickyId && state.penechoState?.stickies) {
+              const s = state.penechoState.stickies.find(x => x.id === stickyId);
+              if (s) { s.x = parseInt(card.style.left, 10); s.y = parseInt(card.style.top, 10); }
+            }
+            if (formulaId && state.penechoState?.canvas?.elements) {
+              const el = state.penechoState.canvas.elements.find(x => (x.id || 'f_' + x) === formulaId);
+              if (el) { el.x = parseInt(card.style.left, 10); el.y = parseInt(card.style.top, 10); }
+            }
+            saveCanvasState();
+          }
+        };
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+      };
+    });
+
+    // Whiteboard Freehand Pen Drawing
+    const viewport = viewEl.querySelector('.mn-whiteboard-viewport');
+    if (viewport && subTab === 'canvas') {
+      let isDrawing = false;
+      let currentStroke = null;
+
+      viewport.onmousedown = (e) => {
+        if (state.whiteboardTool === 'pen') {
+          isDrawing = true;
+          const rect = viewport.getBoundingClientRect();
+          const zoom = state.canvasZoom || 1.0;
+          const pan = state.canvasPan || { x: 0, y: 0 };
+          const pt = {
+            x: Math.round((e.clientX - rect.left - pan.x) / zoom),
+            y: Math.round((e.clientY - rect.top - pan.y) / zoom)
+          };
+          currentStroke = {
+            id: 'draw_' + Date.now(),
+            color: state.whiteboardPenColor || '#1A1A2E',
+            width: 3,
+            points: [pt]
+          };
+          if (!state.penechoState.drawings) state.penechoState.drawings = [];
+          state.penechoState.drawings.push(currentStroke);
+        } else if (state.whiteboardTool === 'sticky') {
+          const rect = viewport.getBoundingClientRect();
+          const zoom = state.canvasZoom || 1.0;
+          const pan = state.canvasPan || { x: 0, y: 0 };
+          const posX = Math.round((e.clientX - rect.left - pan.x) / zoom);
+          const posY = Math.round((e.clientY - rect.top - pan.y) / zoom);
+
+          if (!state.penechoState.stickies) state.penechoState.stickies = [];
+          state.penechoState.stickies.push({
+            id: 'sticky_' + Date.now(),
+            x: posX,
+            y: posY,
+            text: 'Type notes here...',
+            color: '#FEF08A'
+          });
+          state.whiteboardTool = 'select';
+          saveCanvasState();
+          renderPenechoSpatialView();
+        } else if (state.whiteboardTool === 'box') {
+          const rect = viewport.getBoundingClientRect();
+          const zoom = state.canvasZoom || 1.0;
+          const pan = state.canvasPan || { x: 0, y: 0 };
+          const posX = Math.round((e.clientX - rect.left - pan.x) / zoom);
+          const posY = Math.round((e.clientY - rect.top - pan.y) / zoom);
+
+          if (!state.penechoState.canvas) state.penechoState.canvas = { elements: [] };
+          state.penechoState.canvas.elements.push({
+            type: 'draw_box',
+            id: 'box_' + Date.now(),
+            x: posX,
+            y: posY,
+            w: 140,
+            h: 70,
+            color: '#3B82F6',
+            title: 'Concept Box'
+          });
+          state.whiteboardTool = 'select';
+          saveCanvasState();
+          renderPenechoSpatialView();
+        }
+      };
+
+      viewport.onmousemove = (e) => {
+        if (isDrawing && currentStroke) {
+          const rect = viewport.getBoundingClientRect();
+          const zoom = state.canvasZoom || 1.0;
+          const pan = state.canvasPan || { x: 0, y: 0 };
+          const pt = {
+            x: Math.round((e.clientX - rect.left - pan.x) / zoom),
+            y: Math.round((e.clientY - rect.top - pan.y) / zoom)
+          };
+          currentStroke.points.push(pt);
+          updateWhiteboardSVG();
+        }
+      };
+
+      viewport.onmouseup = () => {
+        if (isDrawing) {
+          isDrawing = false;
+          currentStroke = null;
+          saveCanvasState();
+        }
+      };
+    }
+
+    const copyCodeBtn = viewEl.querySelector('.mn-btn-copy-code');
+    if (copyCodeBtn) {
+      copyCodeBtn.onclick = () => {
+        const jsonStr = JSON.stringify(data, null, 2);
+        navigator.clipboard.writeText(jsonStr).then(() => {
+          showToast('📋 Canvas JSON copied to clipboard ✓');
+        });
+      };
+    }
+
+    const demoBtn = viewEl.querySelector('.mn-wb-btn-demo, .mn-btn-load-demo');
     if (demoBtn) demoBtn.onclick = loadPenechoDemo;
 
-    const clearBtn = viewEl.querySelector('.mn-btn-clear-canvas');
+    const clearBtn = viewEl.querySelector('.mn-btn-clear-canvas, .mn-wb-btn-clear');
     if (clearBtn) clearBtn.onclick = clearPenechoCanvas;
 
     const acceptBtn = viewEl.querySelector('.mn-btn-accept-draft');
@@ -2713,8 +3630,126 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     const discardBtn = viewEl.querySelector('.mn-btn-discard-draft');
     if (discardBtn) discardBtn.onclick = discardPenechoDraft;
 
-    updateMindMapSVG();
-    startMindMapPhysics();
+    if (subTab !== 'code' && subTab !== 'timeline') {
+      updateWhiteboardSVG();
+      if (subTab === 'mindmap') {
+        startMindMapPhysics();
+      }
+    }
+  }
+
+  /* ═══════════════════════════════════════
+     RENDER SETTINGS PANEL
+     ═══════════════════════════════════════ */
+  function renderSettingsPanel() {
+    const pane = ui.dr?.querySelector('[data-pane="settings"]');
+    if (!pane) return;
+
+    pane.innerHTML = `
+      <div class="mn-settings-pane-wrap" style="padding:16px;display:flex;flex-direction:column;gap:16px;">
+        <!-- Card 1: PenEcho Spatial Canvas Engine -->
+        <div class="mn-spatial-copilot-card">
+          <div class="mn-spatial-hdr-row">
+            <div class="mn-spatial-title">
+              <span style="font-size:18px;">🎨</span>
+              <span>PenEcho Spatial Canvas</span>
+            </div>
+            <span class="mn-spatial-badge active">
+              ● Native Engine Active
+            </span>
+          </div>
+
+          <div class="mn-spatial-desc">
+            Directly renders Claude's <strong>penecho-canvas.json</strong> code files, LaTeX mathematical formulas, dynamic 5-color mind maps, and running timelines with zero external API dependencies.
+          </div>
+
+          <!-- Toggle Row -->
+          <div class="mn-spatial-toggle-bar">
+            <div>
+              <div class="mn-spatial-toggle-label">Auto Live-Sync from Chat</div>
+              <div style="font-size:11px;color:#6B7280;">Instantly render canvas code files emitted by Claude</div>
+            </div>
+            <input type="checkbox" class="mn-tgl mn-settings-livesync-toggle" ${state.liveSyncEnabled ? 'checked' : ''} />
+          </div>
+
+          <!-- Actions Row -->
+          <div class="mn-spatial-actions-row" style="margin-top:6px;">
+            <button class="mn-btn mn-btn-p mn-settings-inject-prompt" style="flex:1;">⚡ Inject Canvas Prompt</button>
+            <button class="mn-btn mn-btn-sim mn-settings-load-demo" style="flex:1;">✨ Load Sample Canvas</button>
+          </div>
+        </div>
+
+        <!-- Card 2: Never-Save Rules -->
+        <div style="border:3px solid #1A1A2E;border-radius:12px;padding:14px;background:#FFFFFF;box-shadow:3px 3px 0px #1A1A2E;">
+          <div style="font-weight:700;font-size:14px;color:#1A1A2E;margin-bottom:4px;">🛑 Never-Save Rules</div>
+          <div style="font-size:12px;color:#4B5563;margin-bottom:10px;">Keywords or natural rules for topics Claude must never remember.</div>
+          <div class="mn-rules-inp-row" style="display:flex;gap:6px;margin-bottom:10px;">
+            <input class="mn-rules-inp" type="text" placeholder="e.g. Never remember salary details" maxlength="80" style="flex:1;padding:8px;border:2px solid #1A1A2E;border-radius:8px;font-size:12px;" />
+            <button class="mn-rules-add" style="padding:8px 14px;border:2px solid #1A1A2E;background:var(--mn-pink);border-radius:8px;font-weight:700;cursor:pointer;font-size:12px;">Add</button>
+          </div>
+          <div class="mn-rules-list"></div>
+        </div>
+
+        <!-- Card 3: Memory Freeze & Snapshots -->
+        <div style="border:3px solid #1A1A2E;border-radius:12px;padding:14px;background:#FFFFFF;box-shadow:3px 3px 0px #1A1A2E;">
+          <div style="font-weight:700;font-size:14px;color:#1A1A2E;margin-bottom:4px;">❄️ Memory Freeze &amp; Snapshots</div>
+          <div style="font-size:12px;color:#4B5563;margin-bottom:10px;">Freeze current memory state or restore previous memory snapshots.</div>
+          <div class="mn-snaps-inp-row" style="display:flex;gap:6px;margin-bottom:10px;">
+            <input class="mn-rules-inp mn-snaps-inp" type="text" placeholder="Snapshot label" maxlength="40" style="flex:1;padding:8px;border:2px solid #1A1A2E;border-radius:8px;font-size:12px;" />
+            <button class="mn-rules-add mn-snaps-add" style="padding:8px 14px;border:2px solid #1A1A2E;background:var(--mn-blue);border-radius:8px;font-weight:700;cursor:pointer;font-size:12px;">Freeze</button>
+          </div>
+          <div class="mn-snaps-list"></div>
+        </div>
+      </div>
+    `;
+
+    // Rebind rules and snapshots lists
+    ui.rulesList = pane.querySelector('.mn-rules-list');
+    ui.snapsList = pane.querySelector('.mn-snaps-list');
+    renderRulesPanel();
+    renderSnapshotsPanel();
+
+    const livesyncTgl = pane.querySelector('.mn-settings-livesync-toggle');
+    if (livesyncTgl) {
+      livesyncTgl.onchange = () => {
+        state.liveSyncEnabled = livesyncTgl.checked;
+        showToast(livesyncTgl.checked ? '⚡ Auto Live-Sync Enabled ✓' : 'Auto Live-Sync Disabled');
+      };
+    }
+
+    const injectBtn = pane.querySelector('.mn-settings-inject-prompt');
+    if (injectBtn) injectBtn.onclick = injectSpatialPromptToClaude;
+
+    const demoBtn = pane.querySelector('.mn-settings-load-demo');
+    if (demoBtn) {
+      demoBtn.onclick = () => {
+        loadPenechoDemo();
+        openTab('canvas');
+      };
+    }
+
+    // Bind Rules Add
+    const inp = pane.querySelector('.mn-rules-inp');
+    const rulesAddBtn = pane.querySelector('.mn-rules-add');
+    if (rulesAddBtn && inp) {
+      rulesAddBtn.addEventListener('click', () => {
+        addRule(inp.value);
+        inp.value = '';
+      });
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { addRule(inp.value); inp.value = ''; }
+      });
+    }
+
+    // Bind Snapshot Add
+    const snapInp = pane.querySelector('.mn-snaps-inp');
+    const snapsAddBtn = pane.querySelector('.mn-snaps-add');
+    if (snapsAddBtn && snapInp) {
+      snapsAddBtn.addEventListener('click', () => {
+        createSnapshot(snapInp.value);
+        snapInp.value = '';
+      });
+    }
   }
 
   /* ═══════════════════════════════════════
@@ -2724,6 +3759,8 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     renderGlobalMemory();
     renderLocalMemory();
     renderRulesPanel();
+    renderSnapshotsPanel();
+    renderSettingsPanel();
     renderPenechoSpatialView();
     updateBadge();
     updateMessageStatusIndicators();
@@ -3066,7 +4103,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     // 💬 Personal & Profile check
     if (
-      /\b(?:my\s+(?:name|birthday|age|location|city|address|hobbies|hobby|favorite|pet|dog|cat|phone|email)\b)/i.test(lower) ||
+      /\b(?:my\s+(?:name|birthday|age|location|city|address|hobbies|hobby|favorite|pet|dog|cat|phone|email))\b/i.test(lower) ||
       /\b(?:i\s+(?:live|love|hate|prefer|enjoy|dislike|am\s+feeling|am\s+a|feel|want\s+to\s+shift))\b/i.test(lower) ||
       /\b[1-9][0-9]{5}\b/.test(text) ||
       /\b(?:bhopal|mumbai|delhi|bangalore|pune|indore)\b/i.test(lower)
@@ -3103,11 +4140,11 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     let contentHTML = isEditing
       ? '<div class="mn-edit-area" onclick="event.stopPropagation()">' +
-        '<textarea class="mn-edit-box" data-id="' + m.id + '">' + esc(m.text) + '</textarea>' +
-        '<div class="mn-edit-acts">' +
-        '<button class="mn-btn mn-btn-k" data-act="save-edit" data-id="' + m.id + '">Save</button>' +
-        '<button class="mn-btn mn-btn-d" data-act="cancel-edit" data-id="' + m.id + '">Cancel</button>' +
-        '</div></div>'
+      '<textarea class="mn-edit-box" data-id="' + m.id + '">' + esc(m.text) + '</textarea>' +
+      '<div class="mn-edit-acts">' +
+      '<button class="mn-btn mn-btn-k" data-act="save-edit" data-id="' + m.id + '">Save</button>' +
+      '<button class="mn-btn mn-btn-d" data-act="cancel-edit" data-id="' + m.id + '">Cancel</button>' +
+      '</div></div>'
       : '<div class="mn-card-snippet-text">' + esc(snippetPreview) + '</div>';
 
     let detailsHTML = '';
@@ -3221,13 +4258,13 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     }
 
     const categoriesMap = {
-      work:          { title: 'Work & Projects',       icon: IC.wipSign, items: [] },
-      coding:        { title: 'Coding & Tech',          icon: IC.cppLogo, items: [] },
-      personal:      { title: 'Personal & Profile',     icon: IC.personAvatar, items: [] },
-      health:        { title: 'Health & Wellbeing',     icon: IC.healthCross, items: [] },
+      work: { title: 'Work & Projects', icon: IC.wipSign, items: [] },
+      coding: { title: 'Coding & Tech', icon: IC.cppLogo, items: [] },
+      personal: { title: 'Personal & Profile', icon: IC.personAvatar, items: [] },
+      health: { title: 'Health & Wellbeing', icon: IC.healthCross, items: [] },
       relationships: { title: 'Relationships & Family', icon: IC.familyHeart, items: [] },
-      research:      { title: 'Research & Knowledge',   icon: IC.researchAtom, items: [] },
-      general:       { title: 'General Vault',          icon: IC.safeVault, items: [] }
+      research: { title: 'Research & Knowledge', icon: IC.researchAtom, items: [] },
+      general: { title: 'General Vault', icon: IC.safeVault, items: [] }
     };
 
     memories.forEach((m) => {
@@ -4023,7 +5060,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           : null;
         if (el) role = 'assistant';
       }
-    } catch (_) {}
+    } catch (_) { }
 
     addKept({
       id: uid(),
@@ -4036,7 +5073,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     });
 
     hideSelPopup();
-    try { window.getSelection()?.removeAllRanges(); } catch (_) {}
+    try { window.getSelection()?.removeAllRanges(); } catch (_) { }
   }
 
   /* ═══════════════════════════════════════
@@ -4199,7 +5236,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     // ── Case 1: Suspicious / Private Information Leak (RED BOUNDARY BOX) ──
     const suspiciousWords = [
-      'password', 'secret key', 'api key', 'credit card', 'ssn', 
+      'password', 'secret key', 'api key', 'credit card', 'ssn',
       'social security', 'bank account', 'private key', 'auth token', 'suspicious'
     ];
     for (const w of suspiciousWords) {
@@ -4215,7 +5252,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     // ── Case 2: Claude Saved a Memory by Himself in Chat (RED BOUNDARY BOX) ──
     if (role === 'assistant') {
       const memoryWords = [
-        'remember', 'noted', 'saved', 'memory', 'memories', 
+        'remember', 'noted', 'saved', 'memory', 'memories',
         'keep in mind', 'got it', 'profile', 'updating'
       ];
       for (const w of memoryWords) {
@@ -4255,9 +5292,9 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     for (const sel of assistantSelectors) {
       document.querySelectorAll(sel).forEach((el) => {
         const container = el.closest('[data-message-author-role="assistant"]') ||
-                          el.closest('[class*="Message"]') ||
-                          el.closest('article') ||
-                          el;
+          el.closest('[class*="Message"]') ||
+          el.closest('article') ||
+          el;
         if (container) assistantContainersSet.add(container);
       });
     }
@@ -4278,26 +5315,36 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
     for (const sel of userSelectors) {
       document.querySelectorAll(sel).forEach((el) => {
         const container = el.closest('[data-message-author-role="user"]') ||
-                          el.closest('[class*="Message"]') ||
-                          el.closest('article') ||
-                          el;
+          el.closest('[class*="Message"]') ||
+          el.closest('article') ||
+          el;
         if (container) userContainersSet.add(container);
       });
     }
 
     const topAssistantContainers = Array.from(assistantContainersSet).filter(c => {
       let p = c.parentElement;
-      while(p) { if (assistantContainersSet.has(p)) return false; p = p.parentElement; }
+      while (p) { if (assistantContainersSet.has(p)) return false; p = p.parentElement; }
       return true;
     });
 
-    // Process assistant messages (check if Claude saved a memory by himself)
+    // Process assistant messages (check if Claude saved a memory by himself & trigger Spatial Canvas)
     topAssistantContainers.forEach((container) => {
+      const text = container.textContent.trim();
+
+      // If inline PenEcho protocol JSON or canvas code is emitted directly by Claude
+      const directJson = parsePenechoJson(text);
+      if (directJson) {
+        applyPenechoCanvasPayload(directJson, false);
+      } else if (state.liveSyncEnabled && !container.dataset.mnCanvasDrawn) {
+        container.dataset.mnCanvasDrawn = 'true';
+        renderClaudeMessageToCanvas(text);
+      }
+
       if (container.dataset.mnPrompted === 'true' || container.querySelector('.mn-inline-memory-prompt')) {
         return;
       }
 
-      const text = container.textContent.trim();
       const result = classifyMessage(text, 'assistant');
       if (!result.type) return;
 
@@ -4322,7 +5369,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     const topUserContainers = Array.from(userContainersSet).filter(c => {
       let p = c.parentElement;
-      while(p) { if (userContainersSet.has(p)) return false; p = p.parentElement; }
+      while (p) { if (userContainersSet.has(p)) return false; p = p.parentElement; }
       return true;
     });
 
@@ -4384,9 +5431,8 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
 
     injectHostCSS();
 
-    // Conditionally apply border color based on classification
-    const borderClass = classification.type === 'private_leak' 
-      ? 'mn-red-memory-border' 
+    const borderClass = classification.type === 'private_leak'
+      ? 'mn-red-memory-border'
       : 'mn-purple-memory-border';
     msgElement.classList.add(borderClass);
 
@@ -4406,7 +5452,8 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           '<div class="mn-prompt-body">' + esc(classification.description) + '</div>' +
           '<div class="mn-prompt-acts">' +
           '<button class="mn-prompt-btn mn-prompt-accept" title="Accept memory &amp; save">Accept & Save</button>' +
-          '<button class="mn-prompt-btn mn-prompt-kept" title="View stored details or change options">Change Something / Options</button>' +
+          '<button class="mn-prompt-btn mn-prompt-spatial-draw" title="Render to PenEcho Spatial Canvas">🎨 Render to Spatial Canvas</button>' +
+          '<button class="mn-prompt-btn mn-prompt-kept" title="View stored details or change options">Options</button>' +
           '</div>';
 
         promptEl.querySelector('.mn-prompt-accept').onclick = (e) => {
@@ -4427,6 +5474,15 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
           showToast('Memory Accepted & Saved ✓');
         };
 
+        const drawBtn = promptEl.querySelector('.mn-prompt-spatial-draw');
+        if (drawBtn) {
+          drawBtn.onclick = (e) => {
+            e.stopPropagation();
+            openTab('canvas');
+            renderClaudeMessageToCanvas(currentSnippet, true);
+          };
+        }
+
         promptEl.querySelector('.mn-prompt-kept').onclick = (e) => {
           e.stopPropagation();
           renderBannerStep('options');
@@ -4440,7 +5496,7 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
         promptEl.innerHTML =
           '<div class="mn-prompt-hdr"><span>' + classification.label + '</span></div>' +
           '<div class="mn-prompt-body" style="font-weight:600;color:#111827;margin:6px 0 8px 0;font-size:13px;">' +
-            '📌 Title: ' + esc(msgTitle) +
+          '📌 Title: ' + esc(msgTitle) +
           '</div>' +
           '<div class="mn-prompt-acts" style="margin-top:8px">' +
           '<button class="mn-prompt-btn mn-prompt-accept" title="Accept memory">Accept</button>' +
@@ -4603,11 +5659,11 @@ ins.mn-diff-ins { color: #065F46; text-decoration: none; background: #D1FAE5; pa
             if (onToken) onToken(msg.token, msg.textSoFar);
           } else if (msg.type === 'COMPLETE') {
             if (onComplete) onComplete(msg.text, msg.metrics);
-            try { port.disconnect(); } catch (_) {}
+            try { port.disconnect(); } catch (_) { }
           } else if (msg.type === 'ERROR') {
             console.error('[Memo.io LLM Error]:', msg.error);
             if (onError) onError(new Error(msg.error));
-            try { port.disconnect(); } catch (_) {}
+            try { port.disconnect(); } catch (_) { }
           }
         });
 
